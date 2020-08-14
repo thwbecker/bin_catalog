@@ -1,0 +1,246 @@
+#!/bin/bash
+rcode=${1-0}			# 0: world 57: Tibet 19: Indonesia 6: Japan 2: SAM 97: Andes 98: Japan - 3 9: new zealand 99: Alaska
+dmax=${2-50}			# maximum depth
+plot_stress=${3-0}		# 1: plot Michael stress, 0: plot kostrov -1: plot strain-rates from GSRM
+add_rlabel=${4-0}		# add a datestamp and email
+gps_file=${5-0}		# add background velocities
+use_tgradient=${6-1}		# 1: topo grad 0: topo -1: pscoast
+
+#
+# make a  Kostrov summation
+#
+
+#
+# select region and projection parameters
+#
+region_parameters $rcode 8 > tmp.$$
+read w e s n < tmp.$$; rm tmp.$$
+reg=-R$w/$e/$s/$n
+
+
+pb_col=darkgreen
+
+# defaults
+preg=$reg
+cmt_size=0.12
+kinc=`region_parameters $rcode  5`
+proj=`region_parameters $rcode 4`
+ann=`region_parameters $rcode 6`
+
+if [ $rcode -eq 0 ];then
+    proj=-JN130/12
+    kinc=3.5
+    ann=-Bg60
+elif [ $rcode -eq 97 ];then
+    proj=-JH`echo $reg | gawk -f reg2midlon.awk`/13
+    kinc=1
+    ann=-Ba10f2WesN
+    cmt_size=0.5
+elif [ $rcode -eq 6 ];then
+    proj=-JH`echo $reg | gawk -f reg2midlon.awk`/13
+    kinc=0.5
+    ann=-Ba5f1WesN
+    cmt_size=0.2
+elif [ $rcode -eq 19 ];then
+    proj=-JH`echo $reg | gawk -f reg2midlon.awk`/13
+    kinc=1
+    ann=-Ba5f1WesN
+    cmt_size=0.2
+elif [ $rcode -eq 57 ];then
+    proj=-JH`echo $reg | gawk -f reg2midlon.awk`/13
+    kinc=1
+    ann=-Ba5f1WesN
+    cmt_size=0.2
+elif [ $rcode -eq 98 ];then
+    proj=-JM7
+    kinc=1
+    ann=-Ba10f1WesN
+    cmt_size=0.2
+elif [ $rcode -eq 99 ];then
+    proj=-JS`echo $preg | gawk -f reg2midlon.awk`/90/90/7
+    kinc=1
+    ann=-Ba10f1g1WesN
+    cmt_size=0.2
+elif [ $rcode -eq 9 ];then
+    cmt_size=0.2
+fi
+name=`region_parameters $rcode 7`
+
+kincy=$kinc
+if [ $rcode -eq 99 ];then
+    ((kincx=kinc*2))
+    ann="-Ba10f1g"$kincx"/a10f1g"$kincy"WesN"
+else
+    kincx=$kinc
+fi
+
+ktype=scaled
+#ktype=norm
+
+
+echo $reg $preg $name $proj dx $kincx dy $kincy
+
+if [ ! -s kostrov.$kincx.$kincy.$name.0.norm.dat ];then
+
+    #
+    # do the summation
+    # 
+    bin_catalog all.momt $kincx 0 10 0 $w $e $s $n $dmax 0 0 -11 0 kostrov $kincy
+    for t in norm scaled;do
+	mv kostrov.$kincx.$kincy.0.$t.dat kostrov.$kincx.$kincy.$name.0.$t.dat 
+    done
+    mv kostrov.$kincx.$kincy.s.dat kostrov.$kincx.$kincy.$name.s.dat 
+else
+    echo $0: WARNING: reusing old files kostrov.$kincx.$kincy.$name.0.norm.dat and similar
+fi
+
+
+if [ $plot_stress -eq 1 ];then
+    ofile_start=kmom.$name.stress
+elif [ $plot_stress -eq 0 ];then
+    ofile_start=kmom.$name
+elif [ $plot_stress -eq -1 ];then
+    ofile_start=gsrm.$name
+else
+    echo $0: error $plot_stress
+    exit
+fi
+
+
+spc=0.25
+#makecpt -D -T-.4/.4/0.04 -Cseis > def.cpt
+#makecpt -D -T-.5/.5/0.05 -I -Crainbow > def.cpt
+makecpt -D -T-.4/.4/0.04 -I -Ctemperature > def.cpt
+#makecpt -T-.4/.4/0.04 -Chaxby > def.cpt
+
+    
+ofile=$ofile_start.ps
+
+if [ $rcode -eq 0 ];then
+    tfile=$datadir/etopo1/etopo1.bed.0.125.grd
+else
+    tfile=$datadir/etopo1/ETOPO1_Bed_g_gmt4.grd
+fi
+
+
+if [ $rcode -eq 0 ];then
+    makecpt -T-7000/2000/500 -Cgray > tmp.cpt
+    topo_grid=$tfile
+else
+    grdcut -fg $reg $tfile -Gtmp.topo.grd
+    topo_grid=tmp.topo.grd
+    grd2cpt   -Cgray $topo_grid > tmp.cpt
+fi
+#grd2cpt -E21  $tfile -Cgray > tmp.cpt
+#grd2cpt  -E21 -Cocean $tfile > tmp.cpt
+
+if [ $use_tgradient -eq 1 ];then
+    grdgradient -Nt -A30 $topo_grid -Gtmp.grd
+    grdimage $preg $proj  $topo_grid -Ctmp.cpt -Itmp.grd  -P -K > $ofile
+elif [ $use_tgradient -eq 0 ];then
+    grdimage $preg $proj  $topo_grid -Ctmp.cpt  -P -K > $ofile
+else
+    pscoast $preg $proj -Df -A5000 -S127 -W0.5  -P -K > $ofile
+
+fi
+if [[ $rcode -eq 19 || $rcode -eq 6 || $rcode = 9 ]];then
+    pscoast $preg $proj -Df -A5000  -W1  -O -K >> $ofile
+fi
+if [ -s $gps_file ];then
+    echo $0: plotting $gps_file
+    gpsscale=.02
+    gps_vec="-L0.5  -A0.04/0.1/0.05"
+    psvelo $preg $proj $gps_file -O -K -Se$gpsscale/-1/0   \
+	   $gps_vec -W0.5,white >> $ofile
+    echo 70 17 50 0 0 0 0 "5 cm/yr" | \
+	psvelo $preg $proj -N -O -K -Se$gpsscale/-1/20   \
+	       $gps_vec  >> $ofile
+ 
+fi
+
+if [ $plot_stress -eq 1 ];then
+    kfile=kostrov.$kincx.$kincy.$name.s.dat
+    label="@~s@~@-h@-"
+    lname="Michael (1984) stress"
+elif [ $plot_stress -eq 0 ];then
+    kfile=kostrov.$kincx.$kincy.$name.0.$ktype.dat
+    label="@~e@~@-h@-"
+    lname=Kostrov
+elif [ $plot_stress -eq -1 ];then
+    kfile=tmp.kos
+    #
+    # lon lat exx eyy exy format
+    # convert to:
+    # err ert erp ett etp epp lon lat N dev 
+    #gawk '{s=1e2;err=-($3+$4);print(err*s,0,0,$4*s,-$5*s,$3*s,$1,$2,"NaN","NaN")}' \
+	#$datadir/gsrm/kreemer_new/strain.1.dat > tmp.kos
+
+    gawk '{s=1e2;err=-($3+$4);print(err*s,0,0,$4*s,-$5*s,$3*s,$1,$2,"NaN","NaN")}' \
+	 $datadir/gsrm/kreemer_new/gps/strain.GPS_ITRF08.dat > tmp.kos
+    
+
+    
+    label="d@-t@-@~e@~@-h@-"
+    lname="GSRM"
+fi
+    
+psxy $datadir/plate_boundaries/bird_PB2002/PB2002_tdiddy.gmt  -m  \
+     $preg  $proj  -O -K   -W6,$pb_col  >> $ofile
+if [ ! -s $kfile ];then
+    echo $0: $kfile not found
+    exit
+fi
+gawk '{print($1,$4,$6,$2,$3,$5)}' $kfile | \
+    gawk -f normrow.awk > tmp.norm
+minmax tmp.norm
+
+if [ $plot_stress -eq 1 ];then
+    gawk '{print($1,$2,$3,$4,$5,$6)}' $kfile | gawk -f tensornorm.awk  > tmp.norm # almost unity
+    # scale stress by 1/uncertainty
+    
+    paste $kfile tmp.norm | sort -n +15 | \
+	gawk '{s=sqrt(0.2/(1e-3+$16));print($7,$8,($4+$6)/2/$17,$1*s,$4*s,$6*s,$2*s,$3*s,$5*s,22,$7,$8)}' > tmp.dat
+    
+    mypsmeca tmp.dat -Q $preg $proj  -L0.5 -W0.5 -D-1e5/1e5  -Zdef.cpt \
+	 -Sm`echo $cmt_size`/-1 $preg $proj -O -K  >> $ofile
+else
+    if [ $ktype = scaled ];then
+	paste $kfile tmp.norm | \
+	    gawk '{print(($4+$6)/2/$11)}' | minmax
+	paste $kfile tmp.norm | \
+	    gawk '{print($7,$8,($4+$6)/2/$11,  $1,$4,$6,$2,$3,$5,   22,$7,$8)}'  > tmp.dat
+    else
+	paste $kfile tmp.norm | \
+	    gawk '{print(($4+$6)/2/$12)}' | minmax
+	paste $kfile tmp.norm | \
+	    gawk '{print($7,$8,($4+$6)/2/$12,  $1,$4,$6,$2,$3,$5,   22,$7,$8)}'  > tmp.dat
+    fi
+    minmax tmp.dat
+    psmeca tmp.dat $preg $proj  -L0.5 -W0.5 -D-1e5/1e5  -Zdef.cpt \
+	   -Sm`echo $cmt_size`/-1 $preg $proj -O -K  >> $ofile
+fi
+
+#psxy $datadir/plate_boundaries/bird_PB2002/PB2002_tdiddy.gmt  -m  \
+#     $preg  $proj  -O -K   -W4,$pb_col  >> $ofile
+
+if [ $add_rlabel -eq 1 ];then
+    psscale -D8.5/-0.1/3/.15h  -E -Cdef.cpt  -Ba$spc/:"$label":  -O -K  >> $ofile
+    psbasemap $preg $proj $ann \
+	      -UBL/0/-0.2/"globalcmt.org catalog, z < $dmax km, $kincx@+o@+ by $kincy@+o@+ $lname, twb@@ig.utexas.edu" -O >> $ofile
+
+else
+    psscale -D6.5/-0.1/3/.15h  -E -Cdef.cpt  -Ba$spc/:"$label":  -O -K >> $ofile
+    psbasemap $preg $proj $ann -O >> $ofile
+
+fi
+modifybb $ofile
+
+
+
+/usr/bin/convert -density 150 -background white -flatten -trim +repage $ofile_start.ps $ofile_start.png
+
+
+epstopdf $ofile
+
+rm $ofile tmp*
+
