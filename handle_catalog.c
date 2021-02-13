@@ -764,6 +764,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
   int i,k,m;
   char outname1[300];
   struct kostrov_sum *kostrov;
+  BC_CPREC t1[6],t2[6],dt[6];
   if(!catalog->sum->init){
     fprintf(stderr,"print_stress_tensor: sum not initialized\n");
     exit(-1);
@@ -786,6 +787,36 @@ void print_stress_tensors(struct cat *catalog, char *filename)
   fclose(out1);
   fprintf(stderr,"print_stress_tensors: written stress tensors from Michael inversion to %s, %i out of %i cells filled\n",
 	  outname1,m,kostrov->nxny);
+
+  /* difference with normalized strain */
+  sprintf(outname1,"%s.smn.dat",filename);
+  out1 = myopen(outname1,"w","print_kostrov_bins");
+  for(m=i=0;i < kostrov->nxny;i++)
+    if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){
+      m++;
+      for(k=0;k < 6;k++){	
+	t1[k] = kostrov->bin[i].s[k];/* stress tensor */
+	t2[k] = kostrov->bin[i].mn[k]; /* normalized strain */
+      }
+      normalize_tens6(t1);normalize_tens6(t2);
+      for(k=0;k < 6;k++){	/* difference tensor */
+	dt[k] = t1[k] - t2[k];
+      }
+      remove_trace(dt);
+      for(k=0;k < 6;k++){	/* difference tensor */
+	fprintf(out1,"%8.4f ",dt[k]);
+      }
+      fprintf(out1,"\t%8.3f %8.3f %12i",kostrov_blon(i,kostrov),kostrov_blat(i,kostrov),kostrov->bin[i].n);
+      for(k=0;k < 6;k++)	/* stress tensor uncertainty */
+	fprintf(out1,"%8.4f ",kostrov->bin[i].ds[k]);
+      /* sigma norm */
+      fprintf(out1,"\t%8.4f\n",tensor6_norm(dt));
+    }
+  fclose(out1);
+  fprintf(stderr,"print_stress_tensors: written stress tensors minus normalized to %s\n",outname1);
+
+
+  
 }
 
 
@@ -1584,13 +1615,13 @@ moment conversions
  from magnitude to moment 
 */
 BC_CPREC mag2mom(BC_CPREC mag)
-{
-  return pow(10.0,3./2.*mag + 9.1); /* M0 in Nm */
+{				     /* Hanks and Kanamori (1979) */
+  return pow(10.0,3./2.*mag + 9.05); /* M0 in Nm */
 }
 BC_CPREC mom2mag(BC_CPREC mom)
 {
   //return (2/3)*(log10(mom) - 16.1); /* in dyn cm */
-  return ((2./3.)*(log10(mom) - 9.1)); /* in Nm */
+  return ((2./3.)*(log10(mom) - 9.05)); /* in Nm */
 }
 
 BC_CPREC mag2pot(BC_CPREC mag)
