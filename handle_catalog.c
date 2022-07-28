@@ -1170,7 +1170,8 @@ int read_quake_aki(FILE *in, struct qke *quake)
 	    &(quake->lon),&(quake->lat),&(quake->depth),
 	    &(quake->strike),&(quake->dip),&(quake->rake),
 	    &(quake->mag),&tmp1,&tmp2,&quake->tsec)==10){
-
+    if(quake->lon <0)
+      quake->lon += 360;
     /* get the other plane */
     find_alt_plane(quake->strike, quake->dip, quake->rake,
 		   &(quake->strike2), &(quake->dip2), &(quake->rake2));
@@ -1192,7 +1193,7 @@ int read_quake_aki(FILE *in, struct qke *quake)
 
    modified mdat format where eevnt id is replaced by time_sec_since_epoch
 
-   X, Y, depth, mrr, mtt, mff, mrt, mrf, mtf, exp[dyn cm], newX, newY, time
+   X, Y, depth, mrr, mtt, mff, mrt, mrf, mtf, exp[dyn cm], newX, newY, tsec_unix
 
    also compute best fit nodal planes
 
@@ -1206,6 +1207,8 @@ int read_quake_cmt(FILE *in, struct qke *quake)
 	    (quake->m+BC_RT),(quake->m+BC_RP),(quake->m+BC_TP),
 	    &(quake->exp),&(quake->plon),&(quake->plat),
 	    &quake->tsec) == 13){
+    if(quake->lon <0)
+      quake->lon += 360;
     quake->exp -= 7;		/* convert to Nm */
     rlat = BC_DEG2RAD(quake->lat);
     quake->coslat = cos((double)rlat);
@@ -1223,13 +1226,15 @@ int read_quake_cmt(FILE *in, struct qke *quake)
     return 0;
   }
 }
-/* lon lat depth mw tmie */
+/* FORMAT: lon lat depth mw tsec_unix */
 int read_quake_eng(FILE *in, struct qke *quake)
 {
   BC_CPREC rlat;
   if(fscanf(in,"%lf %lf %lf %lf %lf\n",
 	    &(quake->lon),&(quake->lat),&(quake->depth),
 	    &(quake->mag),&quake->tsec) == 5){
+    if(quake->lon <0)
+      quake->lon += 360;
     rlat = BC_DEG2RAD(quake->lat);
     quake->coslat = cos((double)rlat);
     quake->m0 = mag2mom(quake->mag);

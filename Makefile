@@ -8,7 +8,7 @@ BDIR = bin/
 ODIR = objects/
 
 # GMT 4.5.18 meca objects
-GMT = $(GMTHOME)/
+GMT = $(GMT4HOME)/
 GMT_INC = -I$(GMT)/include/ -I$(GMT)/src/meca/
 GMT_LIBS = -L$(GMT)/lib/ -L$(NETCDFDIR)/lib/ -lpsl -lgmt -lnetcdf 
 
