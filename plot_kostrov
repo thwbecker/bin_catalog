@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# plot Kostrov summation or stress inversion using bin_catalog
+# thwbecker@post.harvard.edu
+#
 rcode=${1-0}			# 0: world 57: Tibet 19: Indonesia 6: Japan 2: SAM 97: Andes 98: Japan - 3 9: new zealand 99: Alaska 59: Anatolia 52: Banda small 27: Afar
 dmax=${2-50}			# maximum depth
 plot_stress=${3-0}		# 1: plot Michael stress, 0: plot kostrov -1: plot strain-rates from GSRM 2: plot all CMTs
@@ -11,9 +15,18 @@ add_boundary=${9-0}
 add_profile=${10-""}		# add a profile and 
 mom_file=${11-all.momt}		# actual data file
 is_aki=${12-0}
+use_scaled=${13-1}		# scaled or normalized Kostrov
 #
 # make a  Kostrov summation
 #
+if [ `echo $mom_file | gawk '{if(match($1,"all.momt"))print(1);else print(0)}'` -eq 1 ];then
+    read cmt_date < $datadir/cmt/last_month_cmt.dat
+    is_gcmt=1
+    cat_string="globalcmt.org as of $cmt_date"
+else
+    cat_string=`echo $mom_file | gawk '{gsub(".aki","");printf("%s",$1)}'`
+    is_gcmt=0
+fi
 
 #
 # select region and projection parameters
@@ -103,13 +116,13 @@ elif [ $rcode -eq 100 ];then
     ann=-Ba1f.1WesN
     cmt_size=0.25
 elif [ $rcode -eq 9 ];then
-    cmt_size=0.3
+    cmt_size=0.275
     kinc=0.5
     #proj=-JM10
     proj=-JOa171/-43/40/13
     ann=-Ba3f1g5WesN
     preg=-R-7/11/-4/4.5
-    w=160;e=220;s=-55;n=-30
+    w=159;e=220;s=-55;n=-30
     greg=-R$w/$e/$s/$n
     reg=$greg			# for binning
 elif [ $rcode -eq 103 ];then
@@ -129,8 +142,11 @@ else
     kincx=$kinc
 fi
 
-ktype=scaled
-#ktype=norm
+if [ $use_scaled -eq 1 ];then
+    ktype=scaled
+else
+    ktype=norm
+fi
 
 
 echo $reg $preg $name $proj dx $kincx dy $kincy
@@ -162,7 +178,9 @@ else
     echo $0: error $plot_stress
     exit
 fi
-
+if [ $is_gcmt = 0 ];then
+    ofile_start=$ofile_start.$cat_string
+fi
 
 spc=0.25
 #makecpt -D -T-.4/.4/0.04 -Cseis > def.cpt
@@ -265,7 +283,11 @@ if [ $plot_stress -eq 1 ];then
 elif [[ $plot_stress -eq 0 || $plot_stress = 2 ]];then
     kfile=kostrov.$kincx.$kincy.$name.0.$ktype.dat
     label="@~e@~@-h@-"
-    lname=Kostrov
+    if [ $use_scaled -eq 1 ];then
+	lname="Kostrov, scaled"
+    else
+	lname="Kostrov, normalized"
+    fi
 elif [ $plot_stress -eq -1 ];then
     kfile=tmp.kos
     #
@@ -350,14 +372,8 @@ if [ $add_rlabel -eq 1 ];then
     psscale -Dx7.5/-0.1/3/.15h  -E -Cdef.cpt  -Ba$spc/:"$label":  -O -K  >> $ofile
     #psscale -Dx12/-0.1/2/.15h  -E -Ctmp.cpt  -Ba2000/:"topography [m]":  -O -K  >> $ofile
 
-    if [ $mom_file = all.momt ];then
-	read cmt_date < $datadir/cmt/last_month_cmt.dat
-	cat_string="globalcmt.org catalog as of $cmt_date"
-    else
-	cat_string=`echo $mom_file | gawk '{gsub(".aki","");printf("%s catalog",$1)}'`
-    fi
     psbasemap $preg $proj $ann \
-	      -U"$cat_string, z < $dmax km, $kincx@+o@+ by $kincy@+o@+ $lname, twb@@ig.utexas.edu"+o0/-0.2 -O >> $ofile
+	      -U"$cat_string, z < $dmax km, $kincx@+o@+ by $kincy@+o@+ $lname"+o0/-0.2 -O >> $ofile
 
 else
     if [ $use_grayscale -eq 0 ];then
