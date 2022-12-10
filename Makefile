@@ -7,12 +7,12 @@
 BDIR = bin/
 ODIR = objects/
 
-# GMT 4.5.18 meca objects
-GMT = $(GMT4HOME)/
-GMT_INC = -I$(GMT)/include/ -I$(GMT)/src/meca/
-GMT_LIBS = -L$(GMT)/lib/ -L$(NETCDFDIR)/lib/ -lpsl -lgmt -lnetcdf 
+# GMT 4.5.18 meca objects - used to be linked, now included
+#GMT = $(GMT4HOME)/
+#GMT_INC = -I$(GMT)/include/ -I$(GMT)/src/meca/
+#GMT_LIBS = -L$(GMT)/lib/ -L$(NETCDFDIR)/lib/ -lpsl -lgmt -lnetcdf 
 
-MECA_OBJS = $(GMT)/src/meca/utilmeca.o
+#MECA_OBJS =  $(GMT)/src/meca/utilmeca.o
 
 CAT_OBJS = $(ODIR)/handle_catalog.o  $(ODIR)/handle_catalog_gmt.o $(ODIR)/michael_leasq.o $(MECA_OBJS)
 

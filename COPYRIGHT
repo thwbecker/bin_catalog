@@ -11,6 +11,9 @@
 #    Includes code from Andy Michael as per Michael (1984,1985)                #
 #    You are required to cite his papers and comply with his licensing.        #
 #                                                                              #
+#    Includes routines from GMT 4.5.18 and its psmeca util routine.            #
+#    You are required to cite their papers and comply with their licensing.    #
+#                                                                              #
 #    For the original parts of this code, the following license applies:       #
 #                                                                              #
 #    This program is free software; you can redistribute it and/or modify      #

@@ -35,7 +35,47 @@
 
 #define BC_RGEN ran2
 
+/* from GMT 4.5.18 */
+#ifndef TWO_PI
+#define TWO_PI        6.28318530717958647692
+#endif
+#ifndef M_PI
+#define M_PI          3.14159265358979323846
+#endif
+#ifndef BC_D2R
+#define BC_D2R (M_PI / 180.0)
+#endif
+#ifndef BC_R2D
+#define BC_R2D (180.0 / M_PI)
+#endif
+#define sincosd(x,s,c) sincos((x) * BC_D2R,s,c)
+#define atan2d(y,x) (atan2(y,x) * BC_R2D)
+#define d_atan2d(y,x) ((x) == 0.0 && (y) == 0.0 ? 0.0 : atan2d(y,x))
+/* from meca */
+#define BC_EPSIL 0.0001
 
+
+/* from GMT 4.5.18 */
+struct AXIS {
+    double str;
+    double dip;
+    double val;
+    long int e;
+};
+struct M_TENSOR {
+    long int expo;
+    double f[6];
+};
+struct nodal_plane {
+    double str;
+    double dip;
+    double rake;
+}; 
+
+
+/* 
+
+ */
 #define BC_NQUAKE_LIM_FOR_STRESS 2	/* min number of entries  */
 #define BC_MICHAEL_NMC 5000	/* monte carlo for michael inversion, 2000 good number for 95% confidence? */
 //#define USE_POT
@@ -181,4 +221,13 @@ void michael_leasq(BC_CPREC *,int ,int ,BC_CPREC *,BC_CPREC *,BC_CPREC *,BC_CPRE
 void michael_solve_lsq(int ,int , int , BC_CPREC *, BC_CPREC *, BC_CPREC *,BC_CPREC *);
 
 
-/*  */
+/* GMT 4.5.18 and psmeca routine */
+/* for fault planes */
+
+
+double computed_rake2(double ,double ,double ,double ,double );
+int GMT_jacobi (double *, int *, int *, double *, double *, double *, double *,  int *);
+
+/* from meca stuff */
+void GMT_momten2axe(struct M_TENSOR ,struct AXIS *,struct AXIS *,struct AXIS *);
+void axe2dc(struct AXIS ,struct AXIS ,struct nodal_plane *,struct nodal_plane *);
