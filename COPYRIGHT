@@ -1,17 +1,15 @@
 ################################################################################
 #                                                                              #
-#    shana, shsyn, and assorted species: spherical harmonic analysis and       #
-#                                        synthesis                             #
-#                                                                              #
-#    Copyright (C) 1999 - 2013  Thorsten W. Becker                             #
-#                               twb@usc.edu                                    #
+#    bin_catalog: simple event summing routines                                #
+#    Copyright (C) 2020 - 2022 Thorsten W. Becker                              #
+#                              thwbecker@post.harvard.edu                      #
 #                                                                              #
 #    Might include Numerical Recipes (NR) based routines whose                 #
 #    copyright is held by the NR authors. If NR routines are included,         #
 #    you are required to comply with the licensing set forth there.            #
 #                                                                              #
-#    Part of the program relies on the Generic Mapping Tools and/or netcdf     #
-#    I/O routines, the package might also include other copyrighted material.  #
+#    Includes code from Andy Michael as per Michael (1984,1985)                #
+#    You are required to cite his papers and comply with his licensing.        #
 #                                                                              #
 #    For the original parts of this code, the following license applies:       #
 #                                                                              #
