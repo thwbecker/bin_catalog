@@ -3,6 +3,9 @@
 # plot Kostrov summation or stress inversion using bin_catalog
 # thwbecker@post.harvard.edu
 #
+# this uses GMT6 syntax but assumes psxy --> gmt psxy type links have been set (see GMT documentation)
+#
+#
 rcode=${1-0}			# 0: world 57: Tibet 19: Indonesia 6: Japan 2: SAM 97: Andes 98: Japan - 3 9: new zealand 99: Alaska 59: Anatolia 52: Banda small 27: Afar
 dmax=${2-50}			# maximum depth
 plot_stress=${3-0}		# 1: plot Michael stress, 0: plot kostrov -1: plot strain-rates from GSRM 2: plot all CMTs
@@ -48,6 +51,9 @@ pb_w=1
 preg=$reg
 greg=$reg
 cmt_size=0.12
+#
+# automatically determine geographic parameters from region codes
+#
 kinc=`region_parameters $rcode  5`
 proj=`region_parameters $rcode 4`
 ann=`region_parameters $rcode 6`
@@ -199,6 +205,10 @@ makecpt -D -T-.4/.4/0.04  -Croma > def.cpt
     
 ofile=$ofile_start.ps
 
+#
+# topo files
+#
+
 if [ $rcode -eq 0 ];then
     tfile=$datadir/etopo1/etopo1.bed.0.125.grd
 else
@@ -209,34 +219,44 @@ else
     fi
 fi
 
-
-if [ $rcode -eq 0 ];then
-    #makecpt -T-7000/2000/500 -Cgray > $tmpn.cpt
-    makecpt -T-7000/7000/500 -Coleron > $tmpn.cpt
-    topo_grid=$tfile
-else
-    if [ $use_tgradient -ne -1 ];then
-	echo $0: using $tfile
-	grdcut -fg $greg $tfile -G$tmpn.topo.grd
-	topo_grid=$tmpn.topo.grd
-	if [ $use_grayscale -eq 1 ];then
-	    grd2cpt   -CgrayC -I $topo_grid > $tmpn.cpt
-	    #grd2cpt  -E51 -Coleron+h0 $topo_grid > $tmpn.cpt
-	else
-	    makecpt -T-7000/7000/500 -Coleron > $tmpn.cpt
+if [ -s $tfile ];then
+    
+    if [ $rcode -eq 0 ];then
+	#makecpt -T-7000/2000/500 -Cgray > $tmpn.cpt
+	makecpt -T-7000/7000/500 -Coleron > $tmpn.cpt
+	topo_grid=$tfile
+    else
+	if [ $use_tgradient -ne -1 ];then
+	    echo $0: using $tfile
+	    grdcut -fg $greg $tfile -G$tmpn.topo.grd
+	    topo_grid=$tmpn.topo.grd
+	    if [ $use_grayscale -eq 1 ];then
+		grd2cpt   -CgrayC -I $topo_grid > $tmpn.cpt
+		#grd2cpt  -E51 -Coleron+h0 $topo_grid > $tmpn.cpt
+	    else
+		makecpt -T-7000/7000/500 -Coleron > $tmpn.cpt
+	    fi
 	fi
     fi
+    have_topo=1
+else
+    echo $0: topo file $tfile not found
+    have_topo=0
 fi
 #showcpt tmp 1000 "topo"; gv t.eps ; exit
 
 #grd2cpt -E21  $tfile -Cgray > $tmpn.cpt
 #grd2cpt  -E21 -Cocean $tfile > $tmpn.cpt
 
-if [ $use_tgradient -eq 1 ];then
-    grdgradient -Nt -A30 $topo_grid -G$tmpn.grd
-    grdimage $preg $proj  $topo_grid -C$tmpn.cpt -I$tmpn.grd  -P -K > $ofile
-elif [ $use_tgradient -eq 0 ];then
-    grdimage $preg $proj  $topo_grid -C$tmpn.cpt  -P -K > $ofile
+if [ $have_topo -eq 1 ];then
+    if [ $use_tgradient -eq 1 ];then
+	grdgradient -Nt -A30 $topo_grid -G$tmpn.grd
+	grdimage $preg $proj  $topo_grid -C$tmpn.cpt -I$tmpn.grd  -P -K > $ofile
+    elif [ $use_tgradient -eq 0 ];then
+	grdimage $preg $proj  $topo_grid -C$tmpn.cpt  -P -K > $ofile
+    else
+	pscoast $preg $proj -Dh -A5000 -S127 -G200 -W0.25  -P -K > $ofile
+    fi
 else
     pscoast $preg $proj -Dh -A5000 -S127 -G200 -W0.25  -P -K > $ofile
 fi
