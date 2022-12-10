@@ -14,8 +14,13 @@ use_grayscale=${8-0}
 add_boundary=${9-0}
 add_profile=${10-""}		# add a profile and 
 mom_file=${11-all.momt}		# actual data file
-is_aki=${12-0}
+is_aki=${12-0}			# aki format, or cmt?
 use_scaled=${13-1}		# scaled or normalized Kostrov
+add_slab_cont=${14-0}		# add slab contours?
+add_pm=${15-0}			# add plate motions?
+tmpn=`mktemp`
+trap "rm -f $tmpn*" EXIT
+
 #
 # make a  Kostrov summation
 #
@@ -31,15 +36,15 @@ fi
 #
 # select region and projection parameters
 #
-region_parameters $rcode 8 > tmp.$$
-read w e s n < tmp.$$; rm tmp.$$
+region_parameters $rcode 8 > $tmpn.$$
+read w e s n < $tmpn.$$; rm $tmpn.$$
 reg=-R$w/$e/$s/$n
 
 
 pb_col=darkorange
 pb_w=1
 
-# defaults
+# defaults, will be overridden below
 preg=$reg
 greg=$reg
 cmt_size=0.12
@@ -47,20 +52,20 @@ kinc=`region_parameters $rcode  5`
 proj=`region_parameters $rcode 4`
 ann=`region_parameters $rcode 6`
 add_faults=xxx
-
+zslab_max=700
 add_jap_le=0			# large, recent events for japan
 
 if [ $rcode -eq 0 ];then
-    proj=-JN130/12
+    proj=-JN130/13
     kinc=3.5
     ann=-Bg60
     cmt_size=0.14
 elif [ $rcode -eq 27 ];then
     ann=-Ba5f.5WesN
-    proj=-JM12
+    proj=-JM13
     cmt_size=0.14
-    #    kinc=0.5
-    kinc=1
+    kinc=0.5
+    #kinc=1
     cmt_size=0.2
 elif [ $rcode -eq 97 ];then
     #proj=-JH`echo $reg | gawk -f reg2midlon.awk`/13
@@ -120,11 +125,13 @@ elif [ $rcode -eq 9 ];then
     kinc=0.5
     #proj=-JM10
     proj=-JOa171/-43/40/13
-    ann=-Ba3f1g5WesN
+    ann="-Ba3f1g10WesN -Tdg170/-40+w1i+f+l,,,N"
     preg=-R-7/11/-4/4.5
     w=159;e=220;s=-55;n=-30
     greg=-R$w/$e/$s/$n
     reg=$greg			# for binning
+    pb_w=2
+    zslab_max=350
 elif [ $rcode -eq 103 ];then
     add_jap_le=1
     cmt_size=0.3
@@ -204,30 +211,32 @@ fi
 
 
 if [ $rcode -eq 0 ];then
-    #makecpt -T-7000/2000/500 -Cgray > tmp.cpt
-    makecpt -T-7000/7000/500 -Coleron > tmp.cpt
+    #makecpt -T-7000/2000/500 -Cgray > $tmpn.cpt
+    makecpt -T-7000/7000/500 -Coleron > $tmpn.cpt
     topo_grid=$tfile
 else
-    echo $0: using $tfile
-    grdcut -fg $greg $tfile -Gtmp.topo.grd
-    topo_grid=tmp.topo.grd
-    if [ $use_grayscale -eq 1 ];then
-	grd2cpt   -CgrayC -I $topo_grid > tmp.cpt
-	#grd2cpt  -E51 -Coleron+h0 $topo_grid > tmp.cpt
-    else
-	makecpt -T-7000/7000/500 -Coleron > tmp.cpt
+    if [ $use_tgradient -ne -1 ];then
+	echo $0: using $tfile
+	grdcut -fg $greg $tfile -G$tmpn.topo.grd
+	topo_grid=$tmpn.topo.grd
+	if [ $use_grayscale -eq 1 ];then
+	    grd2cpt   -CgrayC -I $topo_grid > $tmpn.cpt
+	    #grd2cpt  -E51 -Coleron+h0 $topo_grid > $tmpn.cpt
+	else
+	    makecpt -T-7000/7000/500 -Coleron > $tmpn.cpt
+	fi
     fi
 fi
 #showcpt tmp 1000 "topo"; gv t.eps ; exit
 
-#grd2cpt -E21  $tfile -Cgray > tmp.cpt
-#grd2cpt  -E21 -Cocean $tfile > tmp.cpt
+#grd2cpt -E21  $tfile -Cgray > $tmpn.cpt
+#grd2cpt  -E21 -Cocean $tfile > $tmpn.cpt
 
 if [ $use_tgradient -eq 1 ];then
-    grdgradient -Nt -A30 $topo_grid -Gtmp.grd
-    grdimage $preg $proj  $topo_grid -Ctmp.cpt -Itmp.grd  -P -K > $ofile
+    grdgradient -Nt -A30 $topo_grid -G$tmpn.grd
+    grdimage $preg $proj  $topo_grid -C$tmpn.cpt -I$tmpn.grd  -P -K > $ofile
 elif [ $use_tgradient -eq 0 ];then
-    grdimage $preg $proj  $topo_grid -Ctmp.cpt  -P -K > $ofile
+    grdimage $preg $proj  $topo_grid -C$tmpn.cpt  -P -K > $ofile
 else
     pscoast $preg $proj -Dh -A5000 -S127 -G200 -W0.25  -P -K > $ofile
 fi
@@ -236,6 +245,22 @@ if [ $add_fa = 1 ];then
 fi
 #if [[ $rcode -eq 19 || $rcode -eq 6 || $rcode = 9 ]];then
 pscoast $preg $proj -Df -A5000  -W.25  -O -K >> $ofile
+if [ $add_pm -eq  1 ];then
+    pmodel=$datadir/plates/morvel;pm_inc=0.25
+    #rframe=sa
+    rframe=7
+    grdvector $pmodel.vx.$pm_inc.$rframe.grd  $pmodel.vy.$pm_inc.$rframe.grd  $preg $proj -T -O -K \
+	      -S5 -fg  -I2.5 -Q0.1/0.18/0.1n.25 -Ggray >> $ofile
+    
+
+fi
+
+if [ $add_slab_cont -eq 1 ];then
+    makecpt -T0/$zslab_max/25 -Clajolla > $tmpn.z.cpt
+    psxy $preg $proj -fg -m $datadir/slab_contours/slab2/all.40spaced.dcont -W1 \
+	 -C$tmpn.z.cpt -O -K >> $ofile
+    psscale -Dx10.5/-0.1/2/.15h  -Ef -C$tmpn.z.cpt  -Ba100/:"z@-slab@- [km]":  -O -K  >> $ofile
+fi
 #fi
 if [ -s $gps_file ];then
     echo $0: plotting $gps_file
@@ -260,18 +285,18 @@ if [ -s $add_profile.dat ];then
 	    # lon lat vx vy L
 	    gawk '{print($1,$2,$3,$4,$5)}' | sort -g +4 > $add_profile.vel.dat
 
-	gawk '{print($1,$2,$3,1/$5)}' $gps_file | blockmean $preg -Wi -I0.5 -fg > tmp.1
-	gawk '{print($1,$2,$4,1/$6)}' $gps_file | blockmean $preg -Wi -I0.5 -fg > tmp.2
+	gawk '{print($1,$2,$3,1/$5)}' $gps_file | blockmean $preg -Wi -I0.5 -fg > $tmpn.1
+	gawk '{print($1,$2,$4,1/$6)}' $gps_file | blockmean $preg -Wi -I0.5 -fg > $tmpn.2
 	for i in 1 2;do
-	    surface tmp.$i $preg -I0.1 \
+	    surface $tmpn.$i $preg -I0.1 \
 		    `echo $preg | gawk -f reg2aspect.awk` \
-		    -T0 -fg -Gtmp.$i.grd
+		    -T0 -fg -G$tmpn.$i.grd
 	    # lon lat L vel
-	    project -C$plon/$plat -A$pazi -L$pl1/$pl2 -G1 -Q  | grdtrack -fg -Gtmp.$i.grd > tmp.$i.e
+	    project -C$plon/$plat -A$pazi -L$pl1/$pl2 -G1 -Q  | grdtrack -fg -G$tmpn.$i.grd > $tmpn.$i.e
 	done
-	paste tmp.1.e tmp.2.e | head
-	paste tmp.1.e tmp.2.e | gawk '{print($1,$2,$4,$8,$3)}' > $add_profile.svel.dat
-	rm tmp*
+	paste $tmpn.1.e $tmpn.2.e | head
+	paste $tmpn.1.e $tmpn.2.e | gawk '{print($1,$2,$4,$8,$3)}' > $add_profile.svel.dat
+	rm $tmpn.[1-2].e $tmpn.[1-2] $tmpn.[1-2].grd
     fi
 
 fi
@@ -289,16 +314,16 @@ elif [[ $plot_stress -eq 0 || $plot_stress = 2 ]];then
 	lname="Kostrov, normalized"
     fi
 elif [ $plot_stress -eq -1 ];then
-    kfile=tmp.kos
+    kfile=$tmpn.kos
     #
     # lon lat exx eyy exy format
     # convert to:
     # err ert erp ett etp epp lon lat N dev 
     #gawk '{s=1e2;err=-($3+$4);print(err*s,0,0,$4*s,-$5*s,$3*s,$1,$2,"NaN","NaN")}' \
-	#$datadir/gsrm/kreemer_new/strain.1.dat > tmp.kos
+	#$datadir/gsrm/kreemer_new/strain.1.dat > $tmpn.kos
 
     gawk '{s=1e2;err=-($3+$4);print(err*s,0,0,$4*s,-$5*s,$3*s,$1,$2,"NaN","NaN")}' \
-	 $datadir/gsrm/kreemer_new/gps/strain.GPS_ITRF08.dat > tmp.kos
+	 $datadir/gsrm/kreemer_new/gps/strain.GPS_ITRF08.dat > $tmpn.kos
     
 
     
@@ -318,43 +343,43 @@ if [ ! -s $kfile ];then
     exit
 fi
 gawk '{print($1,$4,$6,$2,$3,$5)}' $kfile | \
-    gawk -f normrow.awk > tmp.norm
-minmax tmp.norm
+    gawk -f normrow.awk > $tmpn.norm
+minmax $tmpn.norm
 
 if [ $plot_stress -eq 2 ];then	# all CMTs
     gmtselect $reg -fg all.mdat_mwdt | \
-	gawk -v d=$dmax '{if($3<=d)print($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,substr($13,1,3))}' > tmp.dat
-    gawk '{print($4,$7,$8,$5,$9,$6)}' tmp.dat | gawk -f tensornorm.awk > tmp.norm
-    paste tmp.dat tmp.norm | sort -gr +12 | \
-	gawk '{print($1,$2,($5+$6)/2/$14,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)}' > tmp.plot
-    psmeca tmp.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Cdef.cpt -T0 \
+	gawk -v d=$dmax '{if($3<=d)print($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,substr($13,1,3))}' > $tmpn.dat
+    gawk '{print($4,$7,$8,$5,$9,$6)}' $tmpn.dat | gawk -f tensornorm.awk > $tmpn.norm
+    paste $tmpn.dat $tmpn.norm | sort -gr +12 | \
+	gawk '{print($1,$2,($5+$6)/2/$14,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)}' > $tmpn.plot
+    psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Cdef.cpt -T0 \
 	   -Sm`echo $cmt_size`/-1  -O -K  >> $ofile
-    rm tmp.dat tmp.norm 
+    rm $tmpn.dat $tmpn.norm 
 elif [ $plot_stress -eq 1 ];then
 
-    gawk '{print($1,$2,$3,$4,$5,$6)}' $kfile | gawk -f tensornorm.awk  > tmp.norm # almost unity
+    gawk '{print($1,$2,$3,$4,$5,$6)}' $kfile | gawk -f tensornorm.awk  > $tmpn.norm # almost unity
     #
     # scale stress by 1/uncertainty
     #
-    paste $kfile tmp.norm | sort -n +15 | \
-	gawk '{s=sqrt(0.2/(1e-3+$16));print($7,$8,($4+$6)/2/$17,$1*s,$4*s,$6*s,$2*s,$3*s,$5*s,1,$7,$8)}' > tmp.dat
+    paste $kfile $tmpn.norm | sort -n +15 | \
+	gawk '{s=sqrt(0.2/(1e-3+$16));print($7,$8,($4+$6)/2/$17,$1*s,$4*s,$6*s,$2*s,$3*s,$5*s,1,$7,$8)}' > $tmpn.dat
     
-    psmeca tmp.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Cdef.cpt \
+    psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Cdef.cpt \
 	 -Sm`echo $cmt_size`+f0+l+s10  -O -K  >> $ofile
 else
     if [ $ktype = scaled ];then
-	paste $kfile tmp.norm | \
+	paste $kfile $tmpn.norm | \
 	    gawk '{print(($4+$6)/2/$11)}' | minmax
-	paste $kfile tmp.norm | \
-	    gawk '{print($7,$8,($4+$6)/2/$11,  $1,$4,$6,$2,$3,$5,   22,$7,$8)}'  > tmp.dat
+	paste $kfile $tmpn.norm | \
+	    gawk '{print($7,$8,($4+$6)/2/$11,  $1,$4,$6,$2,$3,$5,   22,$7,$8)}'  > $tmpn.dat
     else
-	paste $kfile tmp.norm | \
+	paste $kfile $tmpn.norm | \
 	    gawk '{print(($4+$6)/2/$12)}' | minmax
-	paste $kfile tmp.norm | \
-	    gawk '{print($7,$8,($4+$6)/2/$12,  $1,$4,$6,$2,$3,$5,   22,$7,$8)}'  > tmp.dat
+	paste $kfile $tmpn.norm | \
+	    gawk '{print($7,$8,($4+$6)/2/$12,  $1,$4,$6,$2,$3,$5,   22,$7,$8)}'  > $tmpn.dat
     fi
-    minmax tmp.dat
-    psmeca tmp.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Cdef.cpt \
+    minmax $tmpn.dat
+    psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Cdef.cpt \
 	   -Sm`echo $cmt_size`/-1  -O -K  >> $ofile
 fi
 
@@ -370,7 +395,7 @@ fi
 
 if [ $add_rlabel -eq 1 ];then
     psscale -Dx7.5/-0.1/3/.15h  -E -Cdef.cpt  -Ba$spc/:"$label":  -O -K  >> $ofile
-    #psscale -Dx12/-0.1/2/.15h  -E -Ctmp.cpt  -Ba2000/:"topography [m]":  -O -K  >> $ofile
+    #psscale -Dx12/-0.1/2/.15h  -E -C$tmpn.cpt  -Ba2000/:"topography [m]":  -O -K  >> $ofile
 
     psbasemap $preg $proj $ann \
 	      -U"$cat_string, z < $dmax km, $kincx@+o@+ by $kincy@+o@+ $lname"+o0/-0.2 -O >> $ofile
@@ -393,5 +418,5 @@ modifybb $ofile
 
 psconvert -Tf $ofile
 
-rm $ofile tmp*
+rm $ofile 
 
