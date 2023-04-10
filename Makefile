@@ -7,6 +7,9 @@
 BDIR = bin/
 ODIR = objects/
 
+# for eigenroutines, my version of NETLIB eispack
+EISLIB = -Leispack/$(ARCH)/ -lmyeis
+
 # GMT 4.5.18 meca objects - used to be linked, now included
 #GMT = $(GMT4HOME)/
 #GMT_INC = -I$(GMT)/include/ -I$(GMT)/src/meca/
@@ -17,19 +20,32 @@ ODIR = objects/
 CAT_OBJS = $(ODIR)/handle_catalog.o  $(ODIR)/handle_catalog_gmt.o $(ODIR)/michael_leasq.o $(MECA_OBJS)
 
 INCLUDES = $(GMT_INC)
-
+#
+# main programs
 PROGS = $(BDIR)/merge_catalog $(BDIR)/bin_catalog $(BDIR)/m02dcfp $(BDIR)/calc_gr $(BDIR)/m02mag
 
-all: dirs progs
+# just needed for Simpson style stress state plotting
+EIGEN_PROGS = $(BDIR)/eigen  $(BDIR)/eigenvalues $(BDIR)/eigen3ds  $(BDIR)/eigenvalues3ds 
+
+all: dirs progs libs eigen_progs
 
 progs:
 	make $(PROGS)
+
+eigen_progs:
+	make $(EIGEN_PROGS)
+
+libs:
+	cd eispack; make ; cd ..
 
 dirs:
 	mkdir -p $(BDIR) $(ODIR)
 
 clean:
 	rm $(ODIR)/*
+
+dist_clean:
+	rm $(BDIR)/*
 
 $(BDIR)/merge_catalog: merge_catalog.c $(CAT_OBJS)
 	$(CC) $(CFLAGS) merge_catalog.c $(INCLUDES)  $(CAT_OBJS) \
@@ -51,6 +67,35 @@ $(BDIR)/calc_gr: calc_gr.c  $(CAT_OBJS)   catalog.h
 	$(CC) $(CFLAGS) calc_gr.c $(INCLUDES)  $(CAT_OBJS)  \
 	-o $(BDIR)/calc_gr    $(GMT_LIBS)  $(LDFLAGS)
 
+$(BDIR)/eigen: $(ODIR)/eigen.main.o $(ODIR)/eigen.o
+	$(CC) $(CFLAGS) $(ODIR)/eigen.main.o $(ODIR)/eigen.o \
+	-o $(BDIR)/eigen $(EISLIB) $(LDFLAGS) 
+
+$(BDIR)/eigenvalues: $(ODIR)/eigen.ov.o $(ODIR)/eigen.o
+	$(CC) $(CFLAGS) $(ODIR)/eigen.ov.o $(ODIR)/eigen.o -o $(BDIR)/eigenvalues \
+	$(EISLIB) $(LDFLAGS) 
+
+$(BDIR)/eigen3ds: $(ODIR)/eigen.tds.o $(ODIR)/eigen.o
+	$(CC) $(CFLAGS) $(ODIR)/eigen.tds.o  $(ODIR)/eigen.o \
+	-o $(BDIR)/eigen3ds $(EISLIB) $(LDFLAGS) 
+
+$(BDIR)/eigenvalues3ds: $(ODIR)/eigen.tds.ov.o $(ODIR)/eigen.o
+	$(CC) $(CFLAGS) $(ODIR)/eigen.tds.ov.o $(ODIR)/eigen.o \
+	-o $(BDIR)/eigenvalues3ds \
+	$(EISLIB) $(LDFLAGS) 
+
+$(ODIR)/eigen.main.o: eigen_driver.c
+	$(CC) $(CFLAGS) -c eigen_driver.c -o $(ODIR)/eigen.main.o 
+
+$(ODIR)/eigen.ov.o: eigen_driver.c
+	$(CC) $(CFLAGS) -c eigen_driver.c -DONLY_VALUES -o $(ODIR)/eigen.ov.o
+
+$(ODIR)/eigen.tds.o: eigen_driver.c
+	$(CC) $(CFLAGS) -c eigen_driver.c -DTHREED_SYMMETRIC -o $(ODIR)/eigen.tds.o
+
+$(ODIR)/eigen.tds.ov.o: eigen_driver.c
+	$(CC) $(CFLAGS) -c eigen_driver.c -DTHREED_SYMMETRIC \
+		-DONLY_VALUES -o $(ODIR)/eigen.tds.ov.o
 
 
 $(ODIR)/%.o: %.c  $(HDR_FLS)
