@@ -8,6 +8,8 @@
 # set architecture flag
 ARCH=$(shell uname -m | awk '{print(tolower($$1))}')
 
+F77 = gfortran
+FFLAGS = -O2
 
 ODIR = $(ARCH)/
 

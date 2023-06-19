@@ -1,11 +1,14 @@
 #CFLAGS = -g
 #FFLAGS = -g
 #F90FLAGS = -g
+FFLAGS = -O2
+CFLAGS = -O2
 
-
-
+LDFLAGS = -lm
 BDIR = bin/
 ODIR = objects/
+
+ARCH=$(shell uname -m | awk '{print(tolower($$1))}')
 
 # for eigenroutines, my version of NETLIB eispack
 EISLIB = -Leispack/$(ARCH)/ -lmyeis
