@@ -6,7 +6,7 @@
 # this uses GMT6 syntax but assumes psxy --> gmt psxy type links have been set (see GMT documentation)
 #
 #
-rcode=${1-0}			# 0: world 57: Tibet 19: Indonesia 6: Japan 2: SAM 97: Andes 98: Japan - 3 9: new zealand 99: Alaska 59: Anatolia 52: Banda small 27: Afar 32: western US -1: world cut for book
+rcode=${1-0}			# 0: world 57: Tibet 19: Indonesia 6: Japan 2: SAM 97/97o: Andes 98: Japan - 3 9: new zealand 99: Alaska 59: Anatolia 52: Banda small 27: Afar 32: western US -1: world cut for book
 dmax=${2-50}			# maximum depth
 plot_stress=${3-0}		# 1: plot Michael stress, 0: plot kostrov -1: plot strain-rates from GSRM 2: plot all CMTs
 add_rlabel=${4-0}		# add a datestamp and email
@@ -22,7 +22,7 @@ use_scaled=${13-1}		# scaled or normalized Kostrov
 add_slab_cont=${14-0}		# add slab contours?
 add_pm=${15-0}			# add plate motions?
 use_simpson=${16-0} 		# 0: plot mean normal strain 1: use Simpson style characterization
-
+overlay_double_couple=${17-1}	# overlay the best fitting double couple style FM with -t30 transparency
 tmpn=`mktemp`
 trap "rm -f $tmpn*" EXIT
 
@@ -41,13 +41,19 @@ fi
 #
 # select region and projection parameters
 #
-if [ $rcode -eq -1 ];then
+if [ $rcode = -1 ];then
     wcut=1
     rcode=0
 else
     wcut=0
 fi
-region_parameters $rcode 8 > $tmpn.$$
+if [[ $rcode = "97o" ]];then
+    rcode_code=97
+else
+    rcode_code=$rcode
+fi
+
+region_parameters $rcode_code 8 > $tmpn.$$
 read w e s n < $tmpn.$$; rm $tmpn.$$
 reg=-R$w/$e/$s/$n
 
@@ -62,10 +68,10 @@ cmt_size=0.12
 #
 # automatically determine geographic parameters from region codes
 #
-kinc=`region_parameters $rcode  5`
-proj=`region_parameters $rcode 4`
-ann=`region_parameters $rcode 6`
-name=`region_parameters $rcode 7`
+kinc=`region_parameters $rcode_code  5`
+proj=`region_parameters $rcode_code 4`
+ann=`region_parameters $rcode_code 6`
+name=`region_parameters $rcode_code 7`
 
 add_faults=xxx
 zslab_max=700
@@ -75,8 +81,12 @@ if [ $add_rlabel -eq 1 ];then
 else
     pscl=-Dx6.5/-0.1/3/.15h
 fi
+# ref frame for plate motions, if used
+rframe=sa
+#rframe=7
+vinc=-I2.5
 
-if [ $rcode -eq 0 ];then
+if [ $rcode = 0 ];then
     if [ $wcut -eq 0 ];then
 	proj=-JN130/13
 	kinc=3.5
@@ -94,39 +104,56 @@ if [ $rcode -eq 0 ];then
 	ann=-Bg90
 	cmt_size=0.08
     fi
-elif [ $rcode -eq 27 ];then
+elif [ $rcode = 27 ];then
     ann=-Ba5f.5WesN
     proj=-JM13
     cmt_size=0.14
     kinc=0.5
     #kinc=1
     cmt_size=0.2
-elif [ $rcode -eq 32 ];then
+elif [ $rcode = 32 ];then
     ann=-Ba2f.2WesN
     proj=-JM13
     cmt_size=0.14
     kinc=0.25
     #kinc=1
     cmt_size=0.2
-elif [ $rcode -eq 97 ];then
+elif [ $rcode = 97 ];then
     #proj=-JH`echo $reg | gawk -f reg2midlon.awk`/13
     proj=-JB`echo $reg | gawk -f reg2midlon.awk`/`echo $reg | gawk -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.66 -f reg2midlat.awk`/13
     kinc=1
     ann=-Ba10f1WesN
     cmt_size=0.5
-elif [ $rcode -eq 6 ];then
+    rframe=44
+    vinc=-I9
+elif [ $rcode = "97o" ];then	# Andes Oblieuqe Merc
+    vinc=-I9
+    preg=-R-40/35/-13/10
+    proj=-JOa-70/-20/166/15
+    name=$name"o"
+    kinc=1
+    ann="-Ba10g20f1WesN -Tdg-55/-45+w1i+f+l,,,N"
+    if [ $use_scaled -eq 1 ];then
+	cmt_size=0.2
+    else
+	cmt_size=0.25
+    fi
+    rframe=44
+    w=-95;e=-40;s=-60;n=50
+    greg=-R$w/$e/$s/$n
+elif [ $rcode = 6 ];then
     proj=-JB`echo $reg | gawk -f reg2midlon.awk`/`echo $reg | gawk -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.66 -f reg2midlat.awk`/13
     #proj=-JH`echo $reg | gawk -f reg2midlon.awk`/13
     kinc=0.5
     ann=-Ba5f.5WesN
     cmt_size=0.2
-elif [ $rcode -eq 19 ];then
+elif [ $rcode = 19 ];then
     #proj=-JB`echo $reg | gawk -f reg2midlon.awk`/`echo $reg | gawk -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.66 -f reg2midlat.awk`/13
     proj=-JM13
     kinc=1
     ann=-Ba5f.5WesN
     cmt_size=0.2
-elif [ $rcode -eq 57 ];then
+elif [ $rcode = 57 ];then
     proj=-JB`echo $reg | gawk -f reg2midlon.awk`/`echo $reg | gawk -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.66 -f reg2midlat.awk`/13
     kinc=1
     if [ $use_grayscale -eq 0 ];then
@@ -135,45 +162,45 @@ elif [ $rcode -eq 57 ];then
 	ann=-Ba5f.5WeSn
     fi
     cmt_size=0.225
-elif [ $rcode -eq 59 ];then
+elif [ $rcode = 59 ];then
     proj=-JB`echo $reg | gawk -f reg2midlon.awk`/`echo $reg | gawk -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.66 -f reg2midlat.awk`/13
     kinc=0.5
     ann=-Ba2f.2WesN
     cmt_size=0.2
     add_faults=$datadir/faults/medfaults_new.gmt
-elif [ $rcode -eq 52 ];then
+elif [ $rcode = 52 ];then
     proj=-JB`echo $reg | gawk -f reg2midlon.awk`/`echo $reg | gawk -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.66 -f reg2midlat.awk`/13
     kinc=0.25
     ann=-Ba2f.2WesN
     cmt_size=0.2
-elif [ $rcode -eq 98 ];then
+elif [ $rcode = 98 ];then
     proj=-JM7
     kinc=1
     ann=-Ba10f1WesN
     cmt_size=0.2
-elif [ $rcode -eq 99 ];then
+elif [ $rcode = 99 ];then
     proj=-JS`echo $preg | gawk -f reg2midlon.awk`/90/90/7
     kinc=1
     ann=-Ba10f1g1WesN
     cmt_size=0.2
-elif [ $rcode -eq 100 ];then
+elif [ $rcode = 100 ];then
     proj=-JH`echo $reg | gawk -f reg2midlon.awk`/13
     kinc=0.25
     ann=-Ba1f.1WesN
     cmt_size=0.25
-elif [ $rcode -eq 9 ];then
+elif [ $rcode = 9 ];then
     cmt_size=0.275
     kinc=0.5
     #proj=-JM10
     proj=-JOa171/-43/40/13
-    ann="-Ba3f1g10WesN -Tdg170/-40+w1i+f+l,,,N"
+    ann="-Ba3f1g10WesN -Tdg-70/-20+w1i+f+l,,,N"
     preg=-R-7/11/-4/4.5
     w=159;e=220;s=-55;n=-30
     greg=-R$w/$e/$s/$n
     reg=$greg			# for binning
     pb_w=2
     zslab_max=350
-elif [ $rcode -eq 103 ];then
+elif [ $rcode = 103 ];then
     add_jap_le=1
     cmt_size=0.3
     kinc=0.5
@@ -183,7 +210,7 @@ fi
 
 
 kincy=$kinc
-if [ $rcode -eq 99 ];then
+if [ $rcode = 99 ];then
     ((kincx=kinc*2))
     ann="-Ba10f1g"$kincx"/a10f1g"$kincy"WesN"
 else
@@ -268,7 +295,7 @@ ofile=$ofile_start.ps
 # topo files
 #
 
-if [ $rcode -eq 0 ];then
+if [ $rcode = 0 ];then
     tfile=$datadir/etopo1/etopo1.bed.0.125.grd
 else
     if [ -s $datadir/srtm15+/srtm15+.nc ];then
@@ -280,7 +307,7 @@ fi
 
 if [ -s $tfile ];then
     
-    if [ $rcode -eq 0 ];then
+    if [ $rcode = 0 ];then
 	#makecpt -T-7000/2000/500 -Cgray > $tmpn.cpt
 	makecpt -T-7000/7000/500 -Coleron > $tmpn.cpt
 	topo_grid=$tfile
@@ -322,14 +349,13 @@ fi
 if [ $add_fa = 1 ];then
     grdcontour $datadir/dyn_topo/gfreeairtopo.grd -fg $preg $proj -C0.1  -O -K >> $ofile
 fi
-#if [[ $rcode -eq 19 || $rcode -eq 6 || $rcode = 9 ]];then
+#if [[ $rcode = 19 || $rcode = 6 || $rcode = 9 ]];then
 pscoast $preg $proj -Df -A5000  -W.25  -O -K >> $ofile
 if [ $add_pm -eq  1 ];then
     pmodel=$datadir/plates/morvel;pm_inc=0.25
-    #rframe=sa
-    rframe=7
-    grdvector $pmodel.vx.$pm_inc.$rframe.grd  $pmodel.vy.$pm_inc.$rframe.grd  $preg $proj -T -O -K \
-	      -S5 -fg  -I2.5 -Q0.1/0.18/0.1n.25 -Ggray >> $ofile
+    grdvector $pmodel.vx.$pm_inc.$rframe.grd  \
+	      $pmodel.vy.$pm_inc.$rframe.grd  $preg $proj -T -O -K \
+	      -S5 -fg  $vinc -Q0.1/0.18/0.1n.25 -Ggray >> $ofile
     
 
 fi
@@ -337,8 +363,16 @@ fi
 if [ $add_slab_cont -eq 1 ];then
     makecpt -T0/$zslab_max/25 -Clajolla > $tmpn.z.cpt
     psxy $preg $proj -fg -m $datadir/slab_contours/slab2/all.40spaced.dcont -W1 \
-	 -C$tmpn.z.cpt -O -K >> $ofile
-    psscale -Dx10.5/-0.1/2/.15h  -Ef -C$tmpn.z.cpt  -Ba100/:"z@-slab@- [km]":  -O -K  >> $ofile
+	 -C$tmpn.z.cpt -O -K -t40 >> $ofile
+    if [ $zslab_max = 700 ];then
+	slab_col_ends=""
+	zslspc=200
+    else
+	slab_col_ends="-Ef"
+	zslspc=100
+    fi
+    psscale -Dx10.5/-0.1/2.5/.15h $slab_col_ends \
+	    -C$tmpn.z.cpt  -B$zslspc/:"z@-slab@- [km]":  -O -K  >> $ofile
 fi
 #fi
 if [ -s $gps_file ];then
@@ -457,19 +491,23 @@ if [ $plot_stress -eq 2 ];then	# all CMTs
     if [ $use_simpson -eq 1 ];then
 	paste $tmpn.dat $tmpn.simpson | sort -gr +12 | \
 	    gawk '{print($1,$2,$14,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)}' > $tmpn.plot
-	psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Csimpson.cpt -T0 \
+	psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Csimpson.cpt  \
 	       -Sm`echo $cmt_size`/-1  -O -K  >> $ofile
 	rm $tmpn.norm
     else
 	gawk '{print($4,$7,$8,$5,$9,$6)}' $tmpn.dat | gawk -f tensornorm.awk > $tmpn.norm
 	paste $tmpn.dat $tmpn.norm | sort -gr +12 | \
 	    gawk '{print($1,$2,($5+$6)/2/$14,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)}' > $tmpn.plot
-	psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cpt -T0 \
+	psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cpt  \
 	       -Sm`echo $cmt_size`/-1  -O -K  >> $ofile
 	rm $tmpn.norm
     fi
+    if [ $overlay_double_couple -eq 1 ];then
+	psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
+	       -t30 -Sd`echo $cmt_size`/-1  -O -K -T0 >> $ofile
+    fi
     rm $tmpn.dat 
-	
+    
 elif [ $plot_stress -eq 1 ];then
     if [ $use_simpson -eq 1 ];then
 	paste $kfile $tmpn.simpson | sort -n +15 | \
@@ -485,6 +523,11 @@ elif [ $plot_stress -eq 1 ];then
     fi
     psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp \
 	 -Sm`echo $cmt_size`+f0+l+s10  -O -K  >> $ofile
+    if [ $overlay_double_couple -eq 1 ];then
+	psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
+	       -t30 -Sd`echo $cmt_size`+f0+l+s10  -O -K -T0 >> $ofile
+    fi
+
 else
     if [ $use_simpson -eq 1 ];then
 	if [ $ktype = scaled ];then
@@ -511,6 +554,10 @@ else
     minmax $tmpn.dat
     psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp \
 	   -Sm`echo $cmt_size`/-1  -O -K  >> $ofile
+    if [ $overlay_double_couple -eq 1 ];then
+	psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
+	       -t30 -Sd`echo $cmt_size`/-1  -O -K -T0 >> $ofile
+    fi
 fi
 
 echo ok3
