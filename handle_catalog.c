@@ -683,7 +683,6 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
 	normalize_tens6(kostrov->bin[ind].mn);
 	for(k=0;k < 6;k++){
 	  //fprintf(stderr,"%g\n",tensor6_norm(kostrov->bin[ind].mn));
-	  /* format is mxx mxy mxz myy myz mzz  */
 	  fprintf(out1,"%20.8e ",kostrov->bin[ind].mn[k]); /* norm,
 							      don't
 							      take out
