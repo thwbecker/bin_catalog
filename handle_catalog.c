@@ -1037,8 +1037,8 @@ int read_catalog(char *filename, struct cat *catalog, int mode)
     }
   }
   catalog->tmin = catalog->tmax = catalog->quake[0].tsec;
-  for(i=1;i < catalog->n;i++){
-    
+  for(i=0;i < catalog->n;i++){
+    //fprintf(stderr,"%g %g %g %g\n",catalog->quake[i].lon,catalog->quake[i].lat,catalog->quake[i].depth, catalog->quake[i].mag);
     catalog->quake[i].lkm = quake_scale_lkm(catalog->quake[i].m0); 
      
     if(catalog->quake[i].tsec > catalog->tmax)

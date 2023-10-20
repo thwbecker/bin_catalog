@@ -8,7 +8,7 @@
 #
 rcode=${1-0}			# 0: world 57: Tibet 19: Indonesia 6: Japan 2: SAM 97/97o: Andes 98: Japan - 3 9: new zealand 99: Alaska 59: Anatolia 52: Banda small 27: Afar 32: western US -1: world cut for book 65: Colombia
 dmax=${2-50}			# maximum depth
-plot_stress=${3-0}		# 1: plot Michael stress, 0: plot kostrov -1: plot strain-rates from GSRM 2: plot all CMTs
+plot_stress=${3-0}		# 1: plot Michael stress, 0: plot kostrov -1: plot strain-rates from GSRM 2: plot all CMTs 3: plot kostrov as strain crosses 4: plot stress as strain crosses
 add_rlabel=${4-0}		# add a datestamp and email
 gps_file=${5-0}		# add background velocities
 use_tgradient=${6-1}		# 1: topo grad 0: topo -1: pscoast
@@ -23,6 +23,7 @@ add_slab_cont=${14-0}		# add slab contours?
 add_pm=${15-0}			# add plate motions?
 use_simpson=${16-0} 		# 0: plot mean normal strain 1: use Simpson style characterization
 overlay_double_couple=${17-1}	# overlay the best fitting double couple style FM with -t30 transparency
+dmin=${18--10}			# minimum depth
 tmpn=`mktemp`
 trap "rm -f $tmpn*" EXIT
 
@@ -57,6 +58,7 @@ region_parameters $rcode_code 8 > $tmpn.$$
 read w e s n < $tmpn.$$; rm $tmpn.$$
 reg=-R$w/$e/$s/$n
 
+strain_cross_col=yellow
 
 pb_col=darkorange
 pb_w=1
@@ -82,6 +84,9 @@ else
     pscl=-Dx6.5/-0.1/3/.15h
 fi
 pscl_simpson=-Dx12.5/5.5/3/.2
+# for seismicity label
+pscl_slab1=0.5/-0.1/2.5/.15h
+pscl_slab2=3.5/1/2.5/.15h
 
 # ref frame for plate motions, if used
 rframe=sa
@@ -90,10 +95,12 @@ vinc=-I2.5
 
 if [ $rcode = 0 ];then
     if [ $wcut -eq 0 ];then
-	proj=-JN130/13
-	kinc=3.5
+	#proj=-JN130/13
+	proj=-JKf130/13	
+	#kinc=3.5;	cmt_size=0.14
+	kinc=7.5;	cmt_size=0.25
 	ann=-Bg60
-	cmt_size=0.14
+
     else
 	pscl=-Dx3/-.1/3/.1h 
 	name=WLDC
@@ -123,6 +130,7 @@ elif [ $rcode = 32 ];then
 elif [ $rcode = 97 ];then
     #proj=-JH`echo $reg | gawk -f reg2midlon.awk`/13
     proj=-JB`echo $reg | gawk -f reg2midlon.awk`/`echo $reg | gawk -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.66 -f reg2midlat.awk`/13
+    #kinc=1
     kinc=1
     ann=-Ba10f1WesN
     cmt_size=0.5
@@ -135,11 +143,13 @@ elif [ $rcode = "97o" ];then	# Andes Oblieuqe Merc
     pscl_simpson=-Dx15.5/2.5/3/.2
     name=$name"o"
     kinc=1
+    #kinc=2
     ann="-Ba10g20f1WesN -Tdg-55/-45+w1i+l,,,N"
     if [ $use_scaled -eq 1 ];then
 	cmt_size=0.2
     else
 	cmt_size=0.25
+	#cmt_size=0.4
     fi
     rframe=44
     w=-95;e=-40;s=-60;n=50
@@ -191,16 +201,32 @@ elif [ $rcode = 100 ];then
     kinc=0.25
     ann=-Ba1f.1WesN
     cmt_size=0.25
-elif [ $rcode = 9 ];then
-    cmt_size=0.275
+elif [ $rcode = 9 ];then	# NZL
+    
+    #cmt_size=0.275
+  
     kinc=0.5
-    #proj=-JM10
-    proj=-JOa171/-43/40/13
-    ann="-Ba3f1g10WesN -Tdg-70/-20+w1i+f+l,,,N"
-    preg=-R-7/11/-4/4.5
-    w=159;e=220;s=-55;n=-30
-    greg=-R$w/$e/$s/$n
-    reg=$greg			# for binning
+    omerc=0
+    if [ $omerc = 1 ];then
+	cmt_size=0.3
+	w=159;e=220;s=-55;n=-30
+	greg=-R$w/$e/$s/$n
+	reg=$greg			# for binning
+	proj=-JOa171/-43/40/13
+	ann="-Ba2f.5g10WesN -Tdg-70/-20+w1i+f+l,,,N"
+	preg=-R-7/11/-4/4.5
+    else
+	w=162;e=180;s=-48;n=-33
+	greg=-R$w/$e/$s/$n
+	reg=$greg			# for binning
+	cmt_size=0.5
+	proj=-JM10
+	#preg=$greg
+	preg=-R165.5/175.5/-47.5/-39.5
+	ann="-Ba1f.5WesN"
+	pscl_slab2=.5/7/4/.15
+
+    fi
     pb_w=2
     zslab_max=350
 elif [ $rcode = 103 ];then
@@ -209,6 +235,11 @@ elif [ $rcode = 103 ];then
     kinc=0.5
     proj=-JM13
     pb_w=2
+elif [ $rcode = 107 ];then
+    proj=-JM13
+    kinc=0.5
+    ann=-Ba.5f.1WesN
+    cmt_size=1
 fi
 
 
@@ -226,32 +257,42 @@ else
     ktype=norm
 fi
 
-
+if [ $dmin = -10 ];then
+    sname=kostrov
+    soname=kmom
+else
+    soname="kmom_b"$dmin
+    sname="kostrov_b"$dmin
+fi
 echo $reg $preg $name $proj dx $kincx dy $kincy
 
-if [ ! -s kostrov.$kincx.$kincy.$name.0.norm.dat ];then
+if [ ! -s $sname.$kincx.$kincy.$name.0.norm.dat ];then
 
     #
     # do the summation
     # 
-    bin_catalog $mom_file $kincx 0 10 0 $w $e $s $n $dmax $is_aki 0 -11 0 kostrov $kincy
+    bin_catalog $mom_file $kincx 0 10 0 $w $e $s $n $dmax $is_aki 0 $dmin 0 $sname $kincy
     for t in norm scaled;do
-	mv kostrov.$kincx.$kincy.0.$t.dat kostrov.$kincx.$kincy.$name.0.$t.dat 
+	mv $sname.$kincx.$kincy.0.$t.dat $sname.$kincx.$kincy.$name.0.$t.dat 
     done
-    mv kostrov.$kincx.$kincy.s.dat kostrov.$kincx.$kincy.$name.s.dat 
+    mv $sname.$kincx.$kincy.s.dat $sname.$kincx.$kincy.$name.s.dat 
 else
-    echo $0: WARNING: reusing old files kostrov.$kincx.$kincy.$name.0.norm.dat and similar
+    echo $0: WARNING: reusing old files $sname.$kincx.$kincy.$name.0.norm.dat and similar
 fi
 
 
-if [ $plot_stress -eq 2 ];then
-    ofile_start=kmom.$name.cmt
+if [ $plot_stress -eq 4 ];then
+    ofile_start=$soname.$name.sh.stress
+elif [ $plot_stress -eq 3 ];then
+    ofile_start=$soname.$name.eh
+elif [ $plot_stress -eq 2 ];then
+    ofile_start=$soname.$name.cmt
 elif [ $plot_stress -eq 1 ];then
-    ofile_start=kmom.$name.stress
+    ofile_start=$soname.$name.stress
 elif [ $plot_stress -eq 0 ];then
-    ofile_start=kmom.$name
+    ofile_start=$soname.$name
 elif [ $plot_stress -eq -1 ];then
-    ofile_start=gsrm.$name
+    ofile_start=$soname.$name.gsrm
 else
     echo $0: error $plot_stress
     exit
@@ -375,10 +416,10 @@ if [ $add_slab_cont -eq 1 ];then
 	zslspc=100
     fi
     if [ $use_simpson -eq 1 ];then
-	psscale -Dx10.5/-0.1/2.5/.15h $slab_col_ends \
+	psscale -Dx$pscl_slab1 $slab_col_ends \
 		-C$tmpn.z.cpt  -B$zslspc/:"z@-slab@- [km]":  -O -K  >> $ofile
     else
-	psscale -Dx3.5/1/2.5/.15h $slab_col_ends \
+	psscale -Dx$pscl_slab2 $slab_col_ends \
 		-C$tmpn.z.cpt  -B$zslspc/:"z@-slab@- [km]":  -O -K  >> $ofile
 
     fi
@@ -423,12 +464,12 @@ if [ -s $add_profile.dat ];then
 
 fi
 
-if [ $plot_stress -eq 1 ];then
-    kfile=kostrov.$kincx.$kincy.$name.s.dat
+if [[ $plot_stress -eq 1 || $plot_stress -eq 4 ]];then
+    kfile=$sname.$kincx.$kincy.$name.s.dat
     label="@~s@~@-h@-"
     lname="Michael (1984) stress"
-elif [[ $plot_stress -eq 0 || $plot_stress = 2 ]];then
-    kfile=kostrov.$kincx.$kincy.$name.0.$ktype.dat
+elif [[ $plot_stress -eq 0 || $plot_stress = 2 || $plot_stress = 3 ]];then
+    kfile=$sname.$kincx.$kincy.$name.0.$ktype.dat
     label="@~e@~@-h@-"
     if [ $use_scaled -eq 1 ];then
 	lname="Kostrov, scaled"
@@ -517,7 +558,7 @@ if [ $plot_stress -eq 2 ];then	# all CMTs
     fi
     rm $tmpn.dat 
     
-elif [ $plot_stress -eq 1 ];then
+elif [[ $plot_stress -eq 1 || $plot_stress = 4 ]];then
     if [ $use_simpson -eq 1 ];then
 	paste $kfile $tmpn.simpson | sort -n +15 | \
 	    gawk '{s=sqrt(0.2/(1e-3+$16));print($7,$8,$17,$1*s,$4*s,$6*s,$2*s,$3*s,$5*s,1,$7,$8)}' > $tmpn.dat
@@ -538,11 +579,23 @@ elif [ $plot_stress -eq 1 ];then
 	paste $kfile $tmpn.norm | sort -n +15 | \
 	    gawk '{s=sqrt(0.2/(1e-3+$16));print($7,$8,($4+$6)/2/$17,$1*s,$4*s,$6*s,$2*s,$3*s,$5*s,1,$7,$8)}' > $tmpn.dat
     fi
-    psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp \
-	 -Sm`echo $cmt_size`+f0+l+s10  -O -K  >> $ofile
-    if [ $overlay_double_couple -eq 1 ];then
-	psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
-	       -t30 -Sd`echo $cmt_size`+f0+l+s10  -O -K -T0 >> $ofile
+    if [ $plot_stress = 4 ];then # horizontal stress tensor only
+	# convert to psvelo format 
+	# x: Strain crosses: in X,Y,Eps1,Eps2,Theta.n1-CW from N to E2
+	#
+	gawk '{print($6,-$9,$5)}' $tmpn.dat | gawk -f calcms.awk > $tmpn.s1s2azi
+	gawk '{print($1,$2)}' $tmpn.dat > $tmpn.lonlat
+	paste $tmpn.lonlat $tmpn.s1s2azi | gawk '{print($1,$2,$3,$4,$5+90)}' > \
+						$sname.$kincx.$kincy.$name.sh.stress.dat
+	psvelo $sname.$kincx.$kincy.$name.sh.stress.dat -A0.05/0.1/0.1  \
+	       $preg $proj  -Sx$cmt_size -O -K  -W1,$strain_cross_col >> $ofile
+    else			# stress tensor as CMT symbol
+	psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp \
+	       -Sm`echo $cmt_size`+f0+l+s10  -O -K  >> $ofile
+	if [ $overlay_double_couple -eq 1 ];then
+	    psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
+		   -t30 -Sd`echo $cmt_size`+f0+l+s10  -O -K -T0 >> $ofile
+	fi
     fi
 
 else
@@ -555,7 +608,7 @@ else
 		gawk '{print($7,$8,$12,  $1,$4,$6,$2,$3,$5,   22,$7,$8)}'  > $tmpn.dat
 	fi
     else
-	echo ok1
+	#echo ok1
 	if [ $ktype = scaled ];then
 	    paste $kfile $tmpn.norm | gawk '{print(($4+$6)/2/$11)}' | minmax
 	    paste $kfile $tmpn.norm | \
@@ -567,17 +620,32 @@ else
 		gawk '{print($7,$8,($4+$6)/2/$12,  $1,$4,$6,$2,$3,$5,   22,$7,$8)}'  > $tmpn.dat
 	fi
     fi
-    echo ok2
-    minmax $tmpn.dat
-    psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp \
-	   -Sm`echo $cmt_size`/-1  -O -K  >> $ofile
-    if [ $overlay_double_couple -eq 1 ];then
-	psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
-	       -t30 -Sd`echo $cmt_size`/-1  -O -K -T0 >> $ofile
+    #echo ok2
+    if [ $plot_stress = 3 ];then
+	# convert to psvelo format 
+	# x: Strain crosses: in X,Y,Eps1,Eps2,Theta.n1-CW from N to E2
+	#
+	gawk '{print($6,-$9,$5)}' $tmpn.dat | gawk -f calcms.awk > $tmpn.e1e2azi
+	gawk '{print($1,$2)}' $tmpn.dat > $tmpn.lonlat
+	paste $tmpn.lonlat $tmpn.e1e2azi | gawk '{print($1,$2,$3,$4,$5+90)}' > $sname.$kincx.$kincy.$name.eh.dat
+	#psvelo $sname.$kincx.$kincy.$name.eh.dat -A0.1/0.2/0.2    $preg $proj  -Sx$cmt_size -O -K  -W2 >> $ofile
+	psvelo $sname.$kincx.$kincy.$name.eh.dat -A0.05/0.1/0.1    $preg $proj  -Sx$cmt_size -O -K  -W1,$strain_cross_col >> $ofile
+	#gawk '{azi=$5;if(azi>180)azi-=180;printf("%g %g 8 0 29 CM %.1f\n",$1,$2,azi)}' $sname.$kincx.$kincy.$name.eh.dat | \
+	    #pstext $preg $proj -O -K -Gwhite >> $ofile
+    else
+	minmax $tmpn.dat
+# 	m: Seismic (full) moment tensor:
+#           X Y depth mrr mtt mff mrt mrf mtf exp [newX newY] [event_title].
+	psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp \
+	       -Sm`echo $cmt_size`/-1  -O -K  >> $ofile
+	if [ $overlay_double_couple -eq 1 ];then
+	    psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
+		   -t30 -Sd`echo $cmt_size`/-1  -O -K -T0 >> $ofile
+	fi
     fi
 fi
 
-echo ok3
+#echo ok3
 #psxy $datadir/plate_boundaries/bird_PB2002/PB2002_tdiddy.gmt  -m  \
 #     $preg  $proj  -O -K   -W2,$pb_col  >> $ofile
 

@@ -34,7 +34,7 @@ int main(int argc, char **argv)
   */
   lonmin = 232;lonmax=250;
   latmin=30;latmax =45;
-  mindepth = 0;maxdepth = 15;	/* in km */
+  mindepth = -10;maxdepth = 15;	/* in km */
   
   if(argc < 2){
     fprintf(stderr,"%s catalog.aki [dx, %g] [min_mag, %g] [max_mag, %g] [monte_carlo, %i] [min_lon, %g] [max_lon, %g] [min_lat, %g] [max_lat, %g] [max_depth, %g] [use_aki, %i] [weighting_method (0/1/2), %i] [dmin, %g] [is_xy, %i] [out_istring, %s] [dy, dx]\n",
