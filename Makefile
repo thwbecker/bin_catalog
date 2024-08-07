@@ -22,7 +22,8 @@ EISLIB = -Leispack/$(ARCH)/ -lmyeis
 
 CAT_OBJS = $(ODIR)/handle_catalog.o  $(ODIR)/handle_catalog_gmt.o $(ODIR)/michael_leasq.o $(MECA_OBJS)
 
-INCLUDES = $(GMT_INC)
+#INCLUDES = $(GMT_INC) -DHAVE_SINCOS
+INCLUDES = $(GMT_INC) 
 #
 # main programs
 PROGS = $(BDIR)/merge_catalog $(BDIR)/bin_catalog $(BDIR)/m02dcfp $(BDIR)/calc_gr $(BDIR)/m02mag
