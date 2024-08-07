@@ -654,7 +654,8 @@ void clear_bins(struct cat *catalog)
 void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_carlo)
 {
   FILE *out1,*out2;
-  int i,j,ind,k,m,mn,mn2;
+  int i,j,ind,k;
+  BC_CPREC mn,mn2,m;
   char outname1[300],outname2[300];
   BC_CPREC mscale;
   struct kostrov_sum *kostrov;
@@ -669,16 +670,16 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
      normalized
 
   */
-  m=mn=mn2=0;
+  m=mn=mn2=0.;
   sprintf(outname1,"%s.norm.dat",filename);
   out1 = myopen(outname1,"w","print_kostrov_bins");
   for(i=0;i < kostrov->nx;i++)
     for(j=0;j < kostrov->ny;j++){
       ind =  i * kostrov->ny + j;
       if(kostrov->bin[ind].n){
-	mn += kostrov->bin[ind].n;
-	mn2 += kostrov->bin[ind].n * kostrov->bin[ind].n;
-	m++;
+	mn += (BC_CPREC)kostrov->bin[ind].n;
+	mn2 += (BC_CPREC)(kostrov->bin[ind].n * kostrov->bin[ind].n);
+	m += 1.0;			/* number filled */
 	/* normalize */
 	normalize_tens6(kostrov->bin[ind].mn);
 	for(k=0;k < 6;k++){
@@ -695,25 +696,24 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
       }
     }
   fclose(out1);
-  fprintf(stderr,"print_kostrov_bins: written normalized summations to %s,   %i out of %i cells, on avg %g +/- %g entries\n",
-	  outname1,m,kostrov->nxny,(double)mn/(double)m,
-	  sqrt((((double)m) * ((double)mn2) - (((double)mn) * ((double)mn))) /
-	       ((double)m*((double)m-1.))));
+  fprintf(stderr,"print_kostrov_bins: written normalized summations to %s,   %i out of %i cells, on avg %g +/- %g events\n",
+	  outname1,(int)m,
+	  kostrov->nxny,mn/m,sqrt ((m * mn2 - mn * mn) / (m*(m-1.))));
   if(monte_carlo){
     /* 
 
        normalized sigma tensor
 
     */
-    m=mn=0;
+    m=mn=0.;
     sprintf(outname1,"%s.norm.sigma.dat",filename);
     out1 = myopen(outname1,"w","print_kostrov_bins");
     for(i=0;i < kostrov->nx;i++)
       for(j=0;j < kostrov->ny;j++){
 	ind =  i * kostrov->ny + j;
 	if(kostrov->bin[ind].n){
-	  mn += kostrov->bin[ind].n;
-	  m++;
+	  mn += (BC_CPREC)kostrov->bin[ind].n;
+	  m += 1.0;
 	  for(k=0;k < 6;k++)
 	    fprintf(out1,"%20.8e ",kostrov->bin[ind].smn[k]); /* norm, don't take out area */
 	  fprintf(out1,"%8.3f %8.3f %12i\n",
@@ -723,7 +723,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
       }
     fclose(out1);
     fprintf(stderr,"print_kostrov_bins: written sigma of normalized summations to %s,   %i out %i cells, on avg %g entries\n",
-	    outname1,m,kostrov->nxny,(double)mn/(double)m);
+	    outname1,(int)m,kostrov->nxny,mn/m);
   }
   /* 
 
@@ -731,7 +731,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
      scaled tensor
      
   */
-  mscale = kostrov->mtot/(BC_CPREC)m;
+  mscale = kostrov->mtot/m;
 
   sprintf(outname2,"%s.scaled.dat",filename);
   out2 = myopen(outname2,"w","print_kostrov_bins");
@@ -749,7 +749,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
     }
   fclose(out2);
   fprintf(stderr,"print_kostrov_bins: written scaled     summations to %s, using mean moment %.4e for scale (%.3e/%i)\n",
-	  outname2,mscale,kostrov->mtot,m);
+	  outname2,mscale,kostrov->mtot,(int)m);
 
 }
 
