@@ -48,7 +48,6 @@
 #ifndef BC_R2D
 #define BC_R2D (180.0 / M_PI)
 #endif
-#define sincosd(x,s,c) sincos((x) * BC_D2R,s,c)
 #define atan2d(y,x) (atan2(y,x) * BC_R2D)
 #define d_atan2d(y,x) ((x) == 0.0 && (y) == 0.0 ? 0.0 : atan2d(y,x))
 /* from meca */
@@ -76,7 +75,8 @@ struct nodal_plane {
 /* 
 
  */
-#define BC_NQUAKE_LIM_FOR_STRESS 2	/* min number of entries  */
+#define BC_NQUAKE_LIM_FOR_STRESS 2	/* min number of entries, has
+					   to be greater */
 #define BC_MICHAEL_NMC 5000	/* monte carlo for michael inversion, 2000 good number for 95% confidence? */
 //#define USE_POT
 
@@ -214,12 +214,13 @@ BC_CPREC kostrov_blat(int , struct kostrov_sum *);
 void add_quake_to_bin_list(unsigned int , struct bn *,BC_CPREC);
 void calc_stress_tensor_for_kbins(struct cat *);
 void solve_stress_michael(int , BC_CPREC *,BC_CPREC *,BC_CPREC *, BC_CPREC *, long int *);
-
+void sincos(double , double *, double *);
 /* Andy Michael routines */
 void michael_assign_to_matrix(BC_CPREC ,BC_CPREC ,BC_CPREC ,int *,BC_CPREC **,BC_CPREC **);
 void michael_leasq(BC_CPREC *,int ,int ,BC_CPREC *,BC_CPREC *,BC_CPREC *,BC_CPREC *,BC_CPREC *) ;
 void michael_solve_lsq(int ,int , int , BC_CPREC *, BC_CPREC *, BC_CPREC *,BC_CPREC *);
 
+void sincosd(double , double *, double *);
 
 /* GMT 4.5.18 and psmeca routine */
 /* for fault planes */

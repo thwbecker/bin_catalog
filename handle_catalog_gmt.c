@@ -1,5 +1,8 @@
 #include "catalog.h"
-void sincos(double , double *, double *);
+
+
+
+
 /* 
    
    this is the part of the code which depends on GMT psmeca utilities
@@ -422,3 +425,19 @@ int	GMT_jacobi (double *a, int *n, int *m, double *d, double *v, double *b, doub
   }
   return(0);
 }
+void sincosd(double ang_deg, double *sin_val, double *cos_val)
+{
+  double ang;
+  ang = ang_deg * BC_D2R;	/* from deg to rad */
+  sincos(ang,sin_val,cos_val);
+}
+#ifndef HAVE_SINCOS
+void sincos(double ang, double *sin_val, double *cos_val)
+{
+  
+  *sin_val = sin(ang);
+  *cos_val = cos(ang);
+}
+
+
+#endif
