@@ -1,7 +1,8 @@
 #include "catalog.h"
 /* 
 
-   perform a kostrov summation 
+   perform a kostrov summation and / or Michael (1984) stress
+   inversion
 
 */
 

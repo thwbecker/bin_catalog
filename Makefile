@@ -20,7 +20,8 @@ EISLIB = -Leispack/$(ARCH)/ -lmyeis
 
 #MECA_OBJS =  $(GMT)/src/meca/utilmeca.o
 
-CAT_OBJS = $(ODIR)/handle_catalog.o  $(ODIR)/handle_catalog_gmt.o $(ODIR)/michael_leasq.o $(MECA_OBJS)
+CAT_OBJS = $(ODIR)/handle_catalog.o  $(ODIR)/fault_eq.o  $(ODIR)/linalg_misc_geo.o  $(ODIR)/bvalue.o $(ODIR)/stress_inversion.o \
+	$(ODIR)/handle_catalog_gmt.o $(ODIR)/michael_leasq.o $(MECA_OBJS)
 
 INCLUDES = $(GMT_INC) -DHAVE_SINCOS
 #INCLUDES = $(GMT_INC) 
