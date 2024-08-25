@@ -56,15 +56,21 @@ void relocate_catalog(struct cat *a,struct cat *b, struct cat *c)
     else{
       /* use the new locations */
       yes++;
-      //fprintf(stderr,"%11g -> %11g, %11g -> %11g, %11g -> %11g\n",c->quake[c->n].lon, b->quake[found].lon,c->quake[c->n].lat, b->quake[found].lat,c->quake[c->n].depth, b->quake[found].depth);
       
       hor_distm  += hor_dist0;
       vert_distm += vert_dist0;
       temp_distm += temp_dist0;
       mag_distm  += mag_dist0;
-      
-      c->quake[c->n].lon = b->quake[found].lon;
+      /* hmm */
+      c->quake[c->n].dlon = b->quake[found].dlon; /* degree */
+      c->quake[c->n].dlat = b->quake[found].dlat;
+
+      c->quake[c->n].plon = b->quake[found].plon; /* degree */
+      c->quake[c->n].plat = b->quake[found].plat;
+
+      c->quake[c->n].lon = b->quake[found].lon; /* radian */
       c->quake[c->n].lat = b->quake[found].lat;
+      
       c->quake[c->n].depth = b->quake[found].depth;
     }
     c->n += 1;
@@ -93,7 +99,7 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
 		      BC_BOOLEAN monte_carlo,BC_BOOLEAN verbose)
 {
   int i,j,ix,iy,bind,n,nmonte,bc,ibin,iquake,jbq;
-  BC_CPREC eps_angle = BC_DEG2RAD(30.0); /* sigma for random */
+  BC_CPREC eps_angle = BC_D2R(BC_EPS_ANGLE_FOR_RANDOM_DEG); /* sigma for random */
   BC_CPREC pin[6],pout[6],me,dx,weight,tfracl,tmin,tmax,trange,dt,navg;
   int ndt,nndt_nz;		/* for time weighted binning */
 
@@ -120,6 +126,11 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
   }else{
     nmonte = 1;
   }
+  if(!catalog->is_xy){		/* if not carteisan, move to 0...360 */
+    for(i=0;i < catalog->n;i++)
+      ranger(&(catalog->quake[i].dlon));
+  }
+  
   /* only clear once */
   clear_bins(catalog);		
   for(bc = 0;bc < nmonte;bc++){		/* loop through all monte_carlo sampling */
@@ -129,8 +140,7 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
     for(ibin=0;ibin < kostrov->nxny;ibin++)
       for(j=0;j<6;j++)
 	kostrov->bin[ibin].mnloc[j]=0.0;
-
-    n=0;				/* how many are added  */
+     n=0;				/* how many are added  */
     for(i=0;i < catalog->n;i++){	/* loop through quakes */
       /* make sure within magnitude and depth range range */
       if((catalog->quake[i].mag >= kostrov->minmag) && 
@@ -140,13 +150,13 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
 	/* 
 	   move to grid-centered 
 	*/
-	dx = catalog->quake[i].lon - kostrov->lonmin;
+	dx = catalog->quake[i].dlon - kostrov->dlonmin;
 	if(!catalog->is_xy){
 	  if(dx > 360)
 	    dx -= 360;
 	}
-	ix = (int)(dx/kostrov->dlon + 0.5);
-	iy = (int)((catalog->quake[i].lat - kostrov->latmin)/kostrov->dlat + 0.5);
+	ix = (int)(dx/kostrov->ddlon + 0.5);
+	iy = (int)((catalog->quake[i].dlat - kostrov->dlatmin)/kostrov->ddlat + 0.5);
 	//fprintf(stderr,"%i %i\n",ix,iy);
 	if((ix >= 0) && (ix < kostrov->nx) && (iy >= 0) && (iy < kostrov->ny)){ /* make sure within region */
 	  /* 
@@ -408,15 +418,15 @@ void sum_smoothed_seismicity(struct cat *catalog, int mode)
 
       
       for(j=0;j < kostrov->nxny;j++){ /* loop through all bins */
-
-	if(catalog->is_xy){
-	  dist = distance_cart(catalog->quake[i].lon,catalog->quake[i].lat,
-			       kostrov->bin[j].lon,kostrov->bin[j].lat);
+  
+	if(catalog->is_xy){	/* cartesian, lon and lat are x and y
+				   actually */
+	  dist = distance_cart(catalog->quake[i].dlon,catalog->quake[i].dlat,
+			       kostrov->bin[j].dlon,kostrov->bin[j].dlat);
 	}else{
 	  dist = distance_geo(catalog->quake[i].lon,catalog->quake[i].lat,
 			      kostrov->bin[j].lon,kostrov->bin[j].lat,
-			      catalog->quake[i].coslat,
-			      kostrov->bin[j].coslat);
+			      catalog->quake[i].coslat,kostrov->bin[j].coslat);
 	}
 
 	  
@@ -514,10 +524,10 @@ void print_histogram(int *nentry, BC_CPREC *xbin, int nbin, FILE *out_stream)
 
 */
 void setup_kostrov(struct cat *catalog,
-		   BC_CPREC lonmin,BC_CPREC lonmax,
-		   BC_CPREC latmin,BC_CPREC latmax,
+		   BC_CPREC dlonmin,BC_CPREC dlonmax, /* in degrees */
+		   BC_CPREC dlatmin,BC_CPREC dlatmax,
 		   BC_CPREC mindepth,BC_CPREC maxdepth,
-		   BC_CPREC dlon, BC_CPREC dlat,
+		   BC_CPREC ddlon, BC_CPREC ddlat,
 		   BC_CPREC minmag,BC_CPREC maxmag,
 		   int weighting_method)
 {
@@ -529,10 +539,10 @@ void setup_kostrov(struct cat *catalog,
   kostrov->mtot = 0.0;		/* total moment of summation */
   kostrov->weighting_method = weighting_method;
   
-  kostrov->lonmin = lonmin;
-  kostrov->lonmax = lonmax;
-  kostrov->latmin = latmin;
-  kostrov->latmax = latmax;
+  kostrov->dlonmin = dlonmin;
+  kostrov->dlonmax = dlonmax;
+  kostrov->dlatmin = dlatmin;
+  kostrov->dlatmax = dlatmax;
 
   kostrov->mindepth = mindepth;
   kostrov->maxdepth = maxdepth;
@@ -540,19 +550,19 @@ void setup_kostrov(struct cat *catalog,
   kostrov->minmag = minmag;
   kostrov->maxmag = maxmag;
   
-  kostrov->dlon = dlon;
-  kostrov->dlat = dlat;
+  kostrov->ddlon = ddlon;
+  kostrov->ddlat = ddlat;
   
-  kostrov->nx = (kostrov->lonmax - kostrov->lonmin)/
-    kostrov->dlon;
-  kostrov->ny = (kostrov->latmax - kostrov->latmin)/
-    kostrov->dlat;
+  kostrov->nx = (kostrov->dlonmax - kostrov->dlonmin)/
+    kostrov->ddlon;
+  kostrov->ny = (kostrov->dlatmax - kostrov->dlatmin)/
+    kostrov->ddlat;
   kostrov->nxny = kostrov->nx * kostrov->ny;
   if(kostrov->nx < 1 || kostrov->ny < 1){
     fprintf(stderr,"setup_bins: error: nx: %i ny: %i, lon: %g - %g - %g, lat: %g - %g - %g\n",
 	    kostrov->nx,kostrov->ny,
-	    kostrov->lonmin,kostrov->dlon,kostrov->lonmax,
-	    kostrov->latmin,kostrov->dlat,kostrov->latmax);
+	    kostrov->dlonmin,kostrov->ddlon,kostrov->dlonmax,
+	    kostrov->dlatmin,kostrov->ddlat,kostrov->dlatmax);
     exit(-1);
   }
   fprintf(stderr,"setup_kostrov: using magnitudes from %g to %g, depths from %g to %g\n",
@@ -561,11 +571,11 @@ void setup_kostrov(struct cat *catalog,
   
   fprintf(stderr,"setup_bins: setting up %i bins for -R%g/%g/%g/%g -I%g/%g nx: %i ny %i\n",
 	  kostrov->nxny,
-	  kostrov->lonmin,
-	  kostrov->lonmax,
-	  kostrov->latmin,
-	  kostrov->latmax,
-	  kostrov->dlon,kostrov->dlat,kostrov->nx,kostrov->ny);
+	  kostrov->dlonmin,
+	  kostrov->dlonmax,
+	  kostrov->dlatmin,
+	  kostrov->dlatmax,
+	  kostrov->ddlon,kostrov->ddlat,kostrov->nx,kostrov->ny);
   
   
   kostrov->bin = (struct bn *)
@@ -577,11 +587,11 @@ void setup_kostrov(struct cat *catalog,
     kostrov->bin[i].weight = (BC_CPREC *)malloc(sizeof(BC_CPREC));
   }
   /* area without latitude correction (done below) */
-  darea = BC_DEG2RAD(kostrov->dlon) * BC_DEG2RAD(kostrov->dlat) * BC_RADIUS * BC_RADIUS;
+  darea = BC_D2R(kostrov->ddlon) * BC_D2R(kostrov->ddlat) * BC_RADIUS * BC_RADIUS;
 
   /* in center of bin */
-  xmin = kostrov->lonmin + kostrov->dlon/2.;
-  ymin = kostrov->latmin + kostrov->dlat/2.;
+  xmin = kostrov->dlonmin + kostrov->ddlon/2.;
+  ymin = kostrov->dlatmin + kostrov->ddlat/2.;
   
   /* set all to zero */
   clear_bins(catalog);		/*  */
@@ -592,16 +602,16 @@ void setup_kostrov(struct cat *catalog,
       */
       ind = i * kostrov->ny + j;
       /* center coordinates */
-      kostrov->bin[ind].lon = xmin + kostrov->dlon * (double)i;
-      kostrov->bin[ind].lat = ymin + kostrov->dlat * (double)j;
-
-      kostrov->bin[ind].coslat = (float)cos((double)kostrov->bin[ind].lat/BC_PIF);
-
+      kostrov->bin[ind].dlon = xmin + kostrov->ddlon * (BC_CPREC)i;
+      kostrov->bin[ind].dlat = ymin + kostrov->ddlat * (BC_CPREC)j;
+      /* in radians */
+      kostrov->bin[ind].lon =  BC_D2R(kostrov->bin[ind].dlon);
+      kostrov->bin[ind].lat =  BC_D2R(kostrov->bin[ind].dlat);
+      kostrov->bin[ind].coslat = cos((double)kostrov->bin[ind].lat);
       /* 
 	 spherical approximation for area, in km^2
       */
-      kostrov->bin[ind].area = (float)
-	cos(BC_DEG2RAD((double)kostrov->bin[ind].lat)) * darea;
+      kostrov->bin[ind].area =   kostrov->bin[ind].coslat  * darea;
     }
   }
   kostrov->init = BC_TRUE;
@@ -678,7 +688,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
 	}
 	/* print bin centers */
 	fprintf(out1,"%8.3f %8.3f %12i %12.5e %12.5e\n",
-		kostrov_blon(ind,kostrov),kostrov_blat(ind,kostrov),
+		kostrov_bdlon(ind,kostrov),kostrov_bdlat(ind,kostrov),
 		kostrov->bin[ind].n,kostrov->bin[ind].men,kostrov->bin[ind].mens);
       }
     }
@@ -704,7 +714,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
 	  for(k=0;k < 6;k++)
 	    fprintf(out1,"%20.8e ",kostrov->bin[ind].smn[k]); /* norm, don't take out area */
 	  fprintf(out1,"%8.3f %8.3f %12i\n",
-		  kostrov_blon(ind,kostrov),kostrov_blat(ind,kostrov),
+		  kostrov_bdlon(ind,kostrov),kostrov_bdlat(ind,kostrov),
 		  kostrov->bin[ind].n);
 	}
       }
@@ -730,7 +740,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
 	  fprintf(out2,"%20.8e ",
 		  kostrov->bin[ind].m[k]/kostrov->bin[ind].area/mscale*1e6);	/* scaled p */
 	fprintf(out2,"%8.3f %8.3f %6i %12.5e\n",
-		kostrov_blon(ind,kostrov),kostrov_blat(ind,kostrov),
+		kostrov_bdlon(ind,kostrov),kostrov_bdlat(ind,kostrov),
 		kostrov->bin[ind].n,kostrov->bin[ind].me/kostrov->bin[ind].area/mscale*1e6);
       }
     }
@@ -764,7 +774,8 @@ void print_stress_tensors(struct cat *catalog, char *filename)
       m++;
       for(k=0;k < 6;k++)	/* stress tensor */
 	fprintf(out1,"%8.4f ",kostrov->bin[i].s[k]);
-      fprintf(out1,"\t%8.3f %8.3f %12i",kostrov_blon(i,kostrov),kostrov_blat(i,kostrov),kostrov->bin[i].n);
+      fprintf(out1,"\t%8.3f %8.3f %12i",
+	      kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
       for(k=0;k < 6;k++)	/* stress tensor uncertainty */
 	fprintf(out1,"%8.4f ",kostrov->bin[i].ds[k]);
       /* sigma norm */
@@ -792,7 +803,8 @@ void print_stress_tensors(struct cat *catalog, char *filename)
       for(k=0;k < 6;k++){	/* difference tensor */
 	fprintf(out1,"%8.4f ",dt[k]);
       }
-      fprintf(out1,"\t%8.3f %8.3f %12i",kostrov_blon(i,kostrov),kostrov_blat(i,kostrov),kostrov->bin[i].n);
+      fprintf(out1,"\t%8.3f %8.3f %12i",
+	      kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
       for(k=0;k < 6;k++)	/* stress tensor uncertainty */
 	fprintf(out1,"%8.4f ",kostrov->bin[i].ds[k]);
       /* sigma norm */
@@ -805,14 +817,14 @@ void print_stress_tensors(struct cat *catalog, char *filename)
   
 }
 
-
-BC_CPREC kostrov_blon(int i, struct kostrov_sum *kostrov)
+/* print coordinates in degree */
+BC_CPREC kostrov_bdlon(int i, struct kostrov_sum *kostrov)
 {
-  return kostrov->bin[i].lon - kostrov->dlon/2;
+  return kostrov->bin[i].dlon - kostrov->ddlon/2.;
 }
-BC_CPREC kostrov_blat(int i, struct kostrov_sum *kostrov)
+BC_CPREC kostrov_bdlat(int i, struct kostrov_sum *kostrov)
 {
-  return kostrov->bin[i].lat - kostrov->dlat/2;
+  return kostrov->bin[i].dlat - kostrov->ddlat/2.;
 }
 
 /* 
@@ -838,7 +850,7 @@ void print_summed_moment(struct cat *catalog, char *filename)
   for(i=0;i < kostrov->nx;i++)
     for(j=0;j < kostrov->ny;j++){
       ind =  i * kostrov->ny + j;
-      fprintf(out1,"%g %g %g\n",kostrov_blon(ind,kostrov),kostrov_blat(ind,kostrov),
+      fprintf(out1,"%g %g %g\n",kostrov_bdlon(ind,kostrov),kostrov_bdlat(ind,kostrov),
 	      kostrov->bin[ind].me);
       if(kostrov->bin[ind].me < me_min)
 	me_min = kostrov->bin[ind].me;
@@ -947,8 +959,8 @@ int read_catalog(char *filename, struct cat *catalog, int mode)
       for(i=ilim;(i<catalog->n-1)&&(!hit);i++){
 	dist = distance(catalog,catalog,i,catalog->n);
 	if((dist < .200) && 	/* horizontal distance, 500 m */
-	   (fabs(catalog->quake[i].depth - catalog->quake[catalog->n].depth) < .400) && /* vertical  distance, km */
-	   (fabs(catalog->quake[i].tsec - catalog->quake[catalog->n].tsec) < 0.0003)){ /* 0.00025 is <~1 min */
+	   (fabs(catalog->quake[i].depth - catalog->quake[catalog->n].depth) <  BC_DEP_CLOSE) && /* vertical  distance, km */
+	   (fabs(catalog->quake[i].tsec - catalog->quake[catalog->n].tsec) <  BC_TIME_CLOSE)){ /* 0.00025 is <~1 min */
 	  /* 
 	     we found a duplicate 
 	  */
@@ -958,7 +970,7 @@ int read_catalog(char *filename, struct cat *catalog, int mode)
 	    fprintf(stderr,"read_catalog: from %s: duplicate: %i matches %i, hdist: %g vdist: %g tdist: %g\n",
 		    filename,catalog->n+1,i+1,dist,
 		    fabs(catalog->quake[i].depth - catalog->quake[catalog->n].depth),
-		    fabs((catalog->quake[i].tsec - catalog->quake[catalog->n].tsec)/0.00025));
+		    fabs(catalog->quake[i].tsec - catalog->quake[catalog->n].tsec)/BC_TIME_CLOSE);
 	    fprintf(stderr,"%5i\t",i+1);print_quake(stderr,catalog->quake[i],BC_AKI);
 	    fprintf(stderr,"%5i\t",catalog->n+1);print_quake(stderr,catalog->quake[catalog->n],BC_AKI);
 	  }
@@ -985,22 +997,27 @@ int read_catalog(char *filename, struct cat *catalog, int mode)
       catalog->tmax = catalog->quake[i].tsec;
     if(catalog->quake[i].tsec < catalog->tmin)
       catalog->tmin = catalog->quake[i].tsec;
+
     if(catalog->quake[i].mag < catalog->minmag)
       catalog->minmag = catalog->quake[i].mag; 
     if(catalog->quake[i].mag > catalog->maxmag)
       catalog->maxmag = catalog->quake[i].mag; 
+
     if(catalog->quake[i].depth < catalog->mindepth)
       catalog->mindepth = catalog->quake[i].depth;
     if(catalog->quake[i].depth > catalog->maxdepth)
       catalog->maxdepth = catalog->quake[i].depth;
-    if(catalog->quake[i].lon < catalog->minlon)
-      catalog->minlon = catalog->quake[i].lon;
-    if(catalog->quake[i].lon > catalog->maxlon)
-      catalog->maxlon = catalog->quake[i].lon;
-    if(catalog->quake[i].lat < catalog->minlat)
-      catalog->minlat = catalog->quake[i].lat;
-    if(catalog->quake[i].lat > catalog->maxlat)
-      catalog->maxlat = catalog->quake[i].lat;
+
+    if(catalog->quake[i].dlon < catalog->minlond)
+      catalog->minlond = catalog->quake[i].dlon;
+    if(catalog->quake[i].dlon > catalog->maxlond)
+      catalog->maxlond = catalog->quake[i].dlon;
+
+    if(catalog->quake[i].dlat < catalog->minlatd)
+      catalog->minlatd = catalog->quake[i].dlat;
+    if(catalog->quake[i].dlat > catalog->maxlatd)
+      catalog->maxlatd = catalog->quake[i].dlat;
+
     if(catalog->quake[i].lkm > catalog->lkm_max)
       catalog->lkm_max = catalog->quake[i].lkm;
     if(catalog->quake[i].lkm < catalog->lkm_min)
@@ -1023,7 +1040,7 @@ int read_catalog(char *filename, struct cat *catalog, int mode)
 
 	  
   fprintf(stderr,"read_catalog: range is -R%g/%g/%g/%g, depths within %g/%g, magnitude within %g/%g, inferred L: %g/%g km (%s)\n",
-	  catalog->minlon,catalog->maxlon,catalog->minlat,catalog->maxlat,
+	  catalog->minlond,catalog->maxlond,catalog->minlatd,catalog->maxlatd,
 	  catalog->mindepth,catalog->maxdepth,
 	  catalog->minmag,catalog->maxmag,
 	  catalog->lkm_min,catalog->lkm_max,
@@ -1104,22 +1121,27 @@ void print_quake(FILE *out, struct qke quake, int mode)
 //
 int read_quake_aki(FILE *in, struct qke *quake)
 {
-  BC_CPREC rlat,tmp1,tmp2;
+  BC_CPREC tmp1,tmp2;
   if(fscanf(in,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
-	    &(quake->lon),&(quake->lat),&(quake->depth),
+	    &(quake->dlon),&(quake->dlat),&(quake->depth),
 	    &(quake->strike),&(quake->dip),&(quake->rake),
 	    &(quake->mag),&tmp1,&tmp2,&quake->tsec)==10){
-    if(quake->lon <0)
-      quake->lon += 360;
+    /* convert */
+    quake->strike = BC_D2R(quake->strike); /* strike/dip/rake in radians */
+    quake->dip    = BC_D2R(quake->dip);
+    quake->rake   = BC_D2R(quake->rake);
+
+    quake->plon=quake->dlon;
+    quake->plat=quake->dlat;
+  
+    quake->lon = BC_D2R(quake->dlon); /* radian versions */
+    quake->lat = BC_D2R(quake->dlat);
     /* get the other plane */
     find_alt_plane(quake->strike, quake->dip, quake->rake,
 		   &(quake->strike2), &(quake->dip2), &(quake->rake2));
     /* those won't make sense for x-y, but won't hurt */
-    rlat = BC_DEG2RAD(quake->lat);
-    quake->coslat = cos((double)rlat);
+    quake->coslat = cos(quake->lat);
     /*  */
-    quake->plon = quake->lon;	/* plotting location */
-    quake->plat = quake->lat;
     /* compute potency */
     aki2mom(quake->strike,quake->dip,quake->rake,quake->mag,
 	    quake->m,&(quake->m0));
@@ -1139,18 +1161,18 @@ int read_quake_aki(FILE *in, struct qke *quake)
 */
 int read_quake_cmt(FILE *in, struct qke *quake)
 {
-  BC_CPREC rlat;
   if(fscanf(in,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %i %lf %lf %lf\n",
-	    &(quake->lon),&(quake->lat),&(quake->depth),
+	    &(quake->dlon),&(quake->dlat),&(quake->depth),
 	    (quake->m+BC_RR),(quake->m+BC_TT),(quake->m+BC_PP),
 	    (quake->m+BC_RT),(quake->m+BC_RP),(quake->m+BC_TP),
 	    &(quake->exp),&(quake->plon),&(quake->plat),
 	    &quake->tsec) == 13){
-    if(quake->lon <0)
-      quake->lon += 360;
+    quake->lon = BC_D2R(quake->dlon); /* radian versions */
+    quake->lat = BC_D2R(quake->dlat);
+    quake->coslat = cos(quake->lat);  
+
     quake->exp -= 7;		/* convert to Nm */
-    rlat = BC_DEG2RAD(quake->lat);
-    quake->coslat = cos((double)rlat);
+
     quake->m0 = pow(10,(BC_CPREC)quake->exp) * scalar_mom(quake->m);
     quake->mag = mom2mag(quake->m0);
     /* 
@@ -1168,14 +1190,16 @@ int read_quake_cmt(FILE *in, struct qke *quake)
 /* FORMAT: lon lat depth mw tsec_unix */
 int read_quake_eng(FILE *in, struct qke *quake)
 {
-  BC_CPREC rlat;
   if(fscanf(in,"%lf %lf %lf %lf %lf\n",
-	    &(quake->lon),&(quake->lat),&(quake->depth),
+	    &(quake->dlon),&(quake->dlat),&(quake->depth),
 	    &(quake->mag),&quake->tsec) == 5){
-    if(quake->lon <0)
-      quake->lon += 360;
-    rlat = BC_DEG2RAD(quake->lat);
-    quake->coslat = cos((double)rlat);
+    quake->plon=quake->dlon;
+    quake->plat=quake->dlat;
+    
+    quake->lon = BC_D2R(quake->dlon); /* radian versions */
+    quake->lat = BC_D2R(quake->dlat);
+   
+    quake->coslat = cos(quake->lat);
     quake->m0 = mag2mom(quake->mag);
     return 1;
   }else{
@@ -1191,9 +1215,9 @@ int read_quake_eng(FILE *in, struct qke *quake)
 void print_quake_aki(FILE *out, struct qke quake)
 {
   fprintf(out,"%9.4f %9.4f %6.2f %8.2f  %8.2f %8.2f %5.2f %8.2f %8.2f %.8e\n",
-	  quake.lon,quake.lat,quake.depth,
-	  quake.strike,quake.dip,quake.rake,
-	  quake.mag,quake.lon,quake.lat,quake.tsec);
+	  quake.dlon,quake.dlat,quake.depth,
+	  BC_R2D(quake.strike),BC_R2D(quake.dip),BC_R2D(quake.rake),
+	  quake.mag,quake.plon,quake.plat,quake.tsec);
 }
 //
 // X, Y, depth, mrr, mtt, mff, mrt, mrf, mtf, exp[dyn cm], newX, newY, time
@@ -1201,8 +1225,9 @@ void print_quake_aki(FILE *out, struct qke quake)
 void print_quake_cmt(FILE *out, struct qke quake)
 {
   fprintf(out,"%9.4f %9.4f %6.2f\t%10.5f %10.5f %10.5f %10.5f %10.5f  %10.5f %3i %9.4f %9.4f %f\n",
-	  quake.lon,quake.lat,quake.depth,
-	  quake.m[BC_RR],quake.m[BC_TT],quake.m[BC_PP],quake.m[BC_RT],quake.m[BC_RP],quake.m[BC_TP],
+	  quake.dlon,quake.dlat,quake.depth,
+	  quake.m[BC_RR],quake.m[BC_TT],quake.m[BC_PP],
+	  quake.m[BC_RT],quake.m[BC_RP],quake.m[BC_TP],
 	  quake.exp + 7,quake.plon,quake.plat,quake.tsec);
 }
 
@@ -1218,10 +1243,10 @@ void print_quake_cmt_fp(FILE *out, struct qke quake)
   iexp = (int)(log10(quake.m0)+0.5);
   
   fprintf(out,"%9.4f %9.4f %6.2f\t%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f\t%10.8f %i\t%9.4f %9.4f %f\n",
-	  quake.lon,quake.lat,quake.depth,
-	  quake.strike,quake.dip,quake.rake,
-	  quake.strike2,quake.dip2,quake.rake2,
-	  quake.m0/pow(10,iexp),iexp+7,quake.lon,quake.lat,quake.tsec);
+	  quake.dlon,quake.dlat,quake.depth,
+	  BC_R2D(quake.strike),BC_R2D(quake.dip),BC_R2D(quake.rake),
+	  BC_R2D(quake.strike2),BC_R2D(quake.dip2),BC_R2D(quake.rake2),
+	  quake.m0/pow(10,iexp),iexp+7,quake.plon,quake.plat,quake.tsec);
 }
 
 
@@ -1239,10 +1264,10 @@ void create_catalog(struct cat *catalog,long int init_seed)
   catalog->maxmag = -100;
   catalog->mindepth = 1000;
   catalog->maxdepth = -1000;
-  catalog->minlon = 1000;
-  catalog->maxlon = -1000;
-  catalog->minlat = 1000;
-  catalog->maxlat = -1000;
+  catalog->minlond = 1000;
+  catalog->maxlond = -1000;
+  catalog->minlatd = 1000;
+  catalog->maxlatd = -1000;
   catalog->lkm_min = 6371;
   catalog->lkm_max = 0;
   if(!init){
@@ -1263,48 +1288,6 @@ void make_room_for_quake(struct cat *catalog)
   catalog->quake[catalog->n].deleted = BC_FALSE;
 }
 
-FILE *myopen(char *filename, char *rwmode, char *program)
-{
-  FILE *stream;
-  stream = fopen(filename,rwmode);
-  if(!stream){
-    fprintf(stderr,"%s: can not open file \"%s\" for mode %s, exiting\n",
-	    program,filename,rwmode);
-    exit(-1);
-  }
-  return stream;
-}
-
-
-
-
-
-BC_CPREC gauss_ran(long int *seed, BC_CPREC sigma)
-{
-  return sigma * gasdev(seed);
-}
-
-/* get gaussian distribution */
-BC_CPREC gasdev(long int *seed)
-{
-  static int iset=0;
-  static BC_CPREC gset;
-  BC_CPREC fac,rsq,v1,v2;
-  if  (iset == 0) {
-    do {
-      v1=2.0*BC_RGEN(seed)-1.0;
-      v2=2.0*BC_RGEN(seed)-1.0;
-      rsq=v1*v1+v2*v2;
-    } while (rsq >= 1.0 || rsq == 0.0);
-    fac=sqrt(-2.0*log(rsq)/rsq);
-    gset=v1*fac;
-    iset=1;
-    return v2*fac;
-  } else {
-    iset=0;
-    return gset;
-  }
-}
 
 
 
@@ -1380,3 +1363,15 @@ void add_quake_to_bin_list(unsigned int iquake, struct bn *bin,BC_CPREC weight)
     BC_MEMERROR("add_quake_to_bin_list: weight");
 }
 
+void assign_quake_angles(struct qke *quake,BC_CPREC *angles)
+{
+  angles[0] = quake->strike;
+  angles[1] = quake->dip;
+  angles[2] = quake->rake;
+  
+  angles[3] = quake->strike2;
+  angles[4] = quake->dip2;
+  angles[5] = quake->rake2;
+
+
+}

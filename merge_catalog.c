@@ -19,7 +19,7 @@ int main(int argc, char **argv)
   }
   fprintf(stderr,"%s: merging two catalogs into %s\n",argv[0],argv[3]);
   
-  catalog=(struct cat *)malloc(3  * sizeof(struct cat));
+  catalog=(struct cat *)calloc(3,sizeof(struct cat));
   if(!catalog)
     BC_MEMERROR(argv[0]);
   

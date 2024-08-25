@@ -15,6 +15,9 @@
 
 /* 
    convert a moment tensor to double couple and compute the best fit fault planes
+   
+   return in radians
+
 */
 void tensor2fpangle(BC_CPREC *m, BC_CPREC *strike1, BC_CPREC *dip1, BC_CPREC *rake1,
 		    BC_CPREC *strike2, BC_CPREC *dip2, BC_CPREC *rake2)
@@ -29,6 +32,7 @@ void tensor2fpangle(BC_CPREC *m, BC_CPREC *strike1, BC_CPREC *dip1, BC_CPREC *ra
 
   GMT_momten2axe(mt,&t_axis,&n_axis,&p_axis);
   axe2dc(t_axis, p_axis, &np1, &np2); /* axes to double couple nodal planes */
+
   *strike1 = np1.str;*dip1 = np1.dip;*rake1 = np1.rake;
   *strike2 = np2.str;*dip2 = np2.dip;*rake2 = np2.rake;
 }
@@ -71,8 +75,6 @@ void GMT_momten2axe(struct M_TENSOR mt,struct AXIS *T,struct AXIS *N,struct AXIS
       az[j] += TWO_PI;
     else if (az[j] > TWO_PI)
       az[j] -= TWO_PI;
-    pl[j] *= BC_R2D;
-    az[j] *= BC_R2D;
   }
   T->val = d[0];	T->e = mt.expo;	T->str = az[0]; T->dip = pl[0];
   N->val = d[1];	N->e = mt.expo; N->str = az[1]; N->dip = pl[1];
@@ -90,20 +92,20 @@ void GMT_momten2axe(struct M_TENSOR mt,struct AXIS *T,struct AXIS *N,struct AXIS
   Genevieve Patau, 16 juin 1997
 */
 
-void axe2dc(struct AXIS T,struct AXIS P,struct nodal_plane *NP1,struct nodal_plane *NP2)
+void axe2dc(struct AXIS T,struct AXIS P,
+	    struct nodal_plane *NP1,struct nodal_plane *NP2)
 
 {
 
   double pp, dp, pt, dt;
   double p1, d1, p2, d2;
-  double PII = M_PI * 2.;
   double cdp, sdp, cdt, sdt;
   double cpt, spt, cpp, spp;
   double amz, amy, amx;
   double im;
 
-  pp = P.str * BC_D2R; dp = P.dip * BC_D2R;
-  pt = T.str * BC_D2R; dt = T.dip * BC_D2R;
+  pp = P.str ; dp = P.dip;
+  pt = T.str ; dt = T.dip;
 
   sincos (dp, &sdp, &cdp);
   sincos (dt, &sdt, &cdt);
@@ -119,9 +121,11 @@ void axe2dc(struct AXIS T,struct AXIS P,struct nodal_plane *NP1,struct nodal_pla
   if (d1 > M_PI_2) {
     d1 = M_PI - d1;
     p1 += M_PI;
-    if (p1 > PII) p1 -= PII;
+    if (p1 > TWO_PI)
+      p1 -= TWO_PI;
   }
-  if (p1 < 0.) p1 += PII;
+  if (p1 < 0.)
+    p1 += TWO_PI;
 
   amz = sdt - sdp; amx = spt - spp; amy = cpt - cpp;
   d2 = atan2(sqrt(amx*amx + amy*amy), amz);
@@ -129,12 +133,14 @@ void axe2dc(struct AXIS T,struct AXIS P,struct nodal_plane *NP1,struct nodal_pla
   if (d2 > M_PI_2) {
     d2 = M_PI - d2;
     p2 += M_PI;
-    if (p2 > PII) p2 -= PII;
+    if (p2 > TWO_PI)
+      p2 -= TWO_PI;
   }
-  if (p2 < 0.) p2 += PII;
+  if (p2 < 0.)
+    p2 += TWO_PI;
 
-  NP1->dip = d1 * BC_R2D; NP1->str = p1 * BC_R2D;
-  NP2->dip = d2 * BC_R2D; NP2->str = p2 * BC_R2D;
+  NP1->dip = d1; NP1->str = p1;
+  NP2->dip = d2; NP2->str = p2;
 
   im = 1;
   if (dp > dt) im = -1;
@@ -150,7 +156,7 @@ double computed_rake2(double str1,double dip1,double str2,double dip2,double fau
   characterizing the fault :
   +1. inverse fault
   -1. normal fault.
-  Angles are in degrees.
+  Angles are in radians
 */
 
 /* Genevieve Patau */
@@ -159,15 +165,15 @@ double computed_rake2(double str1,double dip1,double str2,double dip2,double fau
   double rake2, sinrake2;
   double sd, cd, ss, cs;
 
-  sincosd (str1 - str2, &ss, &cs);
+  sincos (str1 - str2, &ss, &cs);
 
   sd = sin(dip1);        cd = cos(dip2);
-  if (fabs(dip2 - 90.) < BC_EPSIL)
+  if (fabs(dip2 - HALF_PI) < BC_EPSIL)
     sinrake2 = fault * cd;
   else
     sinrake2 = -fault * sd * cs / cd;
 
-  rake2 = d_atan2d(sinrake2, - fault * sd * ss);
+  rake2 = atan2(sinrake2, - fault * sd * ss);
 
   return(rake2);
 }
@@ -425,19 +431,5 @@ int	GMT_jacobi (double *a, int *n, int *m, double *d, double *v, double *b, doub
   }
   return(0);
 }
-void sincosd(double ang_deg, double *sin_val, double *cos_val)
-{
-  double ang;
-  ang = ang_deg * BC_D2R;	/* from deg to rad */
-  sincos(ang,sin_val,cos_val);
-}
-#ifndef HAVE_SINCOS
-void sincos(double ang, double *sin_val, double *cos_val)
-{
-  
-  *sin_val = sin(ang);
-  *cos_val = cos(ang);
-}
 
 
-#endif

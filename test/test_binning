@@ -1,0 +1,6 @@
+#!/bin/bash
+inc=0.5
+
+minmax -I$inc test.aki | gawk -f reg2wesn.awk > tmp.dat
+read w e s n < tmp.dat
+../bin/bin_catalog test.aki $inc 0 10 0 $w $e $s $n 30 1 0 -10 0 kostrov $inc

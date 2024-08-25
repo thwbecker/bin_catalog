@@ -16,7 +16,7 @@ int main(int argc, char **argv)
     fprintf(stderr,"%s catalog.cmt\n",argv[0]);
     exit(-1);
   }
-  catalog=(struct cat *)malloc(sizeof(struct cat)); 
+  catalog=(struct cat *)calloc(1,sizeof(struct cat)); 
   if(!catalog)
     BC_MEMERROR(argv[0]);
   read_catalog(argv[1],catalog,BC_CMT);

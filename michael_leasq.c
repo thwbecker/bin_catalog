@@ -2,12 +2,6 @@
 #include <math.h>
 #include "catalog.h"
 
-void michael_leasq(BC_CPREC *,int ,int ,BC_CPREC *,BC_CPREC *,BC_CPREC *,BC_CPREC *,BC_CPREC *) ;
-void michael_gaus(BC_CPREC *,int ,BC_CPREC *,BC_CPREC *);
-BC_CPREC dabs(BC_CPREC );
-void michael_atransa(BC_CPREC *,int ,int ,BC_CPREC *);
-void michael_atransb(BC_CPREC *,int ,int ,BC_CPREC *,BC_CPREC *); /* computes c= atranspose * b */
-void michael_sigsq(BC_CPREC *,int ,int ,BC_CPREC *,BC_CPREC *,BC_CPREC *); /* computes the variance of a */
 
   
 void michael_leasq(BC_CPREC *a,int m,int n,BC_CPREC *x,BC_CPREC *b,

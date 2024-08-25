@@ -1,7 +1,7 @@
 #include "catalog.h"
 
 void ranger(BC_CPREC *z)
-/* makes z in 0 to 360 */
+/* makes z in 0 to 360 in degrees */
 {
   while(*z >= 360)
     *z-= 360;
@@ -23,7 +23,10 @@ BC_CPREC max_x_from_int_vector(BC_CPREC *x, int *y, int n)
   }
   return xmax;
 }
-/* tin, tou[6] symmetric storage  */
+/* tin, tou[6] symmetric storage 
+   alpha,beta,gamma in radians
+
+ */
 void rotate_vec6(BC_CPREC *tin, BC_CPREC *tout, BC_CPREC alpha, BC_CPREC beta, BC_CPREC gamma)
 {
   BC_CPREC r[3][3],xin[3][3],xout[3][3];
@@ -55,27 +58,20 @@ void mattosixsym(BC_CPREC in[3][3], BC_CPREC *out6)
 /*
   
   obtain a general rotation matrix with angles alpha, beta, and gamma
-  (given in degrees) as defined in Dahlen and Tromp, p. 921
+  (given in radians) as defined in Dahlen and Tromp, p. 921
   
 */
 void get_gen_rot(BC_CPREC r[3][3],BC_CPREC alpha,
 		 BC_CPREC beta, BC_CPREC gamma)
 {
-  BC_CPREC ralpha,sin_alpha,cos_alpha;
-  BC_CPREC rbeta,sin_beta,cos_beta;
-  BC_CPREC rgamma,sin_gamma,cos_gamma;
+  BC_CPREC sin_alpha,cos_alpha;
+  BC_CPREC sin_beta,cos_beta;
+  BC_CPREC sin_gamma,cos_gamma;
+  
+  sincos(alpha, &sin_alpha,&cos_alpha);
+  sincos(beta, &sin_beta,&cos_beta);
+  sincos(gamma, &sin_gamma,&cos_gamma);
 
-  ralpha=BC_DEG2RAD(alpha);
-  sin_alpha = sin(ralpha);
-  cos_alpha = cos(ralpha);
-
-  rbeta=BC_DEG2RAD(beta);
-  sin_beta = sin(rbeta);
-  cos_beta = cos(rbeta);
-
-  rgamma=BC_DEG2RAD(gamma);
-  sin_gamma = sin(rgamma);
-  cos_gamma = cos(rgamma);
   
   r[BC_R][BC_R] = cos_alpha*cos_beta*cos_gamma - sin_alpha*sin_gamma; 
   r[BC_R][BC_THETA] = sin_alpha*cos_beta*cos_gamma + cos_alpha*sin_gamma;
@@ -137,17 +133,15 @@ BC_CPREC distance_cart(BC_CPREC x1,BC_CPREC y1,BC_CPREC x2, BC_CPREC y2)
 
    cosines for lat1 and lat2 are precomputed
 
+   LON, LAT IN RADIANS
+
 */
 BC_CPREC distance_geo(BC_CPREC lon1,BC_CPREC lat1,
-		   BC_CPREC lon2,BC_CPREC lat2,
-		   BC_CPREC coslat1, BC_CPREC coslat2)
+		      BC_CPREC lon2,BC_CPREC lat2,
+		      BC_CPREC coslat1, BC_CPREC coslat2)
 {
   BC_CPREC tmp1,tmp2,tmp3;
 
-  lon1/=BC_PIF;
-  lat1/=BC_PIF;
-  lon2/=BC_PIF;
-  lat2/=BC_PIF;
   tmp1 = sin((lat1 - lat2)/2.0);
   tmp1 = tmp1 * tmp1;
   tmp2 = sin((lon1 - lon2)/2.0);
@@ -162,11 +156,11 @@ BC_CPREC distance_geo(BC_CPREC lon1,BC_CPREC lat1,
 
 BC_CPREC distance(struct cat *c1,struct cat *c2,int i,int j)
 {
-  if(c1->is_xy){
-    return distance_cart(c1->quake[i].lon,c1->quake[i].lat,
-			 c2->quake[j].lon,c2->quake[j].lat);
+  if(c1->is_xy){		/* based on  */
+    return distance_cart(c1->quake[i].dlon,c1->quake[i].dlat,
+			 c2->quake[j].dlon,c2->quake[j].dlat);
     
-  }else{
+  }else{			/* based on radians */
     return distance_geo(c1->quake[i].lon,c1->quake[i].lat,
 			c2->quake[j].lon,c2->quake[j].lat,
 			c1->quake[i].coslat,c2->quake[j].coslat);
@@ -299,3 +293,51 @@ BC_CPREC ran2(long int *idum)
 #undef NDIV
 #undef EPS
 #undef RNMX
+BC_CPREC gauss_ran(long int *seed, BC_CPREC sigma)
+{
+  return sigma * gasdev(seed);
+}
+
+/* get gaussian distribution */
+BC_CPREC gasdev(long int *seed)
+{
+  static int iset=0;
+  static BC_CPREC gset;
+  BC_CPREC fac,rsq,v1,v2;
+  if  (iset == 0) {
+    do {
+      v1=2.0*BC_RGEN(seed)-1.0;
+      v2=2.0*BC_RGEN(seed)-1.0;
+      rsq=v1*v1+v2*v2;
+    } while (rsq >= 1.0 || rsq == 0.0);
+    fac=sqrt(-2.0*log(rsq)/rsq);
+    gset=v1*fac;
+    iset=1;
+    return v2*fac;
+  } else {
+    iset=0;
+    return gset;
+  }
+}
+FILE *myopen(char *filename, char *rwmode, char *program)
+{
+  FILE *stream;
+  stream = fopen(filename,rwmode);
+  if(!stream){
+    fprintf(stderr,"%s: can not open file \"%s\" for mode %s, exiting\n",
+	    program,filename,rwmode);
+    exit(-1);
+  }
+  return stream;
+}
+#ifndef HAVE_SINCOS
+void sincos(double ang, double *sin_val, double *cos_val)
+{
+  
+  *sin_val = sin(ang);
+  *cos_val = cos(ang);
+}
+
+
+#endif
+

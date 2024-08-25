@@ -1,8 +1,45 @@
 #include "eigen.h"
+
+
+void calc_eigensystem_vec6(COMP_PRECISION *a,
+			   COMP_PRECISION *eval,
+			   COMP_PRECISION *evec,
+			   BC_BOOLEAN ivec,BC_BOOLEAN largest_first)
+{
+  COMP_PRECISION b[9];
+  b[RR] = a[0];
+  b[RT] = a[1];
+  b[RP] = a[2];
+  b[TT] = a[3];
+  b[TP] = a[4];
+  b[PP] = a[5];
+  calc_eigensystem_sym_9(b,eval,evec,ivec,largest_first);
+}
+
+
+void calc_eigensystem_sym_3x3(COMP_PRECISION a[3][3],COMP_PRECISION *eval,
+			      COMP_PRECISION *evec,
+			      BC_BOOLEAN ivec,BC_BOOLEAN largest_first)
+{
+  COMP_PRECISION b[9];
+  b[RR] = a[0][0];
+  b[RT] = a[0][1];
+  b[RP] = a[0][2];
+  b[TT] = a[1][1];
+  b[TP] = a[1][2];
+  b[PP] = a[2][2];
+  calc_eigensystem_sym_9(b,eval,evec,ivec,largest_first);
+}
+
+
 /*
   
-  given real, symmetric a 3 x 3 matrix A where only the RR, RT, RP, TT, TP, and PP
-  components have to be filled (the corresponding other ones will be overwritten)
+  given real, symmetric a 3 x 3 matrix A stored in [9] type
+
+  WHERE ONLY THE RR, RT, RP, TT, TP, AND PP
+  COMPONENTS HAVE TO BE FILLED  (see above)
+
+  (the corresponding other ones will be overwritten)
 
   since this is for symmteric matrices, doesn't matter if we have C or
   FORTRAN storage
@@ -38,7 +75,8 @@
 */
 void calc_eigensystem_sym_9(COMP_PRECISION *a,COMP_PRECISION *eval,
 			    COMP_PRECISION *evec,
-			    short int icalc_vectors)
+			    BC_BOOLEAN icalc_vectors,
+			    BC_BOOLEAN largest_first)
 {
   static int n=3;// dimension, don't use a define since we want to pass n to 'rs'
   int i,ierr,matz,j;
@@ -72,20 +110,14 @@ void calc_eigensystem_sym_9(COMP_PRECISION *a,COMP_PRECISION *eval,
 	}
     }
   }
-}
-
-void calc_eigensystem_sym_3x3(COMP_PRECISION a[3][3],COMP_PRECISION *eval,
-			      COMP_PRECISION *evec,
-			      short int ivec)
-{
-  COMP_PRECISION b[9];
-  b[XX] = a[0][0];
-  b[XY] = a[0][1];
-  b[XZ] = a[0][2];
-  b[YY] = a[1][1];
-  b[YZ] = a[1][2];
-  b[ZZ] = a[2][2];
-  calc_eigensystem_sym_9(b,eval,evec,ivec);
+  if(largest_first){
+    swap((eval+0),(eval+2));
+    swap((evec+0),(evec+6+0));
+    swap((evec+1),(evec+6+1));
+    swap((evec+2),(evec+6+2));
+    
+  }
+  
 }
 
 
@@ -163,4 +195,11 @@ void indexx(int n,COMP_PRECISION *arr,int *indx)
 #undef NSTACK
 #undef SWAP
 
+void swap(COMP_PRECISION *a,COMP_PRECISION *b)
+{
+  COMP_PRECISION tmp;
+  tmp = *a;
+  *a = *b;
+  *b = tmp;
+}
 

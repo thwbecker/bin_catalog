@@ -9,7 +9,7 @@
 int main(int argc, char **argv)
 {
   double dx = 0.2,min_mag=2.49,max_mag=8.01;
-  double lonmin,lonmax,latmin,latmax;
+  double dlonmin,dlonmax,dlatmin,dlatmax;
   double mindepth,maxdepth;
   double dy;
   
@@ -24,7 +24,7 @@ int main(int argc, char **argv)
 				2: normalized by numbers over time 
 			     */
   dy = dx;
-  catalog=(struct cat *)malloc(sizeof(struct cat)); 
+  catalog=(struct cat *)calloc(1,sizeof(struct cat)); 
   sprintf(out_istring,"kostrov");
   
   if(!catalog)
@@ -33,15 +33,15 @@ int main(int argc, char **argv)
   /* 
      range of summation 
   */
-  lonmin = 232;lonmax=250;
-  latmin=30;latmax =45;
+  dlonmin = 232;dlonmax=250;
+  dlatmin=30;dlatmax =45;
   mindepth = -10;maxdepth = 15;	/* in km */
   
   if(argc < 2){
     fprintf(stderr,"%s catalog.aki [dx, %g] [min_mag, %g] [max_mag, %g] [monte_carlo, %i] [min_lon, %g] [max_lon, %g] [min_lat, %g] [max_lat, %g] [max_depth, %g] [use_aki, %i] [weighting_method (0/1/2), %i] [dmin, %g] [is_xy, %i] [out_istring, %s] [dy, dx]\n",
 	    argv[0],dx,min_mag,max_mag,(int)monte_carlo,
-	    lonmin, lonmax, 
-	    latmin, latmax,
+	    dlonmin, dlonmax, 
+	    dlatmin, dlatmax,
 	    maxdepth,(int)use_aki,weighting_method,
 	    mindepth,(int)catalog->is_xy,out_istring);
     exit(-1);
@@ -58,10 +58,10 @@ int main(int argc, char **argv)
     sscanf(argv[5],"%i",&itmp);
     monte_carlo = (BC_BOOLEAN)itmp;
   }
-  if(argc>6)sscanf(argv[6],"%lf",&lonmin);
-  if(argc>7)sscanf(argv[7],"%lf",&lonmax);
-  if(argc>8)sscanf(argv[8],"%lf",&latmin);
-  if(argc>9)sscanf(argv[9],"%lf",&latmax);
+  if(argc>6)sscanf(argv[6],"%lf",&dlonmin);
+  if(argc>7)sscanf(argv[7],"%lf",&dlonmax);
+  if(argc>8)sscanf(argv[8],"%lf",&dlatmin);
+  if(argc>9)sscanf(argv[9],"%lf",&dlatmax);
   if(argc>10)sscanf(argv[10],"%lf",&maxdepth);
   if(argc>11){
     sscanf(argv[11],"%i",&itmp);
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
   */
   /* parameters */
   /*  */
-  setup_kostrov(catalog,lonmin,lonmax,latmin,latmax,mindepth,maxdepth,
+  setup_kostrov(catalog,dlonmin,dlonmax,dlatmin,dlatmax,mindepth,maxdepth,
 		dx,dy,min_mag,max_mag,weighting_method);  
   /* 
      sum 

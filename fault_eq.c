@@ -15,14 +15,14 @@ void stridip(BC_CPREC n,BC_CPREC e,BC_CPREC u,BC_CPREC *strike,BC_CPREC *dip)
     e= -e;
     u= -u;
   }
-  *strike=atan2(e,n)*BC_PIF;
-  *strike= *strike-90.;
+  *strike=atan2(e,n);
+  *strike= *strike - HALF_PI;
   if(*strike < 0.)
-    *strike+= 360.;
-  if(*strike > 360.)
-    *strike-= 360.;
-  x=sqrt(n*n+e*e);   /* x is the horizontal magnitude */
-  *dip=atan2(x,u)*BC_PIF;
+    *strike += TWO_PI;
+  if(*strike >  TWO_PI)
+    *strike -=  TWO_PI;
+  x = sqrt(n*n+e*e);   /* x is the horizontal magnitude */
+  *dip = atan2(x,u);
 }
 
 /* code from Andy Michael, as the SLICK package */
@@ -31,6 +31,9 @@ void stridip(BC_CPREC n,BC_CPREC e,BC_CPREC u,BC_CPREC *strike,BC_CPREC *dip)
 
    find alternate fault plane from given strike(dir, CW from N), dip
    and rake
+
+   all in radians
+   
 */
 void find_alt_plane(BC_CPREC ddir1,BC_CPREC dip1,BC_CPREC rake1,
 		    BC_CPREC *ddir2,BC_CPREC *dip2,BC_CPREC *rake2)
@@ -38,11 +41,11 @@ void find_alt_plane(BC_CPREC ddir1,BC_CPREC dip1,BC_CPREC rake1,
   BC_CPREC z,z2,z3,s1,s2,s3,sin_z,cos_z,sin_z2,cos_z2,sin_z3,cos_z3;
   BC_CPREC  n1,n2,h1,h2;
   
-  z=ddir1/BC_PIF;
-  if(dip1==90)
-    dip1=89.99999;
-  z2=dip1/BC_PIF;
-  z3=rake1/BC_PIF;
+  z=ddir1;
+  if(dip1 == HALF_PI)
+    dip1 = HALF_PI - 1e-7;
+  z2=dip1;
+  z3=rake1;
 
   sin_z  = sin(z); cos_z  = cos(z);
   sin_z2 = sin(z2);cos_z2 = cos(z2);
@@ -60,17 +63,17 @@ void find_alt_plane(BC_CPREC ddir1,BC_CPREC dip1,BC_CPREC rake1,
   h2= s1;
   /* note h3=0 always so we leave it out */
   stridip(s2,s1,s3,&z,&z2);
-  z+= 90.;
+  z += HALF_PI;
   *ddir2=z;
   ranger(ddir2);
   *dip2=z2;
   z= h1*n1 + h2*n2;
-  z/= sqrt(h1*h1 + h2*h2);
-  z=acos(z);
-  if(s3>=0)
-    *rake2= z*BC_PIF;
+  z /= sqrt(h1*h1 + h2*h2);
+  z = acos(z);
+  if(s3 >= 0)
+    *rake2=  z;
   else
-    *rake2= -z*BC_PIF;
+    *rake2= -z;
 }
 
 /*
@@ -87,9 +90,9 @@ void aki2mom(BC_CPREC strike, BC_CPREC dip, BC_CPREC rake, BC_CPREC mag,
   BC_CPREC sin_phi,cos2_phi,sin2_phi,sin_delta,sin_gamma,cos_delta,
     cos_phi,cos_2phi,sin_2phi;
   // angles
-  phi =   BC_DEG2RAD(strike);		        // strike
-  delta = BC_DEG2RAD(dip);			// dip
-  gamma = BC_DEG2RAD(rake);			// rake
+  phi =   strike;		        // strike
+  delta = dip;			// dip
+  gamma = rake;			// rake
 
   /* use moment */
   *m0 = mag2mom(mag);
@@ -147,11 +150,11 @@ moment conversions
 */
 BC_CPREC mag2mom(BC_CPREC mag)
 {				     /* Hanks and Kanamori (1979) */
-  return pow(10.0,3./2.*mag + 9.1); /* M0 in Nm */
+  return pow(10.0,1.5*mag + 9.1); /* M0 in Nm */
 }
 BC_CPREC mom2mag(BC_CPREC mom)
 {
-  return ((2./3.)*(log10(mom) - 9.1)); /* in Nm */
+  return ((0.6666666666666666666666667)*(log10(mom) - 9.1)); /* in Nm */
 }
 
 BC_CPREC mag2pot(BC_CPREC mag)
