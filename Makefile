@@ -6,6 +6,8 @@ CFLAGS = -O2
 # copy out if you do not have sincos
 DEFINES = -DHAVE_SINCOS
 
+HFILES = catalog.h proto.h eigen.h
+
 LDFLAGS = -lm
 BDIR = bin/
 ODIR = objects/
@@ -113,20 +115,20 @@ $(BDIR)/test_eigen: test_eigen.c $(CAT_OBJS) $(ODIR)/eigen.o
 	-o $(BDIR)/test_eigen  $(ODIR)/eigen.o	$(EISLIB)  $(GMT_LIBS) $(LDFLAGS)
 
 
-$(ODIR)/eigen.main.o: eigen_driver.c
+$(ODIR)/eigen.main.o: eigen_driver.c $(HFILES)
 	$(CC) $(CFLAGS) $(DEFINES) -c eigen_driver.c -o $(ODIR)/eigen.main.o 
 
-$(ODIR)/eigen.ov.o: eigen_driver.c
+$(ODIR)/eigen.ov.o: eigen_driver.c $(HFILES)
 	$(CC) $(CFLAGS)  $(DEFINES) -c eigen_driver.c -DONLY_VALUES -o $(ODIR)/eigen.ov.o
 
-$(ODIR)/eigen.tds.o: eigen_driver.c
+$(ODIR)/eigen.tds.o: eigen_driver.c $(HFILES)
 	$(CC) $(CFLAGS)  $(DEFINES) -c eigen_driver.c -DTHREED_SYMMETRIC -o $(ODIR)/eigen.tds.o
 
-$(ODIR)/eigen.tds.ov.o: eigen_driver.c
+$(ODIR)/eigen.tds.ov.o: eigen_driver.c $(HFILES)
 	$(CC) $(CFLAGS) $(DEFINES)  -c eigen_driver.c -DTHREED_SYMMETRIC \
 		-DONLY_VALUES -o $(ODIR)/eigen.tds.ov.o
 
 
-$(ODIR)/%.o: %.c  $(HDR_FLS)
+$(ODIR)/%.o: %.c  $(HFILES)
 	$(CC) $(CFLAGS) $(DEFINES)  $(INCLUDES) -c $< -o $(ODIR)/$*.o
 

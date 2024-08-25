@@ -168,6 +168,6 @@ BC_CPREC slip_deviation_dotp(BC_CPREC *n,BC_CPREC *u,BC_CPREC tau[3][3])
   //return acos(shear_traction[0]*u[0] + shear_traction[1]*u[1] + shear_traction[2]*u[2]); /*  */
   /* dot product */
 
-  /* slip the sign because of stress convention? */
+  /* slip the sign because of stress sign convention? */
   return -(shear_traction[0]*u[0] + shear_traction[1]*u[1] + shear_traction[2]*u[2]);
 }

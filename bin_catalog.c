@@ -24,7 +24,10 @@ int main(int argc, char **argv)
 				2: normalized by numbers over time 
 			     */
   dy = dx;
-  catalog=(struct cat *)calloc(1,sizeof(struct cat)); 
+  catalog=(struct cat *)calloc(1,sizeof(struct cat));
+
+  catalog->use_friction_solve = BC_TRUE; /* additional stress inversion */
+  
   sprintf(out_istring,"kostrov");
   
   if(!catalog)

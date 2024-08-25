@@ -1,6 +1,43 @@
 #!/bin/bash
+#
+# for a small dataset, compare Kostrov, randomized Michael, fixed friction Michael, and best-fit
+#
 inc=0.5
 
 minmax -I$inc test.aki | gawk -f reg2wesn.awk > tmp.dat
 read w e s n < tmp.dat
 ../bin/bin_catalog test.aki $inc 0 10 0 $w $e $s $n 30 1 0 -10 0 kostrov $inc
+
+makecpt -Croma -T-0.5/0.5/0.1 > tmp.cpt
+reg=`minmax -I1 test.aki`
+proj=-JM7
+fs=""
+for s in 0.norm s ds bs;do
+    sfile=kostrov.$inc.$inc.$s.dat
+    if [ $s = 0.norm ];then
+	label=Kostrov
+    elif [ $s = s ];then
+	label=Michael
+    elif [ $s = ds ];then
+	label="Vavrycuk @~m@~=0.6"
+    else
+	label="Vavrycuk @~m@~@-bf@-"
+    fi
+    ofile=test.$s.ps
+    pscoast -Df -W0.5 $reg $proj -P -K -Baf.1a.5:."$label": > $ofile
+    # 	m: Seismic (full) moment tensor:
+    #           X Y depth mrr mtt mff mrt mrf mtf exp [newX newY] [event_title].
+    gawk '{print($1,$2,$3,$4,$5,$6)}' $sfile | gawk -f tensornorm.awk  > tmp.norm
+    gawk '{print($1,$2,$3,$4,$5,$6,$7,$8)}' $sfile > tmp.1
+    paste tmp.1 tmp.norm | gawk '{print($7,$8,($4+$6)/2/$9,$1,$4,$6,$2,$3,$5,22,$7,$8)}' > tmp.plot
+    # moment tensor
+    psmeca tmp.plot $reg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Ctmp.cpt -Sm1/-1  -O -K >> $ofile
+    # overlay double couple
+    psmeca tmp.plot $reg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Sd1  -O  -T0 >> $ofile
+    rm tmp.plot tmp.norm tmp.1
+    modifybb $ofile
+    fs="$fs $ofile"
+done
+epsmerge -par -x 2 -y 2 --orientation Portrait $fs > test.ps
+psconvert -Tf test.ps
+rm $fs test.ps

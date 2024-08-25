@@ -73,6 +73,8 @@ void calc_eigensystem_sym_3x3(COMP_PRECISION a[3][3],COMP_PRECISION *eval,
   2, 1, and 0, respectively (see above)
 
 */
+#define FSWAP(a,b) xtemp=(a);(a)=(b);(b)=xtemp;
+
 void calc_eigensystem_sym_9(COMP_PRECISION *a,COMP_PRECISION *eval,
 			    COMP_PRECISION *evec,
 			    BC_BOOLEAN icalc_vectors,
@@ -80,7 +82,7 @@ void calc_eigensystem_sym_9(COMP_PRECISION *a,COMP_PRECISION *eval,
 {
   static int n=3;// dimension, don't use a define since we want to pass n to 'rs'
   int i,ierr,matz,j;
-  COMP_PRECISION fv1[3],fv2[3],loca[9];
+  COMP_PRECISION fv1[3],fv2[3],loca[9],xtemp;
   //
   // assign the symmetric values of the matrix
   // this is unnecessary, do it for safety
@@ -111,10 +113,10 @@ void calc_eigensystem_sym_9(COMP_PRECISION *a,COMP_PRECISION *eval,
     }
   }
   if(largest_first){
-    swap((eval+0),(eval+2));
-    swap((evec+0),(evec+6+0));
-    swap((evec+1),(evec+6+1));
-    swap((evec+2),(evec+6+2));
+    FSWAP(*(eval+0),*(eval+2));
+    FSWAP(*(evec+0),*(evec+6+0));
+    FSWAP(*(evec+1),*(evec+6+1));
+    FSWAP(*(evec+2),*(evec+6+2));
     
   }
   
@@ -124,7 +126,7 @@ void calc_eigensystem_sym_9(COMP_PRECISION *a,COMP_PRECISION *eval,
 
 
 
-#define SWAP(a,b) itemp=(a);(a)=(b);(b)=itemp;
+#define ISWAP(a,b) itemp=(a);(a)=(b);(b)=itemp;
 #define M 7
 #define NSTACK 5000
 
@@ -153,15 +155,15 @@ void indexx(int n,COMP_PRECISION *arr,int *indx)
       l=istack[jstack--];
     } else {
       k=(l+ir) >> 1;
-      SWAP(indx[k],indx[l+1]);
+      ISWAP(indx[k],indx[l+1]);
       if (arr[indx[l+1]] > arr[indx[ir]]) {
-	SWAP(indx[l+1],indx[ir])
+	ISWAP(indx[l+1],indx[ir])
 	  }
       if (arr[indx[l]] > arr[indx[ir]]) {
-	SWAP(indx[l],indx[ir])
+	ISWAP(indx[l],indx[ir])
 	  }
       if (arr[indx[l+1]] > arr[indx[l]]) {
-	SWAP(indx[l+1],indx[l])
+	ISWAP(indx[l+1],indx[l])
 	  }
       i=l+1;
       j=ir;
@@ -171,7 +173,7 @@ void indexx(int n,COMP_PRECISION *arr,int *indx)
 	do i++; while (arr[indx[i]] < a);
 	do j--; while (arr[indx[j]] > a);
 	if (j < i) break;
-	SWAP(indx[i],indx[j])
+	ISWAP(indx[i],indx[j])
 	  }
       indx[l]=indx[j];
       indx[j]=indxt;
@@ -193,13 +195,5 @@ void indexx(int n,COMP_PRECISION *arr,int *indx)
 }
 #undef M
 #undef NSTACK
-#undef SWAP
-
-void swap(COMP_PRECISION *a,COMP_PRECISION *b)
-{
-  COMP_PRECISION tmp;
-  tmp = *a;
-  *a = *b;
-  *b = tmp;
-}
+#undef ISWAP
 

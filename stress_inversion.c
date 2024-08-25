@@ -15,8 +15,12 @@
 void calc_stress_tensor_for_kbins(struct cat *catalog)
 {
   struct kostrov_sum *kostrov;
-  int i,j,n,iq,n6;
-  BC_CPREC *angles,*weights,tdev[2];
+  int i,j,j6,iq;
+  BC_CPREC *angles,*weights,ainst[2];
+  BC_BOOLEAN optim_verbose;
+#ifdef DEBUG
+  BC_CPREC sdev[2];
+#endif
   kostrov = catalog->sum;
   angles = (BC_CPREC *)malloc(6*sizeof(BC_CPREC));
   weights = (BC_CPREC *)malloc(sizeof(BC_CPREC));
@@ -28,27 +32,34 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
 
     */
     if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){	/* five parameters, at least two events */
-      n=n6=0;
-      for(j=0;j < kostrov->bin[i].n;j++){ /* assign */
+      
+      angles = (BC_CPREC *)realloc(angles,kostrov->bin[i].n*6*sizeof(BC_CPREC));
+      weights = (BC_CPREC *)realloc(weights,kostrov->bin[i].n*sizeof(BC_CPREC));
 
-	weights[n] = kostrov->bin[i].weight[j]; /* weight of this
+      for(j=j6=0;j < kostrov->bin[i].n;j++,j6+=6){ /* assign */
+	weights[j] = kostrov->bin[i].weight[j]; /* weight of this
 						   earthquake in the
 						   bin */
-	
 	iq = (int)kostrov->bin[i].quake[j]; /* number of this earthquake */
-	assign_quake_angles((catalog->quake+iq),(angles+n6));
-	n++;
-	n6 += 6;
-	angles = (BC_CPREC *)realloc(angles,(n6+6)*sizeof(BC_CPREC));
-	weights = (BC_CPREC *)realloc(weights,(n+1)*sizeof(BC_CPREC));
+	assign_quake_angles((catalog->quake+iq),(angles+j6));
       }
-      solve_stress_michael_random_sweep(n,angles,weights,kostrov->bin[i].s,kostrov->bin[i].ds,&catalog->seed);
-      calc_misfits_from_single_angle_set(kostrov->bin[i].s,angles,n, tdev);
-      kostrov->bin[i].dev[0] = 1-tdev[0]; /* slip deviation, smaller is better */
+      solve_stress_michael_random_sweep(kostrov->bin[i].n,angles,weights,kostrov->bin[i].s,kostrov->bin[i].ds,&catalog->seed);
+      calc_average_instability(kostrov->bin[i].n,angles,weights,BC_FRIC_DEF,kostrov->bin[i].s,ainst); /* instability of default stress */
+      kostrov->bin[i].inst[0] = ainst[0];
+      
+#ifdef DEBUG
+      calc_misfits_from_single_angle_set(kostrov->bin[i].s,angles,kostrov->bin[i].n, sdev);
+      fprintf(stderr,"srandom:          %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
+	      kostrov->bin[i].s[0],kostrov->bin[i].s[1],kostrov->bin[i].s[2],kostrov->bin[i].s[3],kostrov->bin[i].s[4],kostrov->bin[i].s[5],
+	      1-sdev[0],1-sdev[1],ainst[0],ainst[1]);
+      optim_verbose = BC_TRUE;
+#else
+      optim_verbose = BC_FALSE;
+#endif
       if(catalog->use_friction_solve){
-	calc_stress_for_friction(catalog->n,angles,weights,kostrov->bin[i].s,
+	calc_stress_for_friction(kostrov->bin[i].n,angles,weights,kostrov->bin[i].s,
 				 kostrov->bin[i].def_s,kostrov->bin[i].best_s,&(kostrov->bin[i].best_fric),
-				 (kostrov->bin[i].dev+1),(kostrov->bin[i].dev+2),BC_FALSE);
+				 (kostrov->bin[i].inst+1),(kostrov->bin[i].inst+2),optim_verbose);
 
       }
     }
@@ -144,51 +155,71 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
  */
 void calc_stress_for_friction(int n, BC_CPREC *iangles, BC_CPREC *weights,
 			      BC_CPREC *istress,BC_CPREC *dstress,BC_CPREC *bstress,
-			      BC_CPREC *best_fric, BC_CPREC *ddev,BC_CPREC *bdev,
+			      BC_CPREC *best_fric, BC_CPREC *dinst,BC_CPREC *binst,
 			      BC_BOOLEAN verbose)
 {
-  BC_CPREC align_max[2],friction;
-  BC_CPREC tstress[6],inst[2],sdev[2];
+  BC_CPREC max[2],friction;
+  BC_CPREC tstress[6],inst[2],sdev[2],mdev[2];
   BC_CPREC *angles;
   size_t asize,ssize;
+  int i;
   asize = sizeof(BC_CPREC)*n*6;
   ssize = sizeof(BC_CPREC)*6;
 
   angles=(BC_CPREC *)malloc(asize);
 
   
-  /* default friction */
+  /* 
+     default friction 
+  */
   memcpy(dstress,istress,ssize);
   memcpy(angles,iangles,asize);
   optimize_angles_via_instability(n,angles,weights,BC_FRIC_DEF,dstress,inst); /* for default friction */
-
-  /*  */
+  if(inst[1] > inst[0]){	/* messed up */
+    for(i=0;i<n;i++)		/* swap all angles */
+      swap_angles((angles+i*6));
+    optimize_angles_via_instability(n,angles,weights,BC_FRIC_DEF,dstress,inst); 
+  }
+  /* compute the slip misgit angles */
   calc_misfits_from_single_angle_set(dstress,angles,n, sdev);
   if(verbose)
-    fprintf(stderr,"default: s(%4.2f): %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev: %12.10f %12.10f\n",
-	    BC_FRIC_DEF,dstress[0],dstress[1],dstress[2],dstress[3],dstress[4],dstress[5],1-sdev[0],1-sdev[1]);
-  *ddev = 1-sdev[0];
+    fprintf(stderr,"default: s(%4.2f): %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
+	    BC_FRIC_DEF,dstress[0],dstress[1],dstress[2],dstress[3],dstress[4],dstress[5],1-sdev[0],1-sdev[1],inst[0],inst[1]);
+  *dinst = inst[0];		/* keep default instability */
+ 
+
   /* optimize */
-  align_max[0] = -10;
-  for(friction=BC_FRIC_SCAN_INC;friction < 1;friction += BC_FRIC_SCAN_INC){
+  max[0] = -10;
+  for(friction=BC_FRIC_SCAN_INC;friction < 1;friction += BC_FRIC_SCAN_INC){ /* scan
+									       friction
+									       for
+									       maximum
+									       instability */
     memcpy(tstress,istress,ssize);
     memcpy(angles,iangles,asize);
     optimize_angles_via_instability(n,angles,weights,friction,tstress,inst);
-    calc_misfits_from_single_angle_set(tstress,angles,n, sdev);
-
-    if(sdev[0] > sdev[1]){
-      if(sdev[0] > align_max[0]){
-	memcpy(bstress,tstress,ssize);
-	align_max[0] = sdev[0];
-	align_max[1] = sdev[1];
-	*best_fric = friction;
-      }
+    if(verbose==2)
+      fprintf(stderr,"         s(%4.2f): %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev:               \tinst: %7.5f %7.5f\n",
+	      friction,tstress[0],tstress[1],tstress[2],tstress[3],tstress[4],tstress[5],inst[0],inst[1]);
+    if(inst[1] > inst[0]){
+      for(i=0;i<n;i++)		/* swap all angles */
+	swap_angles((angles+i*6));
+      optimize_angles_via_instability(n,angles,weights,friction,tstress,inst);
+    }
+    if(inst[0] > max[0]){
+      memcpy(bstress,tstress,ssize);
+      calc_misfits_from_single_angle_set(bstress,angles,n, sdev);
+      max[0] = inst[0];
+      max[1] = inst[1];
+      mdev[0] = sdev[0];
+      mdev[1] = sdev[1];
+      *best_fric = friction;
     }
   }
-  *bdev = 1-align_max[0];
+  *binst = max[0];
   if(verbose)
-    fprintf(stderr,"optim:   s(%4.2f): %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev: %12.10f %12.10f\n",
-	    *best_fric,bstress[0],bstress[1],bstress[2],bstress[3],bstress[4],bstress[5],1-align_max[0],1-align_max[1]);
+    fprintf(stderr,"optim:   s(%4.2f): %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
+	    *best_fric,bstress[0],bstress[1],bstress[2],bstress[3],bstress[4],bstress[5],1-mdev[0],1-mdev[1],max[0],max[1]);
   
   free(angles);
 }

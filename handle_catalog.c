@@ -751,6 +751,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
 }
 
 /* 
+   
    output of stress tensors for each bin
 
 */
@@ -760,7 +761,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
   int i,k,m;
   char outname1[300];
   struct kostrov_sum *kostrov;
-  BC_CPREC t1[6],t2[6],dt[6];
+  BC_CPREC t1[6],t2[6],dt[6],mean_fric;
   if(!catalog->sum->init){
     fprintf(stderr,"print_stress_tensor: sum not initialized\n");
     exit(-1);
@@ -812,7 +813,39 @@ void print_stress_tensors(struct cat *catalog, char *filename)
     }
   fclose(out1);
   fprintf(stderr,"print_stress_tensors: written stress tensors minus normalized to %s\n",outname1);
-
+  if(catalog->use_friction_solve){
+    sprintf(outname1,"%s.ds.dat",filename); /* default friction */
+    out1 = myopen(outname1,"w","print_kostrov_bins");
+    for(m=i=0;i < kostrov->nxny;i++)
+      if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){
+	m++;
+	for(k=0;k < 6;k++)	/* stress tensor */
+	  fprintf(out1,"%8.4f ",kostrov->bin[i].def_s[k]);
+	fprintf(out1,"\t%8.3f %8.3f %12i",
+		kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
+	fprintf(out1,"\t%8.4f\t%5.3f\n",kostrov->bin[i].inst[1],BC_FRIC_DEF); 
+      }
+    fclose(out1);
+    fprintf(stderr,"print_stress_tensors: written def. friction %.3f  stress tensors to %s, %i out of %i cells filled\n",
+	    BC_FRIC_DEF,outname1,m,kostrov->nxny);
+    sprintf(outname1,"%s.bs.dat",filename); /* best friction */
+    out1 = myopen(outname1,"w","print_kostrov_bins");
+    mean_fric = 0;
+    for(m=i=0;i < kostrov->nxny;i++)
+      if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){
+	m++;
+	for(k=0;k < 6;k++)	/* stress tensor */
+	  fprintf(out1,"%8.4f ",kostrov->bin[i].best_s[k]);
+	fprintf(out1,"\t%8.3f %8.3f %12i",
+		kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
+	fprintf(out1,"\t%8.4f\t%5.3f\n",kostrov->bin[i].inst[2],kostrov->bin[i].best_fric); /* instability and best friction */
+	mean_fric += kostrov->bin[i].best_fric;
+      }
+    fclose(out1);
+    mean_fric /= (BC_CPREC)m;
+    fprintf(stderr,"print_stress_tensors: written best (mean:   %.3f) stress tensors to %s, %i out of %i cells filled\n",
+	    mean_fric,outname1,m,kostrov->nxny);
+  }
 
   
 }
@@ -1126,6 +1159,7 @@ int read_quake_aki(FILE *in, struct qke *quake)
 	    &(quake->dlon),&(quake->dlat),&(quake->depth),
 	    &(quake->strike),&(quake->dip),&(quake->rake),
 	    &(quake->mag),&tmp1,&tmp2,&quake->tsec)==10){
+
     /* convert */
     quake->strike = BC_D2R(quake->strike); /* strike/dip/rake in radians */
     quake->dip    = BC_D2R(quake->dip);
@@ -1375,3 +1409,17 @@ void assign_quake_angles(struct qke *quake,BC_CPREC *angles)
 
 
 }
+void swap_angles(BC_CPREC *angles)
+{
+  swap((angles),  (angles+3));
+  swap((angles+1),(angles+4));
+  swap((angles+2),(angles+5));
+}
+void swap(BC_CPREC *a,BC_CPREC *b)
+{
+  BC_CPREC tmp;
+  tmp = *a;
+  *a = *b;
+  *b = tmp;
+}
+

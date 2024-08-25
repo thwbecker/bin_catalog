@@ -33,8 +33,9 @@ void optimize_angles_via_instability(int n,BC_CPREC *angles,BC_CPREC *weights,BC
   while(nswap && (i<15)){
     /* compute the eigensystem for this set of stresses */
     calc_eigensystem_vec6(stress,sigma,svec,BC_TRUE,BC_TRUE);
-    ainst[0]=ainst[1]=0.;
+
     nswap=0;
+    ainst[0]=ainst[1]=0.0;
     for(j=j6=0;j < n;j++,j6+=6){
       /* 
 	 check each pair for stability assume stress has changed only
@@ -43,10 +44,8 @@ void optimize_angles_via_instability(int n,BC_CPREC *angles,BC_CPREC *weights,BC
       */
       stability_criterion_eig(sigma,svec,friction,(angles+j6),(j==0)?(BC_TRUE):(BC_FALSE),inst);
       if(inst[1] > inst[0]){	/* swap to make first more unstable */
-	swap((angles+j6),  (angles+j6+3));
-	swap((angles+j6+1),(angles+j6+4));
-	swap((angles+j6+2),(angles+j6+5));
-	nswap++;
+	swap_angles((angles+j6));
+ 	nswap++;
       }
       ainst[0]+=inst[0];ainst[1]+=inst[1];
     }
@@ -59,6 +58,23 @@ void optimize_angles_via_instability(int n,BC_CPREC *angles,BC_CPREC *weights,BC
     solve_stress_michael_specified_plane(n,angles,weights,stress);
     i++;
   }
+}
+/* compute average instability of set */
+void calc_average_instability(int n,BC_CPREC *angles,BC_CPREC *weights,BC_CPREC friction, BC_CPREC *stress,BC_CPREC *ainst)
+{
+  int i,i6;
+  BC_CPREC sigma[3],svec[9],inst[2];
+
+  calc_eigensystem_vec6(stress,sigma,svec,BC_TRUE,BC_TRUE);
+  ainst[0]=ainst[1]=0.0;
+  for(i=i6=0;i < n;i++,i6+=6){
+    stability_criterion_eig(sigma,svec,friction,(angles+i6),(i==0)?(BC_TRUE):(BC_FALSE),inst);
+    ainst[0]+=inst[0];
+    ainst[1]+=inst[1];
+  }
+  /* average instability on first and second*/
+  ainst[0]/=(BC_CPREC)n;
+  ainst[1]/=(BC_CPREC)n;
 }
 
 /*

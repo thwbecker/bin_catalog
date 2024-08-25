@@ -75,7 +75,7 @@
 #define BC_EPS_ANGLE_FOR_RANDOM_DEG 30
 /*  */
 #define BC_FRIC_DEF 0.6
-#define BC_FRIC_SCAN_INC 0.01
+#define BC_FRIC_SCAN_INC 0.025	/* increment for friction scan */
 /* 
 
    catalog closeness
@@ -140,7 +140,7 @@ struct bn{
   BC_CPREC me,mens,men;		/* mean horizontal strain */
   BC_CPREC smn[6],mnloc[6];		/* std for monte carlo, local
 					   realization */
-  BC_CPREC dev[3];		/* slip deviation for three different inversions */
+  BC_CPREC inst[3];		/* instability for three different inversions */
   BC_CPREC best_fric;
   BC_CPREC def_s[6],best_s[6];		/* default friction and best friction detemined stress */
   BC_CPREC *weight;

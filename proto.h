@@ -9,7 +9,6 @@ void calc_eigensystem_vec6(double *, double *, double *, unsigned short, unsigne
 void calc_eigensystem_sym_3x3(double [3][3], double *, double *, unsigned short, unsigned short);
 void calc_eigensystem_sym_9(double *, double *, double *, unsigned short, unsigned short);
 void indexx(int, double *, int *);
-void swap(double *, double *);
 /* eigen_3ds_simple.c */
 /* eigen_driver.c */
 /* fault_eq.c */
@@ -53,6 +52,8 @@ double quake_weight(double, double, double, int);
 double quake_scale_lkm(double);
 void add_quake_to_bin_list(unsigned int, struct bn *, double);
 void assign_quake_angles(struct qke *, double *);
+void swap_angles(double *);
+void swap(double *, double *);
 /* handle_catalog_gmt.c */
 void tensor2fpangle(double *, double *, double *, double *, double *, double *, double *);
 void GMT_momten2axe(struct M_TENSOR, struct AXIS *, struct AXIS *, struct AXIS *);
@@ -99,7 +100,7 @@ double slip_deviation_dotp(double *, double *, double [3][3]);
 /* solve_stress_one_bin.c */
 /* stability_criterion.c */
 void optimize_angles_via_instability(int, double *, double *, double, double *, double *);
-void stability_criterion_mat(double [3][3], double, double *, double *);
+void calc_average_instability(int, double *, double *, double, double *, double *);
 void stability_criterion_eig(double *, double *, double, double *, unsigned short, double *);
 /* stress_inversion.c */
 void calc_stress_tensor_for_kbins(struct cat *);
