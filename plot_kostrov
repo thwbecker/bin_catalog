@@ -24,6 +24,9 @@ add_pm=${15-0}			# add plate motions?
 use_simpson=${16-0} 		# 0: plot mean normal strain 1: use Simpson style characterization
 overlay_double_couple=${17-1}	# overlay the best fitting double couple style FM with -t30 transparency
 dmin=${18--10}			# minimum depth
+min_mag=${19-0}			# min magnitude
+max_mag=${20-10}		# max magnitude
+
 tmpn=`mktemp`
 trap "rm -f $tmpn*" EXIT
 slab_cmp=lajolla
@@ -324,7 +327,7 @@ if [ ! -s $sname.$kincx.$kincy.$name.0.norm.dat ];then
     #
     # do the summation
     # 
-    bin_catalog $mom_file $kincx 0 10 0 $w $e $s $n $dmax $is_aki 0 $dmin 0 $sname $kincy
+    bin_catalog $mom_file $kincx $min_mag $max_mag 0 $w $e $s $n $dmax $is_aki 0 $dmin 0 $sname $kincy
     for t in norm scaled;do
 	mv $sname.$kincx.$kincy.0.$t.dat $sname.$kincx.$kincy.$name.0.$t.dat 
     done
