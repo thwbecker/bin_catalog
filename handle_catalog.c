@@ -828,23 +828,25 @@ void print_stress_tensors(struct cat *catalog, char *filename)
     fclose(out1);
     fprintf(stderr,"print_stress_tensors: written def. friction %.3f  stress tensors to %s, %i out of %i cells filled\n",
 	    BC_FRIC_DEF,outname1,m,kostrov->nxny);
-    sprintf(outname1,"%s.bs.dat",filename); /* best friction */
-    out1 = myopen(outname1,"w","print_kostrov_bins");
-    mean_fric = 0;
-    for(m=i=0;i < kostrov->nxny;i++)
-      if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){
-	m++;
-	for(k=0;k < 6;k++)	/* stress tensor */
-	  fprintf(out1,"%8.4f ",kostrov->bin[i].best_s[k]);
-	fprintf(out1,"\t%8.3f %8.3f %12i",
-		kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
-	fprintf(out1,"\t%8.4f\t%5.3f\n",kostrov->bin[i].inst[2],kostrov->bin[i].best_fric); /* instability and best friction */
-	mean_fric += kostrov->bin[i].best_fric;
-      }
-    fclose(out1);
-    mean_fric /= (BC_CPREC)m;
-    fprintf(stderr,"print_stress_tensors: written best (mean:   %.3f) stress tensors to %s, %i out of %i cells filled\n",
-	    mean_fric,outname1,m,kostrov->nxny);
+    if(catalog->use_friction_solve>1){
+      sprintf(outname1,"%s.bs.dat",filename); /* best friction */
+      out1 = myopen(outname1,"w","print_kostrov_bins");
+      mean_fric = 0;
+      for(m=i=0;i < kostrov->nxny;i++)
+	if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){
+	  m++;
+	  for(k=0;k < 6;k++)	/* stress tensor */
+	    fprintf(out1,"%8.4f ",kostrov->bin[i].best_s[k]);
+	  fprintf(out1,"\t%8.3f %8.3f %12i",
+		  kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
+	  fprintf(out1,"\t%8.4f\t%5.3f\n",kostrov->bin[i].inst[2],kostrov->bin[i].best_fric); /* instability and best friction */
+	  mean_fric += kostrov->bin[i].best_fric;
+	}
+      fclose(out1);
+      mean_fric /= (BC_CPREC)m;
+      fprintf(stderr,"print_stress_tensors: written best (mean:   %.3f) stress tensors to %s, %i out of %i cells filled\n",
+	      mean_fric,outname1,m,kostrov->nxny);
+    }
   }
 
   

@@ -23,41 +23,104 @@ then, routines will swap angles to make the first more unstable
 
    this gets a stress tensor and returns a new one, overwriting the old
 */
-void optimize_angles_via_instability(int n,BC_CPREC *angles,BC_CPREC *weights,BC_CPREC friction, BC_CPREC *stress,BC_CPREC *ainst)
+void optimize_angles_via_instability(int n,BC_CPREC *angles,BC_CPREC *weights,BC_CPREC friction, BC_CPREC *stress,BC_CPREC *ainst, int *nsweep)
 {
-  BC_CPREC svec[9],sigma[3];
-  BC_CPREC inst[2];
-  int i,j,j6,nswap;
+  BC_CPREC svec[9],sigma[3],saved_stress[6];
+  BC_CPREC inst[2],*bangles,inst_max[2];
+  int j,j6,nswap,nmswap,max_sweep;
+  BC_BOOLEAN *toswap;
+  long int seed;
+  size_t  asize,ssize;
+  seed = -(long int)n;
+  asize = sizeof(BC_CPREC)*n*6;
+  ssize = 6*sizeof(BC_CPREC);
+  /*  */
+  bangles = (BC_CPREC *)malloc(asize);
+  toswap = (BC_CPREC *)malloc(sizeof(BC_BOOLEAN)*n);
+  
+  max_sweep = BC_MAX_SWEEP_FAC * n;
+  if(max_sweep < 10)
+    max_sweep = 10;
+  if(max_sweep > 100)
+    max_sweep = 100;
 
-  i=0;nswap=1;
-  while(nswap && (i<15)){
-    /* compute the eigensystem for this set of stresses */
-    calc_eigensystem_vec6(stress,sigma,svec,BC_TRUE,BC_TRUE);
 
-    nswap=0;
-    ainst[0]=ainst[1]=0.0;
-    for(j=j6=0;j < n;j++,j6+=6){
-      /* 
-	 check each pair for stability assume stress has changed only
-	 for the first call, others are for different angles but same
-	 stress
-      */
-      stability_criterion_eig(sigma,svec,friction,(angles+j6),(j==0)?(BC_TRUE):(BC_FALSE),inst);
-      if(inst[1] > inst[0]){	/* swap to make first more unstable */
-	swap_angles((angles+j6));
- 	nswap++;
+  nswap=1;
+  nmswap=0;
+  inst_max[0]=-10;
+  while(nswap){
+    *nsweep =0;
+    while(nswap && (*nsweep < max_sweep)){
+      /* solve stresses anew with current planes */
+      solve_stress_michael_specified_plane(n,angles,weights,stress);
+      /* compute the eigensystem for this set of stresses */
+      calc_eigensystem_vec6(stress,sigma,svec,BC_TRUE,BC_TRUE);
+      /* compute stability and take note of those planes to swap */
+      nswap=0;
+      ainst[0]=ainst[1]=0.0;
+      for(j=j6=0;j < n;j++,j6+=6){
+	/* 
+	   check each pair for stability assume stress has changed
+	   only for the first call, others are for different angles
+	   but same stress
+	*/
+	stability_criterion_eig(sigma,svec,friction,(angles+j6),(j==0)?(BC_TRUE):(BC_FALSE),inst);
+	if(inst[1] > inst[0]){	/* swap to make first more unstable */
+	  toswap[j]=BC_TRUE;
+	  nswap++;
+	}else{
+	  toswap[j]=BC_FALSE;
+	}
+	ainst[0]+=inst[0];
+	ainst[1]+=inst[1];
       }
-      ainst[0]+=inst[0];ainst[1]+=inst[1];
+      /* average instability on first and second*/
+      ainst[0]/=(BC_CPREC)n;
+      ainst[1]/=(BC_CPREC)n;
+      /* this particular set is better than all before */
+      if(ainst[0] > inst_max[0]){
+	inst_max[0] = ainst[0];
+	inst_max[1] = ainst[1];
+	memcpy(bangles,angles,asize);
+	memcpy(saved_stress,stress,ssize);
+      }
+#ifdef SUPERDEBUG    
+      fprintf(stderr,"f: %.2f s: %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tainsta: %12g %12g nswap %i nsweep %i\n",
+	      friction,stress[0],stress[1],stress[2],stress[3],stress[4],stress[5],ainst[0],ainst[1],nswap,*nsweep);
+#endif
+      /* now acutally swap */
+      for(j=j6=0;j < n;j++,j6+=6)
+	if(toswap[j])
+	  swap_angles((angles+j6));
+      *nsweep += 1;
     }
-    /* average instability on first and second*/
-    ainst[0]/=(BC_CPREC)n;
-    ainst[1]/=(BC_CPREC)n;
-    //fprintf(stderr,"f: %.2f s: %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tainsta: %12g %12g nswap %i\n",
-    //friction,stress[0],stress[1],stress[2],stress[3],stress[4],stress[5],ainst[0],ainst[1],nswap);
-    /* solve stresses anew with the first plane */
-    solve_stress_michael_specified_plane(n,angles,weights,stress);
-    i++;
+    if(nswap){			/* we have reached the max number of iterations */
+      if(nmswap < 2){
+#ifdef SUPERDEBUG
+	fprintf(stderr,"optimize_angles_via_instability: still swapping at %i out of %i, major loop %i (max inst: %g), randomizing\n",
+		*nsweep,max_sweep,nmswap,inst_max[0]);
+#endif
+	for(j=j6=0;j < n;j++,j6+=6){
+	  if(BC_RGEN(&seed) >= 0.5){
+	    swap_angles((angles+j6));
+	  }
+	}
+      }else{			/* bailing with best */
+#ifdef SUPERDEBUG
+	fprintf(stderr,"optimize_angles_via_instability: still swapping at %i out of %i, major loop %i (max inst: %g), bailing with best\n",
+		*nsweep,max_sweep,nmswap,inst_max[0]);
+#endif
+	memcpy(angles,bangles,asize);
+	memcpy(stress,saved_stress,6*sizeof(BC_CPREC));
+	ainst[0] = inst_max[0];
+	ainst[1] = inst_max[1];
+	nswap=0;
+      }
+    }
+    nmswap++;
   }
+  free(toswap);
+  free(bangles);
 }
 /* compute average instability of set */
 void calc_average_instability(int n,BC_CPREC *angles,BC_CPREC *weights,BC_CPREC friction, BC_CPREC *stress,BC_CPREC *ainst)

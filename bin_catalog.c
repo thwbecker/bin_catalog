@@ -26,7 +26,8 @@ int main(int argc, char **argv)
   dy = dx;
   catalog=(struct cat *)calloc(1,sizeof(struct cat));
 
-  catalog->use_friction_solve = BC_TRUE; /* additional stress inversion */
+  catalog->use_friction_solve = 2; /* 1: additional stress inversion 2: optimize friction*/
+  //catalog->use_friction_solve = 1; /* 1: additional stress inversion 2: optimize friction*/
   
   sprintf(out_istring,"kostrov");
   

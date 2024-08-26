@@ -2,7 +2,7 @@
 #include "eigen.h"
 
 
-void main(void)
+int main(int charc,char **argv)
 {
   BC_CPREC a[3][3],eval[3],evec[9];
   int i;
