@@ -4,7 +4,12 @@
 FFLAGS = -O2
 CFLAGS = -O2
 # copy out if you do not have sincos
-DEFINES = -DHAVE_SINCOS
+SINCOS_DEF = -DHAVE_SINCOS
+#DEBUG_DEF = -DDEBUG
+DEBUG_DEF = 
+
+
+DEFINES = $(SINCOS_DEF) $(DEBUG_DEF)
 
 HFILES = catalog.h proto.h eigen.h
 

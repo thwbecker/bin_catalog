@@ -6,6 +6,7 @@ inc=0.5
 
 minmax -I$inc test.aki | gawk -f reg2wesn.awk > tmp.dat
 read w e s n < tmp.dat
+rm kostrov*.dat
 ../bin/bin_catalog test.aki $inc 0 10 0 $w $e $s $n 30 1 0 -10 0 kostrov $inc
 
 makecpt -Croma -T-0.5/0.5/0.1 > tmp.cpt
@@ -14,6 +15,10 @@ proj=-JM7
 fs=""
 for s in 0.norm s ds bs;do
     sfile=kostrov.$inc.$inc.$s.dat
+    if [ ! -s $sfile ];then
+	echo $0: $sfile not produced
+	exit
+    fi
     if [ $s = 0.norm ];then
 	label=Kostrov
     elif [ $s = s ];then

@@ -35,6 +35,7 @@ void stridip(BC_CPREC n,BC_CPREC e,BC_CPREC u,BC_CPREC *strike,BC_CPREC *dip)
    all in radians
    
 */
+
 void find_alt_plane(BC_CPREC ddir1,BC_CPREC dip1,BC_CPREC rake1,
 		    BC_CPREC *ddir2,BC_CPREC *dip2,BC_CPREC *rake2)
 {
@@ -42,14 +43,16 @@ void find_alt_plane(BC_CPREC ddir1,BC_CPREC dip1,BC_CPREC rake1,
   BC_CPREC  n1,n2,h1,h2;
   
   z=ddir1;
-  if(dip1 == HALF_PI)
-    dip1 = HALF_PI - 1e-7;
+  if(fabs(dip1-HALF_PI) < 1e-3){
+    //fprintf(stderr,"adjusting %g\n",BC_R2D(dip1));
+    dip1 = HALF_PI - 1e-5;
+
+  }
   z2=dip1;
   z3=rake1;
-
-  sin_z  = sin(z); cos_z  = cos(z);
-  sin_z2 = sin(z2);cos_z2 = cos(z2);
-  sin_z3 = sin(z3);cos_z3 = cos(z3);
+  sincos(z, &sin_z, &cos_z);
+  sincos(z2,&sin_z2,&cos_z2);
+  sincos(z3,&sin_z3,&cos_z3);
   
   /* slick vector in plane 1 */
   s1= -cos_z3*cos_z-sin_z3*sin_z*cos_z2;
@@ -65,7 +68,9 @@ void find_alt_plane(BC_CPREC ddir1,BC_CPREC dip1,BC_CPREC rake1,
   stridip(s2,s1,s3,&z,&z2);
   z += HALF_PI;
   *ddir2=z;
-  ranger(ddir2);
+
+  //ranger(ddir2);
+
   *dip2=z2;
   z= h1*n1 + h2*n2;
   z /= sqrt(h1*h1 + h2*h2);

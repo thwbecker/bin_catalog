@@ -36,7 +36,7 @@ void optimize_angles_via_instability(int n,BC_CPREC *angles,BC_CPREC *weights,BC
   ssize = 6*sizeof(BC_CPREC);
   /*  */
   bangles = (BC_CPREC *)malloc(asize);
-  toswap = (BC_CPREC *)malloc(sizeof(BC_BOOLEAN)*n);
+  toswap = (BC_BOOLEAN *)malloc(sizeof(BC_BOOLEAN)*n);
   
   max_sweep = BC_MAX_SWEEP_FAC * n;
   if(max_sweep < 10)

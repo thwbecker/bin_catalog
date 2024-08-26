@@ -33,6 +33,7 @@
 #define BC_FALSE 0
 
 #define BC_CPREC double
+#define BC_EPS 5e-15
 #define BC_PREC_FMT "%lf"
 
 #define BC_RGEN ran2
@@ -88,8 +89,12 @@
 #define BC_RADIUS 6371.
 #define BC_NQUAKE_LIM_FOR_STRESS 2	/* min number of entries, has
 					   to be greater */
+/*  */
 #define BC_MICHAEL_NMC 5000	/* monte carlo for michael inversion, 2000 good number for 95% confidence? */
 
+/* two bail crit */
+#define BC_MICHAEL_RSWEEP_MAX 10000	/* max sweep number for random sampling */
+#define BC_MICHAEL_RACC 1e-4	/* random sweep accuracy */
 
 
 /* structures */

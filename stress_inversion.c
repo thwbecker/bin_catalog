@@ -27,6 +27,7 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
   BC_CPREC *angles,*weights,ainst[2];
   BC_BOOLEAN optim_verbose;
 #ifdef DEBUG
+  int k;
   BC_CPREC sdev[2];
 #endif
   kostrov = catalog->sum;
@@ -41,7 +42,7 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
     */
     if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){	/* five parameters, at least two events */
 #ifdef DEBUG
-      fprintf(stderr,"bin %05i: working on stress inversion, N %i\n",i,kostrov->bin[i].n);
+      fprintf(stderr,"bin %05i: %g, %g working on stress inversion, N %i\n",i, kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
 #endif
       angles = (BC_CPREC *)realloc(angles,kostrov->bin[i].n*6*sizeof(BC_CPREC));
       weights = (BC_CPREC *)realloc(weights,kostrov->bin[i].n*sizeof(BC_CPREC));
@@ -52,6 +53,14 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
 						   bin */
 	iq = (int)kostrov->bin[i].quake[j]; /* number of this earthquake */
 	assign_quake_angles((catalog->quake+iq),(angles+j6));
+#ifdef DEBUG
+	for(k=0;k<6;k++)
+	  if(!finite(angles[j6+k])){
+	    fprintf(stderr,"calc_stress_tensor_for_kbins: ERROR: quake %i angle %i not finite: %g\n",
+		    iq,k,angles[j6+k]);
+	    exit(-1);
+	  }
+#endif
       }
       solve_stress_michael_random_sweep(kostrov->bin[i].n,angles,weights,kostrov->bin[i].s,kostrov->bin[i].ds,&catalog->seed);
       calc_average_instability(kostrov->bin[i].n,angles,weights,BC_FRIC_DEF,kostrov->bin[i].s,ainst); /* instability of default stress */
@@ -71,8 +80,9 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
 				   kostrov->bin[i].def_s,kostrov->bin[i].best_s,&(kostrov->bin[i].best_fric),
 				   (kostrov->bin[i].inst+1),(kostrov->bin[i].inst+2),optim_verbose,
 				   ((catalog->use_friction_solve>1)?(BC_TRUE):(BC_FALSE)),&rsweep,&osweep);
-	
+#ifdef DEBUG	
 	fprintf(stderr,"bin %05i: adjust_stress_for_friction: df sweep %i total sweep %i\n",i,rsweep,osweep);
+#endif
       }
     }
   }
@@ -103,19 +113,27 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
 {
   const int npar = BC_MICHAEL_NPAR;
   const int ndim = BC_NDIM;
-  const int nrandom_limit  = BC_MICHAEL_NMC; /* monte carlo simulations (2000
-						good number for 95%
+  const int nrandom_limit  = BC_MICHAEL_NMC; /* monte carlo
+						simulations (2000 good
+						number for 95%
 						confidence?)*/
-  BC_BOOLEAN proceed;
+  BC_BOOLEAN proceed,acc_bail;
   int nobs,iquake,nrandom,i,iquake6;
-  BC_CPREC ind_stress[6],*slick,*amat,tot_stress[6],tot_stress2[6],snorm;
-
+  BC_CPREC ind_stress[6],*slick,*amat,tot_stress[6],tot_stress2[6],snorm,last_stress[6],this_stress[6],ds,tmp;
+  size_t ssize = 6*sizeof(BC_CPREC);
+  BC_CPREC bail_acc_squared = BC_MICHAEL_RACC*BC_MICHAEL_RACC;
+#ifdef DEBUG
+  int j;
+#endif
   slick = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim);
   amat = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim*npar);
-  proceed  = BC_TRUE;nrandom=0;
-  for(i=0;i < 6;i++)
-    tot_stress[i] = tot_stress2[i] = 0.0;
+  for(i=0;i < 6;i++){
+    tot_stress[i] = tot_stress2[i] = last_stress[i] = 0.0;
+  }
+  proceed  = BC_TRUE;
+  nrandom=0;
   do{
+    acc_bail = BC_FALSE;
     /* converted from Andy Michael's slick routine */
     nobs = 0;
     for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6){
@@ -131,13 +149,49 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
     */
     michael_solve_lsq(npar,ndim,nobs,amat,slick,weights,ind_stress);
     for(i=0;i<6;i++){
+#ifdef DEBUG
+      if(!finite(ind_stress[i])){
+	fprintf(stderr,"ssm random_sweep: ERROR: ind_stress not finite\n");
+	for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6){
+	  for(j=0;j<6;j++)
+	    fprintf(stderr,"%6.3f ",(angles+iquake6+j));
+	  fprintf(stderr,"\n");
+	}
+	exit(-1);
+
+      }
+#endif
       tot_stress[i]  += ind_stress[i];
       tot_stress2[i] += ind_stress[i] * ind_stress[i];
     }
     nrandom++;
-    if(nrandom > nrandom_limit)
+    if(nrandom%100==0){		/* every 100 iterations, check for
+				   finiteness and convergence */
+      ds = 0;
+      for(i=0;i<6;i++){
+	if(!finite(tot_stress[i])){
+	  fprintf(stderr,"ssm random_sweep: ERROR: tot_stress not finite\n");
+	  exit(-1);
+	}
+	this_stress[i] = tot_stress[i]/(BC_CPREC)nrandom;
+	tmp = this_stress[i] - last_stress[i];
+	ds += tmp*tmp;
+      }
+      if(ds < bail_acc_squared)
+	acc_bail = BC_TRUE;
+#ifdef SUPERDEBUG
+      fprintf(stderr,"ssm random_sweep: iter %05i s %12g %12g %12g %12g %12g %12g: diff: %12.5e\n",nrandom,
+	      this_stress[0], this_stress[1], this_stress[2], this_stress[3], this_stress[4],this_stress[5],sqrt(ds));
+#endif
+      memcpy(last_stress,this_stress,ssize);
+    }
+    if(acc_bail || (nrandom > BC_MICHAEL_RSWEEP_MAX))
       proceed = BC_FALSE;
   }while(proceed);
+  if(nrandom>BC_MICHAEL_RSWEEP_MAX){
+    fprintf(stderr,"ssm random_sweep: WARNING: bailed on max sweeps (%i) not accuracy (%12.5e)\n",
+	    nrandom,sqrt(ds));
+  }
   for(i=0;i<6;i++){
     sig_stress[i] = std_quick(nrandom,tot_stress[i],tot_stress2[i]);
     stress[i] = tot_stress[i]/(BC_CPREC)nrandom;

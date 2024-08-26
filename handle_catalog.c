@@ -1160,13 +1160,22 @@ int read_quake_aki(FILE *in, struct qke *quake)
   if(fscanf(in,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
 	    &(quake->dlon),&(quake->dlat),&(quake->depth),
 	    &(quake->strike),&(quake->dip),&(quake->rake),
-	    &(quake->mag),&tmp1,&tmp2,&quake->tsec)==10){
-
+	    &(quake->mag),&(quake->plon),&(quake->plat),&quake->tsec)==10){
+    if((fabs(quake->strike) <  BC_EPSIL)&&(fabs(quake->dip) <  BC_EPSIL)&&
+       (fabs(quake->rake) <  BC_EPSIL)){
+      fprintf(stderr,"read_quake_aki: ERROR: messed up entry\n");
+      fprintf(stderr,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
+	      (quake->dlon),(quake->dlat),(quake->depth),
+	      (quake->strike),(quake->dip),(quake->rake),
+	      (quake->mag),quake->plon,quake->plat,quake->tsec);
+      exit(-1);
+    }
+    
     /* convert */
     quake->strike = BC_D2R(quake->strike); /* strike/dip/rake in radians */
     quake->dip    = BC_D2R(quake->dip);
     quake->rake   = BC_D2R(quake->rake);
-
+    
     quake->plon=quake->dlon;
     quake->plat=quake->dlat;
   
@@ -1175,6 +1184,13 @@ int read_quake_aki(FILE *in, struct qke *quake)
     /* get the other plane */
     find_alt_plane(quake->strike, quake->dip, quake->rake,
 		   &(quake->strike2), &(quake->dip2), &(quake->rake2));
+    if((!finite(quake->strike2))||(!finite(quake->dip2))||(!finite(quake->rake2))){
+      fprintf(stderr,"read_quake_aki: ERROR: auxiliary plane\n");
+      fprintf(stderr,"%g %g %g %g %g %g\n",
+	      BC_R2D(quake->strike),  BC_R2D(quake->dip), BC_R2D(quake->rake),
+	      BC_R2D(quake->strike2),  BC_R2D(quake->dip2), BC_R2D(quake->rake2));
+      exit(-1);
+    }
     /* those won't make sense for x-y, but won't hurt */
     quake->coslat = cos(quake->lat);
     /*  */
@@ -1306,6 +1322,7 @@ void create_catalog(struct cat *catalog,long int init_seed)
   catalog->maxlatd = -1000;
   catalog->lkm_min = 6371;
   catalog->lkm_max = 0;
+  
   if(!init){
     catalog->seed = init_seed;		/* default random number seed */
     BC_RGEN(&catalog->seed);
@@ -1334,7 +1351,7 @@ void make_room_for_quake(struct cat *catalog)
 */
 BC_CPREC quake_weight(BC_CPREC m0, BC_CPREC lkm, BC_CPREC dist,int mode)
 {
-  const double sqrt_two_pi = 2.506628274631;
+  const double sqrt_two_pi = 2.506628274631000502415765284811045253006986741;
   BC_CPREC sigma,weight=0,frac,frac2;
   switch(mode){
   case 0:
