@@ -3,6 +3,13 @@
 
    bunch of stress inversion stuff
 
+   some routines modified from code by Andy Michael 
+
+   Michael, A.J., 1984. Determination of stress from slip data: Faults
+   and folds, J. Geophys. Res. 89, 11.517-11.526.
+
+   Michael, A.J., 1987. Use of focal mechanisms to determine stress: A
+   control study, J. Geophys. Res. 92, 357-368.
 
    some routines are modified from STRESSINVERSE
    https://www.ig.cas.cz/en/stress-inverse/ 

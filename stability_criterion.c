@@ -2,10 +2,11 @@
 /*
 
 these routines are modified from STRESSINVERSE
-https://www.ig.cas.cz/en/stress-inverse/ Vavryčuk, V., 2014. Iterative
-joint inversion for stress and fault orientations from focal
-mechanisms, Geophysical Journal International, 199, 69-77, doi:
-10.1093/gji/ggu224.
+https://www.ig.cas.cz/en/stress-inverse/ 
+
+Vavryčuk, V., 2014. Iterative joint inversion for stress and fault
+orientations from focal mechanisms, Geophysical Journal International,
+199, 69-77, doi: 10.1093/gji/ggu224.
 
 
 the logic is that re here rely on a principal component system, so the
@@ -23,7 +24,9 @@ then, routines will swap angles to make the first more unstable
 
    this gets a stress tensor and returns a new one, overwriting the old
 */
-void optimize_angles_via_instability(int n,BC_CPREC *angles,BC_CPREC *weights,BC_CPREC friction, BC_CPREC *stress,BC_CPREC *ainst, int *nsweep)
+void optimize_angles_via_instability(int n,BC_CPREC *angles,
+				     BC_CPREC *weights,BC_CPREC friction,
+				     BC_CPREC *stress,BC_CPREC *ainst, int *nsweep)
 {
   BC_CPREC svec[9],sigma[3],saved_stress[6];
   BC_CPREC inst[2],*bangles,inst_max[2];
@@ -37,7 +40,8 @@ void optimize_angles_via_instability(int n,BC_CPREC *angles,BC_CPREC *weights,BC
   /*  */
   bangles = (BC_CPREC *)malloc(asize);
   toswap = (BC_BOOLEAN *)malloc(sizeof(BC_BOOLEAN)*n);
-  
+  if((!bangles)||(!toswap))
+    BC_MEMERROR("optimize_angles_via_instability");
   max_sweep = BC_MAX_SWEEP_FAC * n;
   if(max_sweep < 10)
     max_sweep = 10;
