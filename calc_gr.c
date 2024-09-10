@@ -4,7 +4,7 @@
    read a set of magnitudes from stdin and compute the b value,
    assuming some dm spacing of the magnitudes and magnitude of completeness
    
-   calc_gr [dM,0.1] [Mcomplete, 2] [gr_mode, 1]
+   calc_gr [dM,0.01] [Mcomplete, 2] [gr_mode, 1]
 
    if Mcomplete is smaller than -10, will try to determine best fit
    Mcomplete
@@ -12,7 +12,7 @@
 
 int main(int argc, char **argv)
 {
-  BC_CPREC dm = 0.1;		/* default precision spacing for
+  BC_CPREC dm = 0.01;		/* default precision spacing for
 				   magnitude values */
   BC_CPREC mcomplete = 2;		/* default magnitude of
 				   completeness */
