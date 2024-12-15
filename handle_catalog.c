@@ -1294,7 +1294,7 @@ void print_quake_cmt_fp(FILE *out, struct qke quake)
   int iexp;
   iexp = (int)(log10(quake.m0)+0.5);
 
-  if(fabs(quake.rake2)<fabs(quake.rake))
+  if(fabs(quake.rake2) < fabs(quake.rake))
     fprintf(out,"%9.4f %9.4f %6.2f\t%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f\t%10.8f %i\t%9.4f %9.4f %i\n",
 	    quake.dlon,quake.dlat,quake.depth,
 	    BC_R2D(quake.strike),BC_R2D(quake.dip),BC_R2D(quake.rake),

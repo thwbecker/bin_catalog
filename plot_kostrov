@@ -6,7 +6,7 @@
 # this uses GMT6 syntax but assumes psxy --> gmt psxy type links have been set (see GMT documentation)
 #
 #
-rcode=${1-0}			# 0: world (-1, -2) 57: Tibet 19: Indonesia 6: Japan 2: SAM 97/97o/97o2/97book: Andes/Chile 98: Japan - 3 9: new zealand 99: Alaska 59: Anatolia 52: Banda small 27: Afar 32: western US -1: world cut for book 65: Colombia
+rcode=${1-0}			# 0: world (-1, -2, -3) 57: Tibet 19: Indonesia 6: Japan 2: SAM 97/97o/97o2/97book: Andes/Chile 98: Japan - 3 9: new zealand 99: Alaska 59: Anatolia 52: Banda small 27: Afar 32: western US -1: world cut for book 65: Colombia
 dmax=${2-50}			# maximum depth
 plot_stress=${3-0}		# 1: plot Michael stress, 0: plot kostrov -1: plot strain-rates from GSRM 2: plot all CMTs 3: plot kostrov as strain crosses 4: plot stress as strain crosses, 999: skip, no deformation symbols
 add_rlabel=${4-0}		# add a datestamp and email
@@ -48,7 +48,10 @@ fi
 #
 # select region and projection parameters
 #
-if [ $rcode = -2 ];then
+if [ $rcode = -3 ];then
+    wcut=3
+    rcode=0
+elif [ $rcode = -2 ];then
     wcut=2
     rcode=0
 elif [ $rcode = -1 ];then
@@ -113,6 +116,13 @@ if [ $rcode = 0 ];then
 	kinc=7.5;	cmt_size=0.15
 	ann=-Bg90
 	name=WLDC2
+    elif [ $wcut -eq 3 ];then
+	#proj=-JN130/13
+	proj=-JKf130/36
+	kinc=0.5
+	cmt_size=0.05
+	ann=-Bg60
+	name=WLDF
     elif [ $wcut -eq 0 ];then
 	#proj=-JN130/13
 	proj=-JKf130/13	
@@ -165,7 +175,7 @@ elif [ $rcode = 97 ];then
     #kinc=1
     kinc=1
     ann=-Ba10f1WesN
-    cmt_size=0.5
+    cmt_size=0.4
     rframe=44
     vinc=-I9
 elif [ $rcode = "97book" ];then
@@ -715,6 +725,9 @@ elif [ $plot_stress -ne 999 ];then
 	gawk '{print($1,$2)}' $tmpn.dat > $tmpn.lonlat
 	paste $tmpn.lonlat $tmpn.e1e2azi | gawk '{print($1,$2,$3,$4,$5+90)}' > $sname.$kincx.$kincy.$name.eh.dat
 	#psvelo $sname.$kincx.$kincy.$name.eh.dat -A0.1/0.2/0.2    $preg $proj  -Sx$cmt_size -O -K  -W2 >> $ofile
+	echo 
+	echo  $sname.$kincx.$kincy.$name.eh.dat
+	echo 
 	psvelo $sname.$kincx.$kincy.$name.eh.dat -A0.05/0.1/0.1    $preg $proj  -Sx$cmt_size -O -K  -W1,$strain_cross_col >> $ofile
 	#gawk '{azi=$5;if(azi>180)azi-=180;printf("%g %g 8 0 29 CM %.1f\n",$1,$2,azi)}' $sname.$kincx.$kincy.$name.eh.dat | \
 	    #pstext $preg $proj -O -K -Gwhite >> $ofile
