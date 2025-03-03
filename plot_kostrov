@@ -764,7 +764,7 @@ if [ $plot_stress -ne 4 ];then	# stress style color scales
 fi
 if [ $add_rlabel -eq 1 ];then
     psbasemap $preg $proj $ann \
-	      -U"$cat_string, z < $dmax km, $kincx@+o@+ by $kincy@+o@+ $lname"+o0/-0.2 -O >> $ofile
+	      -U"$cat_string, z < $dmax km, M>$min_mag, $kincx@+o@+ by $kincy@+o@+ $lname"+o0/-0.2 -O >> $ofile
 else
     psbasemap $preg $proj $ann -O >> $ofile
 

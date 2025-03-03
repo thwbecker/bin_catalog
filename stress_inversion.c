@@ -125,6 +125,7 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
 						number for 95%
 						confidence?)*/
   BC_BOOLEAN proceed,acc_bail;
+  static BC_BOOLEAN warned = BC_FALSE;
   int nobs,iquake,nrandom,i,iquake6;
   BC_CPREC ind_stress[6],*slick,*amat,tot_stress[6],tot_stress2[6],snorm,last_stress[6],this_stress[6],ds,tmp;
   size_t ssize = 6*sizeof(BC_CPREC);
@@ -196,8 +197,11 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
       proceed = BC_FALSE;
   }while(proceed);
   if(nrandom>BC_MICHAEL_RSWEEP_MAX){
-    fprintf(stderr,"ssm random_sweep: WARNING: bailed on max sweeps (%i) not accuracy (%12.5e)\n",
-	    nrandom,sqrt(ds));
+    if(!warned){
+      fprintf(stderr,"ssm random_sweep: WARNING: bailed on max sweeps (%i) not accuracy (%12.5e) on at least one bin\n",
+	      nrandom,sqrt(ds));
+      warned = BC_TRUE;
+    }
   }
   for(i=0;i<6;i++){
     sig_stress[i] = std_quick(nrandom,tot_stress[i],tot_stress2[i]);
