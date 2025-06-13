@@ -93,7 +93,7 @@
 #define BC_MICHAEL_NMC 5000	/* monte carlo for michael inversion, 2000 good number for 95% confidence? */
 
 /* two bail crit */
-#define BC_MICHAEL_RSWEEP_MAX 10000	/* max sweep number for random sampling */
+#define BC_MICHAEL_RSWEEP_MAX 50000	/* max sweep number for random sampling */
 #define BC_MICHAEL_RACC 1e-4	/* random sweep accuracy */
 
 

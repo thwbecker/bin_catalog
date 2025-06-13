@@ -6,7 +6,7 @@
 # this uses GMT6 syntax but assumes psxy --> gmt psxy type links have been set (see GMT documentation)
 #
 #
-rcode=${1-0}			# 0: world (-1, -2, -3) 57: Tibet 19: Indonesia 6: Japan 2: SAM 97/97o/97o2/97book: Andes/Chile 98: Japan - 3 9: new zealand 99: Alaska 59: Anatolia 52: Banda small 27: Afar 32: western US -1: world cut for book 65: Colombia
+rcode=${1-0}			# 0: world (-1, -2, -3) 57: Tibet 19: Indonesia 6: Japan 2: SAM 97/97o/97o2/97book: Andes/Chile 98: Japan - 3 9: new zealand 99: Alaska 59: Anatolia 52: Banda small 27: Afar 32: western US -1: world cut for book 65: Colombia 35: Socal
 dmax=${2-50}			# maximum depth
 plot_stress=${3-0}		# 1: plot Michael stress, 0: plot kostrov -1: plot strain-rates from GSRM 2: plot all CMTs 3: plot kostrov as strain crosses 4: plot stress as strain crosses, 999: skip, no deformation symbols
 add_rlabel=${4-0}		# add a datestamp and email
@@ -159,7 +159,7 @@ elif [ $rcode = 32 ];then
 elif [ $rcode = 35 ];then	# socal
     ann=-Ba1f.1WesN
     proj=-JM13
-    kinc=0.25
+    kinc=0.2
     #kinc=1
     if [ $plot_stress = 0 ];then
 	cmt_size=0.5
