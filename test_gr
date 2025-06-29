@@ -1,0 +1,20 @@
+#!/bin/bash
+
+n=${1-100000}
+seed=-1
+
+mag_c=2
+mres=0.01
+mag_corner=8
+beta=0.666666666666666666	# 2/3 b
+
+random_tgr_mag $n $seed $beta $mag_c $mag_corner > tmp.dat
+
+pshistogram tmp.dat -JX10/6l -W0.25 -L0.5 -G128 -Z0 -P -Ba2f.25:"magnitude":/a2f3:"number": > tmp.ps
+modifybb tmp.ps 1
+#gv tmp.pdf
+
+cat tmp.dat | calc_gr $mres $mag_c 4 
+gzip -c tmp.dat > ~/Dropbox/tmp/tnp.gz
+
+rm tmp.dat
