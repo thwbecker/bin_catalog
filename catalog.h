@@ -35,6 +35,7 @@
 #define BC_CPREC double
 #define BC_EPS 5e-15
 #define BC_PREC_FMT "%lf"
+#define BC_PREC2_FMT "%lf %lf"
 
 #define BC_RGEN ran2
 

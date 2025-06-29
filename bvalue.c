@@ -6,10 +6,10 @@
    dm is used, no sb returned
    
 */
-void calc_b_value_bpos(BC_CPREC *m, int nm, BC_CPREC dm, BC_CPREC *b)
+void calc_b_value_bpos(BC_CPREC *m, long int nm, BC_CPREC dm, BC_CPREC *b)
 {
   BC_CPREC mu,dml;
-  int i,j;
+  long int i,j;
   for(i=1,j=0,mu=0.;i<nm;i++){
     dml=m[i] - m[i-1];
     if(dml >= dm){
@@ -32,12 +32,12 @@ void calc_b_value_bpos(BC_CPREC *m, int nm, BC_CPREC dm, BC_CPREC *b)
 
    returns b and error thereof, sb
 */
-void calc_b_value_marzocci(BC_CPREC *m, int nm, BC_CPREC dm, BC_CPREC mmin,
+void calc_b_value_marzocci(BC_CPREC *m, long int nm, BC_CPREC dm, BC_CPREC mmin,
 			   BC_CPREC *b, BC_CPREC *sb)
 {
   // M_LN10 = 2.30258509299405
   BC_CPREC mu,sum,std,p; 
-  int i,nm_ac;
+  long int i,nm_ac;
   for(nm_ac=0,mu=0.,i=0;i<nm;i++){ /* mean for magnitudes above
 				   completeness */
     if(m[i] >= mmin){
@@ -75,12 +75,12 @@ void calc_b_value_marzocci(BC_CPREC *m, int nm, BC_CPREC dm, BC_CPREC mmin,
    Utsu (1966), Bender (1983) dm corrected equation, eq. 3.1 of
    Marzocci 
 */
-void calc_b_value_thomas(BC_CPREC *m, int nm, BC_CPREC dm, BC_CPREC mmin,
+void calc_b_value_thomas(BC_CPREC *m, long int nm, BC_CPREC dm, BC_CPREC mmin,
 			 BC_CPREC *b, BC_CPREC *sb)
 {
   // M_LN10 = 2.30258509299405
   BC_CPREC mu,sum,sum2,std; 
-  int i,nm_ac;
+  long int i,nm_ac;
   for(nm_ac=0.,sum=sum2=0.,i=0;i<nm;i++){	/* mean for magnitudes above
 					   completeness */
     if(m[i] >= mmin){
@@ -105,11 +105,11 @@ void calc_b_value_thomas(BC_CPREC *m, int nm, BC_CPREC dm, BC_CPREC mmin,
 
    dm unused!
 */
-void  calc_b_value_ml(BC_CPREC *m, int nm, BC_CPREC mmin,BC_CPREC *b, BC_CPREC *sb)
+void  calc_b_value_ml(BC_CPREC *m, long int nm, BC_CPREC mmin,BC_CPREC *b, BC_CPREC *sb)
 {
   // M_LN10 = 2.30258509299405
   BC_CPREC mu; 
-  int i,nm_ac;
+  long int i,nm_ac;
   for(nm_ac=0,mu=0.,i=0;i<nm;i++){	/* mean for magnitudes above
 					   completeness */
     if(m[i] > mmin){

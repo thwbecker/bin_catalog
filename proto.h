@@ -1,13 +1,18 @@
+/* bin_catalog.c */
 /* bvalue.c */
-void calc_b_value_bpos(double *, int , double , double *);
-void calc_b_value_marzocci(double *, int, double, double, double *, double *);
-void calc_b_value_thomas(double *, int, double, double, double *, double *);
-void calc_b_value_ml(double *, int, double, double *, double *);
+void calc_b_value_bpos(double *, long int, double, double *);
+void calc_b_value_marzocci(double *, long int, double, double, double *, double *);
+void calc_b_value_thomas(double *, long int, double, double, double *, double *);
+void calc_b_value_ml(double *, long int, double, double *, double *);
+/* calc_gr.c */
+/* calc_gr_time.c */
+void calc_gr_switch(double *, long, double, double, double *, double *, int);
 /* eigen.c */
 void calc_eigensystem_vec6(double *, double *, double *, unsigned short, unsigned short);
 void calc_eigensystem_sym_3x3(double [3][3], double *, double *, unsigned short, unsigned short);
 void calc_eigensystem_sym_9(double *, double *, double *, unsigned short, unsigned short);
 void indexx(int, double *, int *);
+/* eigen_3ds_simple.c */
 /* eigen_driver.c */
 /* fault_eq.c */
 void stridip(double, double, double, double *, double *);
@@ -80,6 +85,9 @@ double gauss_ran(long int *, double);
 double gasdev(long int *);
 FILE *myopen(char *, char *, char *);
 void sincos(double, double *, double *);
+/* m02dcfp.c */
+/* m02mag.c */
+/* merge_catalog.c */
 /* michael_leasq.c */
 void michael_leasq(double *, int, int, double *, double *, double *, double *, double *);
 void michael_gaus(double *, int, double *, double *);
@@ -92,6 +100,7 @@ void calc_misfits_from_single_angle_set(double *, double *, int, double *);
 void slip_deviation_svec_single(double *, double *, double *, double *);
 void slip_deviation_mmat_single(double [3][3], double *, double *, double *);
 double slip_deviation_dotp(double *, double *, double [3][3]);
+/* solve_stress_one_bin.c */
 /* stability_criterion.c */
 void optimize_angles_via_instability(int, double *, double *, double, double *, double *, int *);
 void calc_average_instability(int, double *, double *, double, double *, double *);

@@ -42,7 +42,7 @@ INCLUDES = $(GMT_INC)
 #
 # main programs
 PROGS = $(BDIR)/merge_catalog $(BDIR)/bin_catalog $(BDIR)/bin_catalog $(BDIR)/solve_stress_one_bin \
-	$(BDIR)/m02dcfp $(BDIR)/calc_gr $(BDIR)/m02mag
+	$(BDIR)/m02dcfp $(BDIR)/calc_gr $(BDIR)/calc_gr_time $(BDIR)/m02mag
 
 # just needed for Simpson style stress state plotting
 EIGEN_PROGS = $(BDIR)/eigen  $(BDIR)/eigenvalues $(BDIR)/eigen3ds  $(BDIR)/eigenvalues3ds 
@@ -97,6 +97,11 @@ $(BDIR)/m02dcfp: m02dcfp.c $(CAT_OBJS)   catalog.h
 $(BDIR)/calc_gr: calc_gr.c  $(CAT_OBJS)   catalog.h
 	$(CC) $(CFLAGS) calc_gr.c $(INCLUDES)  $(CAT_OBJS)  \
 	-o $(BDIR)/calc_gr    $(GMT_LIBS)  $(LDFLAGS)
+
+$(BDIR)/calc_gr_time: calc_gr_time.c  $(CAT_OBJS)   catalog.h
+	$(CC) $(CFLAGS) calc_gr_time.c $(INCLUDES)  $(CAT_OBJS)  \
+	-o $(BDIR)/calc_gr_time    $(GMT_LIBS)  $(LDFLAGS)
+
 
 $(BDIR)/eigen: $(ODIR)/eigen.main.o $(ODIR)/eigen.o
 	$(CC) $(CFLAGS) $(ODIR)/eigen.main.o $(ODIR)/eigen.o \
