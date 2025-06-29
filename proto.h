@@ -1,20 +1,14 @@
-/* bin_catalog.c */
-int main(int, char **);
 /* bvalue.c */
+void calc_b_value_bpos(double *, int , double , double *);
 void calc_b_value_marzocci(double *, int, double, double, double *, double *);
 void calc_b_value_thomas(double *, int, double, double, double *, double *);
-void calc_b_value_ml(double *, int, double, double, double *, double *);
-/* calc_gr.c */
-int main(int, char **);
-/* eigen_3ds_simple.c */
-int main(int, char **);
+void calc_b_value_ml(double *, int, double, double *, double *);
 /* eigen.c */
 void calc_eigensystem_vec6(double *, double *, double *, unsigned short, unsigned short);
 void calc_eigensystem_sym_3x3(double [3][3], double *, double *, unsigned short, unsigned short);
 void calc_eigensystem_sym_9(double *, double *, double *, unsigned short, unsigned short);
 void indexx(int, double *, int *);
 /* eigen_driver.c */
-int main(int, char **);
 /* fault_eq.c */
 void stridip(double, double, double, double *, double *);
 void find_alt_plane(double, double, double, double *, double *, double *);
@@ -86,12 +80,6 @@ double gauss_ran(long int *, double);
 double gasdev(long int *);
 FILE *myopen(char *, char *, char *);
 void sincos(double, double *, double *);
-/* m02dcfp.c */
-int main(int, char **);
-/* m02mag.c */
-int main(int, char **);
-/* merge_catalog.c */
-int main(int, char **);
 /* michael_leasq.c */
 void michael_leasq(double *, int, int, double *, double *, double *, double *, double *);
 void michael_gaus(double *, int, double *, double *);
@@ -104,8 +92,6 @@ void calc_misfits_from_single_angle_set(double *, double *, int, double *);
 void slip_deviation_svec_single(double *, double *, double *, double *);
 void slip_deviation_mmat_single(double [3][3], double *, double *, double *);
 double slip_deviation_dotp(double *, double *, double [3][3]);
-/* solve_stress_one_bin.c */
-int main(int, char **);
 /* stability_criterion.c */
 void optimize_angles_via_instability(int, double *, double *, double, double *, double *, int *);
 void calc_average_instability(int, double *, double *, double, double *, double *);
@@ -119,4 +105,3 @@ void michael_solve_lsq(int, int, int, double *, double *, double *, double *);
 void my6stress2m3x3(double *, double [3][3]);
 void michael_assign_to_matrix(double *, int *, double **, double **);
 /* test_eigen.c */
-int main(int, char **);

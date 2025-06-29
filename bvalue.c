@@ -1,4 +1,29 @@
 #include "catalog.h"
+
+/* calculate the b value from b positive equation (9) of van der Elst
+   (2021) 
+   
+   dm is used, no sb returned
+   
+*/
+void calc_b_value_bpos(BC_CPREC *m, int nm, BC_CPREC dm, BC_CPREC *b)
+{
+  BC_CPREC mu,dml;
+  int i,j;
+  for(i=1,j=0,mu=0.;i<nm;i++){
+    dml=m[i] - m[i-1];
+    if(dml >= dm){
+      mu += dml;
+      j++;
+    }
+  }
+  if(j){
+    mu /= (BC_CPREC)j;
+    *b = 1./(mu - dm)/M_LN10;
+  }else{
+    *b = NAN;
+  }
+}
 /* 
    calculate gutenberg richter following Marzocci 2013
 
@@ -46,6 +71,9 @@ void calc_b_value_marzocci(BC_CPREC *m, int nm, BC_CPREC dm, BC_CPREC mmin,
    mmin: magnitude threshold (e.g. 2)
 
    returns b and error thereof, sb
+   
+   Utsu (1966), Bender (1983) dm corrected equation, eq. 3.1 of
+   Marzocci 
 */
 void calc_b_value_thomas(BC_CPREC *m, int nm, BC_CPREC dm, BC_CPREC mmin,
 			 BC_CPREC *b, BC_CPREC *sb)
@@ -69,14 +97,15 @@ void calc_b_value_thomas(BC_CPREC *m, int nm, BC_CPREC dm, BC_CPREC mmin,
   /* standard deviation */
   *sb = 2.3 * std/sqrt((BC_CPREC)nm_ac) * (*b)*(*b); /* Shi and Bolt (1982), eq. 2.5 */
 }
-/* 
-   m[nm] magnitudes, mmin: magnitude threshold
 
-   simple max likelihood from Aki, this is not a good idea
+/* 
+   simple max likelihood from Aki (1965), this is usually not a good idea
+
+   m[nm] magnitudes, mmin: magnitude threshold
 
    dm unused!
 */
-void  calc_b_value_ml(BC_CPREC *m, int nm, BC_CPREC dm, BC_CPREC mmin,BC_CPREC *b, BC_CPREC *sb)
+void  calc_b_value_ml(BC_CPREC *m, int nm, BC_CPREC mmin,BC_CPREC *b, BC_CPREC *sb)
 {
   // M_LN10 = 2.30258509299405
   BC_CPREC mu; 
