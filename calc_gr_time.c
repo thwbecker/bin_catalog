@@ -20,18 +20,22 @@ int main(int argc, char **argv)
   int *nentry = NULL;
   BC_CPREC bin_width = 0.2;	/* for histogram */
   long nm,nm1;
-  int nbin;
-
+  int nbin,use_time=1;
+  int ndes;
   int gr_mode[NGR_MODES]={1,3};		/* default modes */
   int j;
   long int ileft,iright,nuse,i;
   static int warned = 0;
   if((argc<2)||(argc>4)||(strcmp(argv[1],"-h")==0)){
-    fprintf(stderr,"\ncalc_gr_time dt [dM,%g] [Mcomplete, %g] \n",
+    fprintf(stderr,"\ncalc_gr_time dt [dM,%g] [Mcomplete, %g]\n\tif dt<0 will look for N=-dt samples\n",
 	    dm,mcomplete);
     exit(-1);
   }
   sscanf(argv[1],BC_PREC_FMT,&dt);
+  if(dt < 0){
+    use_time = 0;
+    ndes = (int)-dt;
+  }
   if(argc>3)
     sscanf(argv[2],BC_PREC_FMT,&dm);
   if(argc>3)			/* mag completeness */
@@ -68,8 +72,14 @@ int main(int argc, char **argv)
     //print_histogram(nentry,mbin,nbin,stderr);
     
     mcomplete = max_x_from_int_vector(mbin,nentry,nbin);
-    fprintf(stderr,"%s: read %li events t %g to %g, mag %g to %g, computing GR b for dt %g dM=%g Mc=%g (from max hist)\n",
-	    argv[0],nm,tmin,tmax,mmin,mmax,dt,dm,mcomplete);
+    if(use_time)
+      fprintf(stderr,"%s: read %li events t %g to %g, mag %g to %g, computing GR b for dt %g dM=%g Mc=%g (from max hist)\n",
+	      argv[0],nm,tmin,tmax,mmin,mmax,dt,dm,mcomplete);
+    else
+      fprintf(stderr,"%s: read %li events t %g to %g, mag %g to %g, computing GR b for ndes %i dM=%g Mc=%g (from max hist)\n",
+	      argv[0],nm,tmin,tmax,mmin,mmax,ndes,dm,mcomplete);
+
+      
     
   }else{
     for(i=0;i<nm;i++){
@@ -78,31 +88,59 @@ int main(int argc, char **argv)
       if(mag[i]<mmin)
 	mmin=mag[i];
     }
-    fprintf(stderr,"%s: read %li events from %f to %f, mag %g to %g, computing b for dt %g dM=%g Mc=%g\n",
-	    argv[0],nm,tmin,tmax,mmin,mmax,dt,dm,mcomplete);
-  }
-  ileft=0;
-  iright=1;
-  while((time[iright]-time[ileft]<dt)&&(iright<nm))
-    iright++;
-  nuse = iright-ileft+1;
-  for(j=0;j<NGR_MODES;j++)
-    calc_gr_switch((mag+ileft),nuse,dm,mcomplete,(b+j),&sb,gr_mode[j]);
-  for(i=0;i<iright;i++)
-    printf("%20.10e %8.5f %8.5f %6li\n",time[i],NAN,NAN,NAN);
-  printf("%20.10e %8.5f %8.5f %6li\n",time[iright],b[0],b[1],nuse);
+    if(use_time)
+      fprintf(stderr,"%s: read %li events from %f to %f, mag %g to %g, computing b for dt %g dM=%g Mc=%g\n",
+	      argv[0],nm,tmin,tmax,mmin,mmax,dt,dm,mcomplete);
+    else
+      fprintf(stderr,"%s: read %li events from %f to %f, mag %g to %g, computing b for ndes %i dM=%g Mc=%g\n",
+	      argv[0],nm,tmin,tmax,mmin,mmax,ndes,dm,mcomplete);
 
-  //  fprintf(stderr,"%li %li N %li %g %g dt %g - %g\n",ileft,iright,nuse,time[ileft],time[iright],time[iright]-time[ileft],b);
-  do{
-    iright++;
-    while((time[iright]-time[ileft] > dt)&&(ileft<iright))
-      ileft++;
+      
+  }
+  if(use_time){
+    /* use fixed time interval */
+    ileft=0;
+    iright=1;
+    while((time[iright]-time[ileft]<dt)&&(iright<nm))
+      iright++;
     nuse = iright-ileft+1;
-    for(j=0;j<NGR_MODES;j++)
+    for(j=0;j < NGR_MODES;j++)
       calc_gr_switch((mag+ileft),nuse,dm,mcomplete,(b+j),&sb,gr_mode[j]);
+    for(i=0;i<iright;i++)
+      printf("%20.10e NaN NaN NaN\n",time[i]);
     printf("%20.10e %8.5f %8.5f %6li\n",time[iright],b[0],b[1],nuse);
-    //fprintf(stderr,"%li %li N %li %g %g dt %g - %g\n",ileft,iright,nuse,time[ileft],time[iright],time[iright]-time[ileft],b);
-  }while(iright<nm1);
+    
+    //  fprintf(stderr,"%li %li N %li %g %g dt %g - %g\n",ileft,iright,nuse,time[ileft],time[iright],time[iright]-time[ileft],b[0]);
+    do{
+      iright++;
+      while((time[iright]-time[ileft] > dt)&&(ileft<iright))
+	ileft++;
+      nuse = iright-ileft+1;
+      for(j=0;j<NGR_MODES;j++)
+	calc_gr_switch((mag+ileft),nuse,dm,mcomplete,(b+j),&sb,gr_mode[j]);
+      printf("%20.10e %8.5f %8.5f %6li\n",time[iright],b[0],b[1],nuse);
+      //fprintf(stderr,"%li %li N %li %g %g dt %g - %g\n",ileft,iright,nuse,time[ileft],time[iright],time[iright]-time[ileft],b[0]);
+    }while(iright<nm1);
+  }else{
+    /* use fixed number of events */
+    ileft=0;
+    iright=ileft+ndes-1;
+    if(iright>nm){
+      fprintf(stderr,"%s: error, not enough samples for ndes %i (%li)\n",argv[0],ndes,nm);
+      exit(-1);
+    }
+    nuse = iright-ileft+1;
+    for(i=0;i<iright;i++)
+      printf("%20.10e NaN NaN NaN\n",time[i]);
+    while(iright<nm){
+      for(j=0;j<NGR_MODES;j++)
+	calc_gr_switch((mag+ileft),nuse,dm,mcomplete,(b+j),&sb,gr_mode[j]);
+      printf("%20.10e %8.5f %8.5f %6li\n",time[iright],b[0],b[1],nuse);
+      //fprintf(stderr,"%li %li N %li %g %g dt %g - %g\n",ileft,iright,nuse,time[ileft],time[iright],time[iright]-time[ileft],b[0]);
+      ileft++;iright++;
+    }
+
+  }
   free(mag);free(time);
 }
 
