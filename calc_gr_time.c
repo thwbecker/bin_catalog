@@ -14,6 +14,7 @@ int main(int argc, char **argv)
 				   magnitude values or difference for b posiitve */
   BC_CPREC mcomplete = 2;		/* default magnitude of
 					   completeness */
+  const int nmin=50;		/* warn if smaller  */
   /*  */
   BC_CPREC *mag,*time,b[NGR_MODES],sb,mmin,mmax,dt,tmin,tmax;
   BC_CPREC *mbin = NULL;
@@ -23,7 +24,7 @@ int main(int argc, char **argv)
   int nbin,use_time=1;
   int ndes;
   int gr_mode[NGR_MODES]={1,3};		/* default modes */
-  int j;
+  int j,nmissed,nall;
   long int ileft,iright,nuse,i;
   static int warned = 0;
   if((argc<2)||(argc>4)||(strcmp(argv[1],"-h")==0)){
@@ -65,6 +66,9 @@ int main(int argc, char **argv)
     }
   }
   nm1=nm-1;
+  /* 
+     read catalog OK
+  */
   if(mcomplete < -10){		/* determine from histogram */
     /* compute extreme values of magnitudes and make a regular histogram
        with bin_width space */
@@ -97,6 +101,7 @@ int main(int argc, char **argv)
 
       
   }
+  nmissed = nall = 0;
   if(use_time){
     /* use fixed time interval */
     ileft=0;
@@ -104,6 +109,9 @@ int main(int argc, char **argv)
     while((time[iright]-time[ileft]<dt)&&(iright<nm))
       iright++;
     nuse = iright-ileft+1;
+    if(nuse < nmin)
+      nmissed++;
+    nall++;
     for(j=0;j < NGR_MODES;j++)
       calc_gr_switch((mag+ileft),nuse,dm,mcomplete,(b+j),&sb,gr_mode[j]);
     for(i=0;i<iright;i++)
@@ -116,6 +124,9 @@ int main(int argc, char **argv)
       while((time[iright]-time[ileft] > dt)&&(ileft<iright))
 	ileft++;
       nuse = iright-ileft+1;
+      if(nuse < nmin)
+	nmissed++;
+      nall++;
       for(j=0;j<NGR_MODES;j++)
 	calc_gr_switch((mag+ileft),nuse,dm,mcomplete,(b+j),&sb,gr_mode[j]);
       printf("%20.10e %8.5f %8.5f %6li\n",time[iright],b[0],b[1],nuse);
@@ -133,6 +144,9 @@ int main(int argc, char **argv)
     for(i=0;i<iright;i++)
       printf("%20.10e NaN NaN NaN\n",time[i]);
     while(iright<nm){
+      if(nuse < nmin)
+	nmissed++;
+      nall++;
       for(j=0;j<NGR_MODES;j++)
 	calc_gr_switch((mag+ileft),nuse,dm,mcomplete,(b+j),&sb,gr_mode[j]);
       printf("%20.10e %8.5f %8.5f %6li\n",time[iright],b[0],b[1],nuse);
@@ -141,6 +155,8 @@ int main(int argc, char **argv)
     }
 
   }
+  if(nmissed)
+    fprintf(stderr,"%s: %i instances of nuse < %i out of %i\n",argv[0],nmissed,nmin,nall);
   free(mag);free(time);
 }
 
@@ -151,16 +167,7 @@ void calc_gr_switch(BC_CPREC *mag, long nm, BC_CPREC dm,BC_CPREC mcomplete,BC_CP
   /* 1: Utsu (1966), Bender (1983) dM corrected b value, Shi and Bolt (1982) sb approach  */
   /* 2: Marzocci */
   /* 3: b-positive */
-     
-  static int warned=0;
-  const int nmin=50;		/* warn if smaller  */
-  if(!warned){
-    if(nm < nmin){
-      fprintf(stderr,"calc_gr_switch at least one bin with N %li smaller than desired Nmin %i\n",
-	      nm,nmin);
-      warned=1;
-    }
-  }
+
   switch(mode){
   case 0:					 /* not the best idea */
     calc_b_value_ml(mag,nm,mcomplete,b,sb); /* simple Aki/ML method
