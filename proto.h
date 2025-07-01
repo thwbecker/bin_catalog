@@ -1,5 +1,6 @@
 /* bin_catalog.c */
 /* bvalue.c */
+void calc_b_value_bpos_mc(double *, long int, double, double, double *);
 void calc_b_value_bpos(double *, long int, double, double *);
 void calc_b_value_marzocci(double *, long int, double, double, double *, double *);
 void calc_b_value_thomas(double *, long int, double, double, double *, double *);

@@ -6,7 +6,7 @@
    
   
 */
-#define NGR_MODES 2
+#define NGR_MODES 3
 
 int main(int argc, char **argv)
 {
@@ -23,7 +23,7 @@ int main(int argc, char **argv)
   long nm,nm1;
   int nbin,use_time=1;
   int ndes;
-  int gr_mode[NGR_MODES]={1,3};		/* default modes */
+  int gr_mode[NGR_MODES]={1,3,4};		/* default modes */
   int j,nmissed,nall;
   long int ileft,iright,nuse,i;
   static int warned = 0;
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
       calc_gr_switch((mag+ileft),nuse,dm,mcomplete,(b+j),&sb,gr_mode[j]);
     for(i=0;i<iright;i++)
       printf("%20.10e NaN NaN NaN\n",time[i]);
-    printf("%20.10e %8.5f %8.5f %6li\n",time[iright],b[0],b[1],nuse);
+    printf("%20.10e %8.5f %8.5f %8.5f %6li\n",time[iright],b[0],b[1],b[2],nuse);
     
     //  fprintf(stderr,"%li %li N %li %g %g dt %g - %g\n",ileft,iright,nuse,time[ileft],time[iright],time[iright]-time[ileft],b[0]);
     do{
@@ -129,7 +129,7 @@ int main(int argc, char **argv)
       nall++;
       for(j=0;j<NGR_MODES;j++)
 	calc_gr_switch((mag+ileft),nuse,dm,mcomplete,(b+j),&sb,gr_mode[j]);
-      printf("%20.10e %8.5f %8.5f %6li\n",time[iright],b[0],b[1],nuse);
+      printf("%20.10e %8.5f %8.5f %8.5f %6li\n",time[iright],b[0],b[1],b[2],nuse);
       //fprintf(stderr,"%li %li N %li %g %g dt %g - %g\n",ileft,iright,nuse,time[ileft],time[iright],time[iright]-time[ileft],b[0]);
     }while(iright<nm1);
   }else{
@@ -149,7 +149,7 @@ int main(int argc, char **argv)
       nall++;
       for(j=0;j<NGR_MODES;j++)
 	calc_gr_switch((mag+ileft),nuse,dm,mcomplete,(b+j),&sb,gr_mode[j]);
-      printf("%20.10e %8.5f %8.5f %6li\n",time[iright],b[0],b[1],nuse);
+      printf("%20.10e %8.5f %8.5f %8.5f %6li\n",time[iright],b[0],b[1],b[2],nuse);
       //fprintf(stderr,"%li %li N %li %g %g dt %g - %g\n",ileft,iright,nuse,time[ileft],time[iright],time[iright]-time[ileft],b[0]);
       ileft++;iright++;
     }
@@ -167,6 +167,7 @@ void calc_gr_switch(BC_CPREC *mag, long nm, BC_CPREC dm,BC_CPREC mcomplete,BC_CP
   /* 1: Utsu (1966), Bender (1983) dM corrected b value, Shi and Bolt (1982) sb approach  */
   /* 2: Marzocci */
   /* 3: b-positive */
+  /* 4: b-positive, Mc */
 
   switch(mode){
   case 0:					 /* not the best idea */
@@ -185,6 +186,10 @@ void calc_gr_switch(BC_CPREC *mag, long nm, BC_CPREC dm,BC_CPREC mcomplete,BC_CP
     break;
   case 3:			/* b positive */
     calc_b_value_bpos(mag,nm,dm,b);
+    *sb = NAN;
+    break;
+  case 4:			/* b positive c*/
+    calc_b_value_bpos_mc(mag,nm,dm,mcomplete,b);
     *sb = NAN;
     break;
   default:

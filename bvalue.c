@@ -1,5 +1,24 @@
 #include "catalog.h"
 
+
+void calc_b_value_bpos_mc(BC_CPREC *m, long int nm, BC_CPREC dm,
+			  BC_CPREC mmin, BC_CPREC *b)
+{
+  long int i,n;
+  BC_CPREC *mc;
+  mc = (BC_CPREC *)malloc(sizeof(BC_CPREC)*nm);
+  n=0;
+  for(i=0;i<nm;i++){
+    if(m[i] >= mmin){
+      mc[n]= m[i];
+      n++;
+    }
+  }
+  calc_b_value_bpos(mc,n,dm,b);
+  free(mc);
+}
+/* 
+
 /* calculate the b value from b positive equation (9) of van der Elst
    (2021) 
    

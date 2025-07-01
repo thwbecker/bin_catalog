@@ -15,7 +15,8 @@
    1: Utsu (1966), Bender (1983) dM corrected b value, Shi and Bolt (1982) sb approach 
    2: Marzocci
    3: b-positive
-   4: all, compare
+   4: b-positive, with Mc
+   5: all, compare
 */
 
 int main(int argc, char **argv)
@@ -102,11 +103,16 @@ int main(int argc, char **argv)
     calc_b_value_bpos(mag,nm,dm,&b);
     fprintf(stdout,"%7.5f NaN\n",b);
     break;
-  case 4:
+  case 4:			/* b positive */
+    calc_b_value_bpos_mc(mag,nm,dm,mcomplete,&b);
+    fprintf(stdout,"%7.5f NaN\n",b);
+    break;
+  case 5:
     calc_b_value_ml(mag,nm,mcomplete,&b,&sb);         fprintf(stdout,"Aki:        %7.5f %7.5f\n",b,sb);
     calc_b_value_thomas(mag,nm,dm,mcomplete,&b,&sb);  fprintf(stdout,"Bender:     %7.5f %7.5f\n",b,sb);
     calc_b_value_marzocci(mag,nm,dm,mcomplete,&b,&sb);fprintf(stdout,"Marzocci:   %7.5f %7.5f\n",b,sb);
-    calc_b_value_bpos(mag,nm,dm,&b);                  fprintf(stdout,"b-positive: %7.5f NaN\n",b);
+    calc_b_value_bpos(mag,nm,dm,&b);                  fprintf(stdout,"b-pos:      %7.5f NaN\n",b);
+    calc_b_value_bpos_mc(mag,nm,dm,mcomplete,&b);      fprintf(stdout,"b-pos c:    %7.5f NaN\n",b);
 
     break;
     
