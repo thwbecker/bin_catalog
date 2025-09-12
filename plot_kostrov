@@ -7,7 +7,7 @@
 #
 #
 rcode=${1-0}			# 0: world (-1, -2, -3) 57: Tibet 19: Indonesia 6: Japan 2: SAM 97/97o/97o2/97book: Andes/Chile
-                                # 98: Japan - 3 9: new zealand 99: Alaska 59: Anatolia 52: Banda small 27: Afar 32: western US -1: world cut for book 65: Colombia 35: Socal
+                                # 98: Japan - 3 9: new zealand 99: Alaska 59: Anatolia 52: Banda small 27: Afar 32: western US -1: world cut for book 65: Colombia 35: Socal 111: all Cali
 dmax=${2-50}			# maximum depth
 plot_stress=${3-0}		# 1: plot Michael stress, 0: plot kostrov -1: plot strain-rates from GSRM 2: plot all CMTs 3: plot kostrov as strain crosses 4: plot stress as strain crosses, 999: skip, no deformation symbols
 add_rlabel=${4-0}		# add a datestamp and email
@@ -174,6 +174,18 @@ elif [ $rcode = 35 ];then	# socal
     fi
     rframe=31
     vinc=-I2
+elif [ $rcode = 111 ];then	# allcal
+    ann=-Ba2f.2WesN
+    proj=-JM13
+    #kinc=0.2
+    kinc=0.1
+    if [ $plot_stress = 0 ];then
+	cmt_size=0.5
+    else
+	cmt_size=0.2
+    fi
+    rframe=31
+    vinc=-I2
 elif [ $rcode -eq 44 ];then
 	proj=-JB`echo $reg | gawk -f reg2midlon.awk`/`echo $reg | gawk -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg | gawk -v frac=0.66 -f reg2midlat.awk`/13
 	kinc=3;	cmt_size=0.25
@@ -326,6 +338,7 @@ elif [ $rcode = 110 ];then
 fi
 
 
+
 kincy=$kinc
 if [ $rcode = 99 ];then
     ((kincx=kinc*2))
@@ -347,18 +360,29 @@ else
     soname="kmom_b"$dmin
     sname="kostrov_b"$dmin
 fi
-echo $reg $preg $name $proj dx $kincx dy $kincy
-
+echo $0:  $rcode $reg $preg $name $proj dx $kincx dy $kincy > /dev/stderr
+#exit
 if [ ! -s $sname.$kincx.$kincy.$name.0.norm.dat ];then
 
     #
     # do the summation
     # 
     bin_catalog $mom_file $kincx $min_mag $max_mag 0 $w $e $s $n $dmax $is_aki 0 $dmin 0 $sname $kincy
-    for t in norm scaled;do
+    #
+    for t in norm scaled;do	# Kostrov summations
+	if [ ! -s $sname.$kincx.$kincy.0.$t.dat ];then
+	    echo $0: bin_catalog did not produce $sname.$kincx.$kincy.0.$t.dat
+	    exit
+	fi
 	mv $sname.$kincx.$kincy.0.$t.dat $sname.$kincx.$kincy.$name.0.$t.dat 
+	echo $0: renamed Kostrov $t output to $sname.$kincx.$kincy.$name.0.$t.dat 
     done
-    mv $sname.$kincx.$kincy.s.dat $sname.$kincx.$kincy.$name.s.dat 
+    for t in s bs ds smn;do		# stress inversion output
+	if [  -s $sname.$kincx.$kincy.$t.dat  ];then
+	    mv $sname.$kincx.$kincy.$t.dat $sname.$kincx.$kincy.$name.$t.dat
+	    echo $0: renamed stress $t type output to $sname.$kincx.$kincy.$name.$t.dat
+	fi
+    done
 else
     echo $0: WARNING: reusing old files $sname.$kincx.$kincy.$name.0.norm.dat and similar
 fi

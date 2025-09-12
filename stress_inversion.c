@@ -49,7 +49,8 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
     */
     if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){	/* five parameters, at least two events */
 #ifdef DEBUG
-      fprintf(stderr,"bin %05i: %g, %g working on stress inversion, N %i\n",i, kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
+      fprintf(stderr,"bin %05i: %g, %g working on stress inversion, N %i\n",
+	      i, kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
 #endif
       angles = (BC_CPREC *)realloc(angles,kostrov->bin[i].n*6*sizeof(BC_CPREC));
       weights = (BC_CPREC *)realloc(weights,kostrov->bin[i].n*sizeof(BC_CPREC));
@@ -124,20 +125,18 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
 						simulations (2000 good
 						number for 95%
 						confidence?)*/
-  BC_BOOLEAN proceed,acc_bail;
+  BC_BOOLEAN proceed,acc_bail,iter_warned;
   static BC_BOOLEAN warned = BC_FALSE;
-  int nobs,iquake,nrandom,i,iquake6;
+  int nobs,iquake,nrandom,i,iquake6,icheck,j;
   BC_CPREC ind_stress[6],*slick,*amat,tot_stress[6],tot_stress2[6],snorm,last_stress[6],this_stress[6],ds,tmp;
   size_t ssize = 6*sizeof(BC_CPREC);
   BC_CPREC bail_acc_squared = BC_MICHAEL_RACC*BC_MICHAEL_RACC;
-#ifdef DEBUG
-  int j;
-#endif
   slick = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim);
   amat = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim*npar);
   for(i=0;i < 6;i++){
     tot_stress[i] = tot_stress2[i] = last_stress[i] = 0.0;
   }
+  iter_warned = BC_FALSE;
   proceed  = BC_TRUE;
   nrandom=0;
   do{
@@ -156,25 +155,30 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
        override amat and slick)
     */
     michael_solve_lsq(npar,ndim,nobs,amat,slick,weights,ind_stress);
-    for(i=0;i<6;i++){
-#ifdef DEBUG
+    for(i=icheck=0;i<6;i++){
       if(!finite(ind_stress[i])){
-	fprintf(stderr,"ssm random_sweep: ERROR: ind_stress not finite\n");
-	for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6){
-	  for(j=0;j<6;j++)
-	    fprintf(stderr,"%6.3f ",(angles+iquake6+j));
-	  fprintf(stderr,"\n");
+	if(!iter_warned){
+	  fprintf(stderr,"ssm random_sweep: WARNING: ind_stress not finite\n");
+	  for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6){
+	    for(j=0;j<6;j++)
+	      fprintf(stderr,"%6.3f ",(float)*(angles+iquake6+j));
+	    fprintf(stderr,"\n");
+	  }
 	}
-	exit(-1);
-
-      }
-#endif
-      tot_stress[i]  += ind_stress[i];
-      tot_stress2[i] += ind_stress[i] * ind_stress[i];
+	iter_warned = BC_TRUE;
+      }else{
+	icheck++;
+      }      
     }
-    nrandom++;
-    if(nrandom%100==0){		/* every 100 iterations, check for
-				   finiteness and convergence */
+    if(icheck == 6){		/* all finite */
+      for(i=0;i<6;i++){
+	tot_stress[i]  += ind_stress[i];
+	tot_stress2[i] += ind_stress[i] * ind_stress[i];
+      }
+      nrandom++;
+    }
+    if(nrandom%100==0){
+      /* every 100 iterations, check for finiteness and convergence */
       ds = 0;
       for(i=0;i<6;i++){
 	if(!finite(tot_stress[i])){
@@ -187,7 +191,7 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
       }
       if(ds < bail_acc_squared)
 	acc_bail = BC_TRUE;
-#ifdef SUPERDEBUG
+#ifdef SUPER_DEBUG
       fprintf(stderr,"ssm random_sweep: iter %05i s %12g %12g %12g %12g %12g %12g: diff: %12.5e\n",nrandom,
 	      this_stress[0], this_stress[1], this_stress[2], this_stress[3], this_stress[4],this_stress[5],sqrt(ds));
 #endif
@@ -278,7 +282,7 @@ void adjust_stress_for_friction(int n, BC_CPREC *iangles, BC_CPREC *weights,
       memcpy(angles,iangles,asize);
       optimize_angles_via_instability(n,angles,weights,friction,tstress,inst,&isweep);
       *osweep += isweep;
-#ifdef DEBUG
+#ifdef SUPER_DEBUG
       fprintf(stderr,"         s(%4.2f): %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev:               \tinst: %7.5f %7.5f\n",
 	      friction,tstress[0],tstress[1],tstress[2],tstress[3],tstress[4],tstress[5],inst[0],inst[1]);
 #endif
@@ -425,9 +429,8 @@ void my6stress2m3x3(BC_CPREC *svec,BC_CPREC msmat[3][3])
 */
 void michael_assign_to_matrix(BC_CPREC *angles,int *nobs,BC_CPREC **slick,BC_CPREC **amat)
 {
-  int j;
   BC_CPREC sin_z,cos_z,sin_z2,cos_z2,sin_z3,cos_z3,n1,n2,n3,n12,n22,n32;
-  int ind;
+  int ind,j;
   const int ndim = BC_NDIM;
   const int npar = BC_MICHAEL_NPAR;
   
@@ -452,7 +455,9 @@ void michael_assign_to_matrix(BC_CPREC *angles,int *nobs,BC_CPREC **slick,BC_CPR
   *(*slick+j)=  -cos_z3*cos_z-sin_z3*sin_z*cos_z2;
   *(*slick+j+1)= cos_z3*sin_z-sin_z3*cos_z*cos_z2;
   *(*slick+j+2)= sin_z3*sin_z2;
-  
+
+
+ 
   /* find the matrix elements */
   ind = j*npar;
   *(*amat+ind+0)    = n1-n12*n1+n1*n32;
@@ -475,7 +480,7 @@ void michael_assign_to_matrix(BC_CPREC *angles,int *nobs,BC_CPREC **slick,BC_CPR
   *(*amat+ind+3)= -n3*n22-n3+n32*n3;
   *(*amat+ind+4)= n2-2.*n2*n32;
 
-  /* increment counter and make room for mroe */
+  /* increment counter and make room for more */
   *nobs = *nobs + 1;
   /*  */
   *slick = (BC_CPREC *)realloc(*slick,sizeof(BC_CPREC)*ndim*     (*nobs+1));

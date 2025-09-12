@@ -1,12 +1,16 @@
 #CFLAGS = -g
-#FFLAGS = -g
-#F90FLAGS = -g
-FFLAGS = -O2
+#DEBUG_DEF = -DDEBUG
+
 CFLAGS = -O2
+DEBUG_DEF =
+
+F90FLAGS = $(CFLAGS)
+FFLAGS =  $(CFLAGS)
+
 # copy out if you do not have sincos
 SINCOS_DEF = -DHAVE_SINCOS
-#DEBUG_DEF = -DDEBUG
-DEBUG_DEF = 
+
+
 
 
 DEFINES = $(SINCOS_DEF) $(DEBUG_DEF)
