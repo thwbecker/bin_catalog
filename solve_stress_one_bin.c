@@ -13,7 +13,7 @@ int main(int argc, char **argv)
    exit(-1);
 
  }
- read_catalog(argv[1],catalog,BC_AKI);
+ read_catalog(argv[1],catalog,BC_AKI,BC_FALSE);
 
  angles = (BC_CPREC *)malloc(6*sizeof(BC_CPREC)*catalog->n);
  weights = (BC_CPREC *)malloc(sizeof(BC_CPREC)*catalog->n);

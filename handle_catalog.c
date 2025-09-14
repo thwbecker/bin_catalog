@@ -967,10 +967,10 @@ int print_catalog(char *filename, struct cat *catalog, int mode)
 }
 
 
-int read_catalog(char *filename, struct cat *catalog, int mode)
+int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN compute_dtree)
 {
   FILE *in;
-  int i,ndup,hit,ilim;
+  int i,j,ndup,hit,ilim;
   long int init_random_seed = -1; /* change to create new numbers */
   static BC_BOOLEAN  check_duplicates = BC_TRUE;
   BC_CPREC dist;
@@ -1084,6 +1084,11 @@ int read_catalog(char *filename, struct cat *catalog, int mode)
   if(check_duplicates)
     fprintf(stderr,"read_catalog: found %i duplicates\n",ndup);
   fclose(in);
+  if(compute_dtree){
+    fprintf(stderr,"read_catalog: distance tree not implemented yet\n");
+    exit(-1);
+    catalog->dtree_init = BC_TRUE;
+  }
   return 0;
 }
 
@@ -1330,7 +1335,7 @@ void create_catalog(struct cat *catalog,long int init_seed)
   catalog->maxlatd = -1000;
   catalog->lkm_min = 6371;
   catalog->lkm_max = 0;
-  
+  catalog->dtree_init = BC_FALSE;
   if(!init){
     catalog->seed = init_seed;		/* default random number seed */
     BC_RGEN(&catalog->seed);

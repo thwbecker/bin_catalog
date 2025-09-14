@@ -17,7 +17,7 @@ int main(int argc, char **argv)
   }
   catalog=(struct cat *)calloc(1,sizeof(struct cat)); 
   if(!catalog)BC_MEMERROR(argv[0]);
-  read_catalog(argv[1],catalog,BC_CMT);
+  read_catalog(argv[1],catalog,BC_CMT,BC_FALSE);
   for(i=0;i<catalog->n;i++){
     fprintf(stdout,"%10.4f %10.4f %5.1f %12.5e %6.3f %012i\n",
 	    catalog->quake[i].dlon,

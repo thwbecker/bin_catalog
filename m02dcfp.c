@@ -19,7 +19,7 @@ int main(int argc, char **argv)
   catalog=(struct cat *)calloc(1,sizeof(struct cat)); 
   if(!catalog)
     BC_MEMERROR(argv[0]);
-  read_catalog(argv[1],catalog,BC_CMT);
+  read_catalog(argv[1],catalog,BC_CMT,BC_FALSE);
   for(i=0;i<catalog->n;i++){
     print_quake_cmt_fp(stdout,catalog->quake[i]);
   }

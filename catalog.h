@@ -174,6 +174,7 @@ struct cat{
   BC_CPREC tcenter,tmin,tmax,trange;
   /* 0: lon-lat coordinates 1: x(e.g. distance along profile)-y(e.g. depth) coordinates */
   BC_BOOLEAN is_xy,use_friction_solve;
+  BC_BOOLEAN dtree_init;
   /* for random numbers */
   long int seed;
 };

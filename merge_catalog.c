@@ -24,7 +24,7 @@ int main(int argc, char **argv)
     BC_MEMERROR(argv[0]);
   
   for(i=0;i < 2;i++)
-    read_catalog(argv[i+1],(catalog+i),BC_AKI);
+    read_catalog(argv[i+1],(catalog+i),BC_AKI,BC_FALSE);
   /* merge catalog */
   create_catalog((catalog+2),-1);
   /* 1 km slop in horizontal, 15 km in vertical, largest event wins */

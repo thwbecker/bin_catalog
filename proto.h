@@ -8,12 +8,12 @@ void calc_b_value_ml(double *, long int, double, double *, double *);
 /* calc_gr.c */
 /* calc_gr_time.c */
 void calc_gr_switch(double *, long, double, double, double *, double *, int);
+/* eigen_3ds_simple.c */
 /* eigen.c */
 void calc_eigensystem_vec6(double *, double *, double *, unsigned short, unsigned short);
 void calc_eigensystem_sym_3x3(double [3][3], double *, double *, unsigned short, unsigned short);
 void calc_eigensystem_sym_9(double *, double *, double *, unsigned short, unsigned short);
 void indexx(int, double *, int *);
-/* eigen_3ds_simple.c */
 /* eigen_driver.c */
 /* fault_eq.c */
 void stridip(double, double, double, double *, double *);
@@ -39,7 +39,7 @@ double kostrov_bdlat(int, struct kostrov_sum *);
 void print_summed_moment(struct cat *, char *);
 void merge_catalog(struct cat *, struct cat *, struct cat *, double, double);
 int print_catalog(char *, struct cat *, int);
-int read_catalog(char *, struct cat *, int);
+int read_catalog(char *, struct cat *, int, unsigned short);
 void copy_quake(struct qke *, struct qke *);
 char *mode_name(int);
 int read_quake(FILE *, struct qke *, int);

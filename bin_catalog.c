@@ -19,9 +19,10 @@ int main(int argc, char **argv)
   struct cat *catalog;
   int itmp;
   char out_filename[500],out_filename2[500],out_istring[500];
-  BC_BOOLEAN  monte_carlo = BC_FALSE, use_aki = BC_TRUE;
-  BC_BOOLEAN remove_trace = BC_TRUE;	/* remove trace from summations */
-  BC_BOOLEAN  calc_stress = BC_TRUE;
+  BC_BOOLEAN monte_carlo =   BC_FALSE, use_aki = BC_TRUE;
+  BC_BOOLEAN remove_trace =  BC_TRUE;	/* remove trace from summations */
+  BC_BOOLEAN calc_stress =   BC_TRUE;
+  BC_BOOLEAN compute_dtree = BC_FALSE;
   int  weighting_method = 0; /* 0: none 
 				1: distance from center of time 
 				2: normalized by numbers over time 
@@ -93,10 +94,10 @@ int main(int argc, char **argv)
   
   if(use_aki){			/* aki with last column time */
     fprintf(stderr,"%s: assuming AKI format (last column is UNIX time)\n",argv[0]);
-    read_catalog(argv[1],catalog,BC_AKI);
+    read_catalog(argv[1],catalog,BC_AKI,compute_dtree);
   }else{
     fprintf(stderr,"%s: assuming CMT format\n",argv[0]);
-    read_catalog(argv[1],catalog,BC_CMT);
+    read_catalog(argv[1],catalog,BC_CMT,compute_dtree);
   }
   if(!catalog->n){
     fprintf(stderr,"%s: error: zero events read\n",argv[0]);
