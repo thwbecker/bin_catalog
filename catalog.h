@@ -128,7 +128,7 @@ struct nodal_plane {
 struct qke{
   BC_CPREC strike,dip,rake;
   BC_CPREC strike2,dip2,rake2;	/* alternate fault plane */
-  BC_CPREC dlon,dlat,ddlon,ddlat,depth,coslat,lkm;
+  BC_CPREC dlon,dlat,depth,coslat,lkm;
   BC_CPREC lon,lat;		/* radian versions, for now, keep both */
   BC_CPREC mag,m0,m[6],tsec;
   BC_BOOLEAN deleted;

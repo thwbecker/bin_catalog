@@ -1,8 +1,11 @@
 #include "catalog.h"
 /* 
 
-   perform a kostrov summation and / or Michael (1984) stress
-   inversion
+   perform a kostrov summation and / or Michael (1984) type stress
+   inversion based on AKI or gCMT style earthquake focal
+   mechanism/moment tensor catalogs
+
+   (c) Thorsten Becker, thwbecker@post.harvard.edu, see README
 
 */
 

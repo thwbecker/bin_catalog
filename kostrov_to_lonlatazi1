@@ -1,0 +1,35 @@
+#!/bin/bash
+kfile=${1-kostrov.0.1.0.1.CAL.0.norm.dat}
+#
+# convert a kostrov type output file with at least
+# srr srt srp stt stp spp lon lat
+# entris to lon lat eh1_azi[deg]
+#
+if [ ! -s $kfile ];then
+    echo $0: summation file $kfile not found
+    exit
+fi
+tmpn=`mktemp`
+trap "rm -f $tmpn*" EXIT
+#
+# compute norm
+#
+gawk '{print($1,$2,$3,$4,$5,$6)}' $kfile | gawk -f tensornorm.awk  > $tmpn.norm
+#
+# psmeca wants:       lon lat depth     mrr mtt mff mrt mrf mtf exp [newX newY] [event_title]
+# conversion to psmca: my tensor elements: 1,   4,  6, 2,   3,  5
+# my output is:  mrr,  mrt, mrf, mtt,  mtf, mff (spherical)
+#
+# this would be: mzz, -myz, mxz, myy, -mxy, mxx
+#                muu, -mnu, meu, mnn, -men, mee
+#
+nf=`head -1 $kfile | gawk '{print(NF)}'`
+# could be used for plotting with psmeca
+paste $kfile $tmpn.norm | sort -n +$nf | \
+    gawk -v nf=$nf '{print($7,$8,($4+$6)/2/$(nf+1),$1,$4,$6,$2,$3,$5,1,$7,$8)}' > $tmpn.dat
+#
+# compute horizontal system
+#
+gawk '{print($6,-$9,$5)}' $tmpn.dat | gawk -f calcms.awk > $tmpn.s1s2azi
+gawk '{print($1,$2)}' $tmpn.dat > $tmpn.lonlat
+paste $tmpn.lonlat $tmpn.s1s2azi  | gawk '{a=$5+90;if(a>360)a-=360;print($1,$2,a)}'
