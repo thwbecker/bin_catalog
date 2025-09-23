@@ -4,6 +4,7 @@
 #include <time.h>
 #include <string.h>
 
+#ifndef BC_DEFINES_DEFINED
 
 /* modes */
 #define BC_AKI 0
@@ -63,6 +64,7 @@
 #define BC_MEMERROR(x) {fprintf(stderr,"memory allocation error: %s\n",x);exit(-1);}
 #endif
 
+
 /* 
 
 
@@ -97,6 +99,9 @@
 #define BC_MICHAEL_RSWEEP_MAX 50000	/* max sweep number for random sampling */
 #define BC_MICHAEL_RACC 1e-4	/* random sweep accuracy */
 
+#define BC_DEFINES_DEFINED
+
+#endif
 
 /* structures */
 
@@ -155,13 +160,25 @@ struct bn{
 /* kostrov summation structure */
 struct kostrov_sum{
   /* for binning */
-  BC_CPREC dlonmin,dlonmax,dlatmin,dlatmax,ddlon,ddlat;
+  BC_CPREC dlonmin,dlonmax,dlatmin,dlatmax;
   BC_CPREC minmag,maxmag,mindepth,maxdepth,mtot;
+  BC_CPREC dx,dy;
   BC_BOOLEAN init;
+  int nmin;			/*  */
+  BC_CPREC dist_max;		/*  */
   int weighting_method;
   struct bn *bin;
   int nx,ny,nxny;
 };
+
+
+
+
+/* KD tree */
+
+#include "geo_kdtree.h"
+
+
 /* catalog structure */
   
 struct cat{
@@ -177,6 +194,8 @@ struct cat{
   BC_BOOLEAN dtree_init;
   /* for random numbers */
   long int seed;
+  /* KD tree */
+  geo_tree_t *tree;
 };
 
 

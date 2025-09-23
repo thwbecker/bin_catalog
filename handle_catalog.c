@@ -7,7 +7,8 @@ relocate catalog a with locations from catalog b and save to catalog c
 */
 void relocate_catalog(struct cat *a,struct cat *b, struct cat *c)
 {
-  int j,yes,no,found,i,is_xy_sum;
+  unsigned int j,i;
+  int yes,no,found,is_xy_sum;
   BC_CPREC hor_dist, temp_dist, vert_dist, mag_dist,
     hor_dist0,temp_dist0,vert_dist0,mag_dist0,
     hor_distm,temp_distm,vert_distm,mag_distm;
@@ -86,13 +87,29 @@ void relocate_catalog(struct cat *a,struct cat *b, struct cat *c)
 	  hor_distm,vert_distm,temp_distm,mag_distm);
 }
 
+void kostrov_set_defaults(struct kostrov_sum *kostrov)
+{
 
+  kostrov->dx = kostrov->dy = 0.2;
+  kostrov->minmag=3.5;
+  kostrov->maxmag=6.5;
+  /*  */
+  kostrov->nmin = 20;		/* min number of events */
+  kostrov->dist_max = 20;		/* maximum distance in km */
+  /*  */
+  kostrov->dlonmin = 232;
+  kostrov->dlonmax = 250;
+  kostrov->dlatmin = 30;
+  kostrov->dlatmax = 45;
+  kostrov->mindepth = -10;
+  kostrov->maxdepth =  15;	/* in km */
+}
 
 /* 
 
    given an intialized set of bins and catalogs, sum over all quakes
    and assign weights to each quake for summing (and possible stress
-   analysis)
+   analysis) using simple binning based on dx and dy
 
 */
 void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
@@ -143,10 +160,11 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
      n=0;				/* how many are added  */
     for(i=0;i < catalog->n;i++){	/* loop through quakes */
       /* make sure within magnitude and depth range range */
-      if((catalog->quake[i].mag >= kostrov->minmag) && 
-	 (catalog->quake[i].mag <= kostrov->maxmag) && 
-	 (catalog->quake[i].depth <= kostrov->maxdepth) && 
-	 (catalog->quake[i].depth >= kostrov->mindepth)){
+      /* THIS SHOULD REALLY NOT BE DONE EACH TIME - OPTIMIZE */
+
+      if(quake_qualified(catalog->quake[i].mag,catalog->quake[i].depth,
+			 kostrov->minmag,kostrov->maxmag,
+			 kostrov->mindepth,kostrov->maxdepth)){
 	/* 
 	   move to grid-centered 
 	*/
@@ -155,8 +173,8 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
 	  if(dx > 360)
 	    dx -= 360;
 	}
-	ix = (int)(dx/kostrov->ddlon + 0.5);
-	iy = (int)((catalog->quake[i].dlat - kostrov->dlatmin)/kostrov->ddlat + 0.5);
+	ix = (int)(dx/kostrov->dx + 0.5);
+	iy = (int)((catalog->quake[i].dlat - kostrov->dlatmin)/kostrov->dy + 0.5);
 	//fprintf(stderr,"%i %i\n",ix,iy);
 	if((ix >= 0) && (ix < kostrov->nx) && (iy >= 0) && (iy < kostrov->ny)){ /* make sure within region */
 	  /* 
@@ -370,9 +388,145 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
     /* remove trace for all binx */
     fprintf(stderr,"sum_kostrov_bins: removing trace\n");
     for(i=0;i < kostrov->nxny;i++){
-      remove_trace(kostrov->bin[i].m);
-      remove_trace(kostrov->bin[i].mn);
-      remove_trace(kostrov->bin[i].smn);
+      if(kostrov->bin[i].n){
+	remove_trace(kostrov->bin[i].m);
+	remove_trace(kostrov->bin[i].mn);
+	remove_trace(kostrov->bin[i].smn);
+      }
+    }
+  }
+}
+
+/* 
+
+distance based
+
+*/
+void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_trace,BC_BOOLEAN verbose)
+{
+  result_array_t *found;
+  query_result_t *result;
+  int i,j,k,n,bc,this_quake;
+
+  struct kostrov_sum *kostrov;
+  BC_CPREC me,weight;
+  if(!catalog->sum->init){
+    fprintf(stderr,"assemble_bins_based_on_distance: sum bounds not initialized\n");
+    exit(-1);
+  }
+  kostrov = catalog->sum;
+  if(verbose)
+    fprintf(stderr,"assemble_bins_based_on_distance: summing with nmin %i distmax %g\n",kostrov->nmin,kostrov->dist_max);
+ 
+  if(catalog->is_xy){		/* if not carteisan, move to 0...360 */
+    fprintf(stderr,"assemble_bins_based_on_distance: cartesian not implemented\n");
+    exit(-1);
+
+  }
+  if(!catalog->dtree_init){
+    fprintf(stderr,"assemble_bins_based_on_distance: KD tree not initialized\n");
+    exit(-1);
+  }
+  /* only clear once */
+  clear_bins(catalog);		
+  /* 
+     clear local pn 
+  */
+  for(i=0;i < kostrov->nxny;i++)
+    for(j=0;j<6;j++)
+      kostrov->bin[i].mnloc[j]=0.0;
+  /* 
+
+
+     assign the events 
+
+  */
+  for(i=0;i < kostrov->nxny;i++){
+    found = geo_tree_query_radius(catalog->tree,kostrov->bin[i].lat,kostrov->bin[i].coslat,kostrov->bin[i].lon, kostrov->dist_max, (int)BC_FALSE);
+    
+    /* assing if more than nmin */
+    if(found->count >= kostrov->nmin){
+      fprintf(stderr,"assemble_bins_based_on_distance: %06i %11g %11g: found %03i results within %g km distance\n",
+	      i,kostrov->bin[i].dlon,kostrov->bin[i].dlat,found->count,kostrov->dist_max);
+      kostrov->bin[i].n = found->count;
+      for(j=0;j < found->count;j++){
+	result = (found->results+j); /* this entry in list */
+	weight = 1.0;		/* could be distance (result->distance_km) weighted */
+
+	this_quake = result->point.code;
+	fprintf(stderr,"%i %i\n",j,this_quake);
+	
+	add_quake_to_bin_list((unsigned int)this_quake,(kostrov->bin+i),weight);
+	kostrov->bin[i].sumw += weight;
+	kostrov->mtot += catalog->quake[this_quake].m0*weight; /* total potency */
+	for(k=0;k<6;k++){
+	  kostrov->bin[i].m[k]  += (catalog->quake[this_quake].m[k] * weight * catalog->quake[this_quake].m0); /* scaled sum */
+	  kostrov->bin[i].mnloc[k] += weight * catalog->quake[this_quake].m[k]; /* normalized sum */
+	}
+      }
+    }else{
+      kostrov->bin[i].n = 0;
+    }
+    result_array_destroy(found);
+    if(kostrov->bin[i].n){
+      for(bc = 1;bc<1;bc++){/* here we would do MC */
+
+	/* compute Kostrov */
+	
+    
+	/* 
+	   take mean and sum up 
+	*/
+	
+	//fprintf(stderr,"bin %i: ",i);
+	//for(j=0;j < kostrov->bin[i].n;j++)fprintf(stderr,"%i ",kostrov->bin[i].quake[j]);
+	//fprintf(stderr,"\n");
+	for(j=0;j < 6;j++){
+	  /* normalized tensor components */
+	  kostrov->bin[i].mnloc[j]  /= kostrov->bin[i].sumw;
+	  /* 
+	     additions for mean and std of full tensor 
+	  */
+	  kostrov->bin[i].mn[j]  += kostrov->bin[i].mnloc[j];
+	  kostrov->bin[i].smn[j] += kostrov->bin[i].mnloc[j]*kostrov->bin[i].mnloc[j];
+	}
+	/* addition for mean and std of mean hor strain */
+	me = mean_hor_strain(kostrov->bin[i].mnloc);
+	kostrov->bin[i].men  += me ;
+	kostrov->bin[i].mens += me * me;
+      } /* end MC loop */
+
+      /* 
+	 take mean and std 
+      */
+      
+      /* get mean for scaled sum */
+      kostrov->bin[i].me = mean_hor_strain(kostrov->bin[i].m);
+      /* 
+	 mean and std for mean strain 
+      */
+      kostrov->bin[i].mens = std_quick(bc,kostrov->bin[i].men,kostrov->bin[i].mens);
+      /* mean */
+      kostrov->bin[i].men = kostrov->bin[i].men/(BC_CPREC)bc;
+      for(j=0;j < 6;j++){
+	/* normalized tensor */
+	/* standard deviation, the quick way */
+	kostrov->bin[i].smn[j] = std_quick(bc, kostrov->bin[i].mn[j],kostrov->bin[i].smn[j]);
+	/* mean */
+	kostrov->bin[i].mn[j] = kostrov->bin[i].mn[j]/(BC_CPREC)bc;
+      }
+    }
+  } /* end bin loop */
+  
+  if(do_remove_trace){
+    /* remove trace for all binx */
+    fprintf(stderr,"assemble_bins_based_on_distance: removing trace\n");
+    for(i=0;i < kostrov->nxny;i++){
+      if(kostrov->bin[i].n){
+	remove_trace(kostrov->bin[i].m);
+	remove_trace(kostrov->bin[i].mn);
+	remove_trace(kostrov->bin[i].smn);
+      }
     }
   }
 }
@@ -523,13 +677,7 @@ void print_histogram(int *nentry, BC_CPREC *xbin, int nbin, FILE *out_stream)
    call after initializing lon, lat range and sum->dlon/sum->dlat ! 
 
 */
-void setup_kostrov(struct cat *catalog,
-		   BC_CPREC dlonmin,BC_CPREC dlonmax, /* in degrees */
-		   BC_CPREC dlatmin,BC_CPREC dlatmax,
-		   BC_CPREC mindepth,BC_CPREC maxdepth,
-		   BC_CPREC ddlon, BC_CPREC ddlat,
-		   BC_CPREC minmag,BC_CPREC maxmag,
-		   int weighting_method)
+void setup_kostrov(struct cat *catalog,int weighting_method)
 {
   int i,j,ind;
   double xmin,ymin,darea;
@@ -539,30 +687,14 @@ void setup_kostrov(struct cat *catalog,
   kostrov->mtot = 0.0;		/* total moment of summation */
   kostrov->weighting_method = weighting_method;
   
-  kostrov->dlonmin = dlonmin;
-  kostrov->dlonmax = dlonmax;
-  kostrov->dlatmin = dlatmin;
-  kostrov->dlatmax = dlatmax;
-
-  kostrov->mindepth = mindepth;
-  kostrov->maxdepth = maxdepth;
-
-  kostrov->minmag = minmag;
-  kostrov->maxmag = maxmag;
-  
-  kostrov->ddlon = ddlon;
-  kostrov->ddlat = ddlat;
-  
-  kostrov->nx = (kostrov->dlonmax - kostrov->dlonmin)/
-    kostrov->ddlon;
-  kostrov->ny = (kostrov->dlatmax - kostrov->dlatmin)/
-    kostrov->ddlat;
+  kostrov->nx = (kostrov->dlonmax - kostrov->dlonmin)/kostrov->dx;
+  kostrov->ny = (kostrov->dlatmax - kostrov->dlatmin)/kostrov->dy;
   kostrov->nxny = kostrov->nx * kostrov->ny;
   if(kostrov->nx < 1 || kostrov->ny < 1){
     fprintf(stderr,"setup_bins: error: nx: %i ny: %i, lon: %g - %g - %g, lat: %g - %g - %g\n",
 	    kostrov->nx,kostrov->ny,
-	    kostrov->dlonmin,kostrov->ddlon,kostrov->dlonmax,
-	    kostrov->dlatmin,kostrov->ddlat,kostrov->dlatmax);
+	    kostrov->dlonmin,kostrov->dx,kostrov->dlonmax,
+	    kostrov->dlatmin,kostrov->dy,kostrov->dlatmax);
     exit(-1);
   }
   fprintf(stderr,"setup_kostrov: using magnitudes from %g to %g, depths from %g to %g\n",
@@ -575,11 +707,10 @@ void setup_kostrov(struct cat *catalog,
 	  kostrov->dlonmax,
 	  kostrov->dlatmin,
 	  kostrov->dlatmax,
-	  kostrov->ddlon,kostrov->ddlat,kostrov->nx,kostrov->ny);
+	  kostrov->dx,kostrov->dy,kostrov->nx,kostrov->ny);
   
   
-  kostrov->bin = (struct bn *)
-    realloc(kostrov->bin,kostrov->nxny * sizeof(struct bn));
+  kostrov->bin = (struct bn *)realloc(kostrov->bin,kostrov->nxny * sizeof(struct bn));
   if(!kostrov->bin)
     BC_MEMERROR("setup_bins");
   for(i=0;i < kostrov->nxny;i++){
@@ -587,11 +718,11 @@ void setup_kostrov(struct cat *catalog,
     kostrov->bin[i].weight = (BC_CPREC *)malloc(sizeof(BC_CPREC));
   }
   /* area without latitude correction (done below) */
-  darea = BC_D2R(kostrov->ddlon) * BC_D2R(kostrov->ddlat) * BC_RADIUS * BC_RADIUS;
+  darea = BC_D2R(kostrov->dx) * BC_D2R(kostrov->dy) * BC_RADIUS * BC_RADIUS;
 
   /* in center of bin */
-  xmin = kostrov->dlonmin + kostrov->ddlon/2.;
-  ymin = kostrov->dlatmin + kostrov->ddlat/2.;
+  xmin = kostrov->dlonmin + kostrov->dx/2.;
+  ymin = kostrov->dlatmin + kostrov->dy/2.;
   
   /* set all to zero */
   clear_bins(catalog);		/*  */
@@ -602,8 +733,8 @@ void setup_kostrov(struct cat *catalog,
       */
       ind = i * kostrov->ny + j;
       /* center coordinates */
-      kostrov->bin[ind].dlon = xmin + kostrov->ddlon * (BC_CPREC)i;
-      kostrov->bin[ind].dlat = ymin + kostrov->ddlat * (BC_CPREC)j;
+      kostrov->bin[ind].dlon = xmin + kostrov->dx * (BC_CPREC)i;
+      kostrov->bin[ind].dlat = ymin + kostrov->dy * (BC_CPREC)j;
       /* in radians */
       kostrov->bin[ind].lon =  BC_D2R(kostrov->bin[ind].dlon);
       kostrov->bin[ind].lat =  BC_D2R(kostrov->bin[ind].dlat);
@@ -855,11 +986,11 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 /* print coordinates in degree */
 BC_CPREC kostrov_bdlon(int i, struct kostrov_sum *kostrov)
 {
-  return kostrov->bin[i].dlon - kostrov->ddlon/2.;
+  return kostrov->bin[i].dlon - kostrov->dx/2.;
 }
 BC_CPREC kostrov_bdlat(int i, struct kostrov_sum *kostrov)
 {
-  return kostrov->bin[i].dlat - kostrov->ddlat/2.;
+  return kostrov->bin[i].dlat - kostrov->dy/2.;
 }
 
 /* 
@@ -966,14 +1097,21 @@ int print_catalog(char *filename, struct cat *catalog, int mode)
   return 0;
 }
 
+/* 
+
+   read in earthquake catalog and compute a KD tree if requested
+
+ */
 
 int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN compute_dtree)
 {
   FILE *in;
-  int i,j,ndup,hit,ilim;
+  int i,n1;
+  int j,ndup,hit,ilim;
   long int init_random_seed = -1; /* change to create new numbers */
   static BC_BOOLEAN  check_duplicates = BC_TRUE;
-  BC_CPREC dist;
+  BC_CPREC dist,build_time;
+  clock_t end,start;
   struct tm ts;
   char tbuf1[80],tbuf2[80];
   time_t timet;
@@ -991,7 +1129,8 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
       /* look for duplicates within last few */
       ilim = catalog->n - 30;
       if(ilim < 0)ilim = 0;
-      for(i=ilim;(i<catalog->n-1)&&(!hit);i++){
+      n1 = catalog->n - 1;
+      for(i=ilim;(i<n1)&&(!hit);i++){
 	dist = distance(catalog,catalog,i,catalog->n);
 	if((dist < .200) && 	/* horizontal distance, 500 m */
 	   (fabs(catalog->quake[i].depth - catalog->quake[catalog->n].depth) <  BC_DEP_CLOSE) && /* vertical  distance, km */
@@ -1085,8 +1224,28 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
     fprintf(stderr,"read_catalog: found %i duplicates\n",ndup);
   fclose(in);
   if(compute_dtree){
-    fprintf(stderr,"read_catalog: distance tree not implemented yet\n");
-    exit(-1);
+    if(catalog->is_xy){
+      fprintf(stderr,"read_catalog: KDtree only geographic for now\n");
+      exit(-1);
+    }
+    catalog->tree = geo_tree_create(catalog->n);
+    if (!catalog->tree) {
+      fprintf(stderr,"read_catalog: failed to create KDtree\n");
+      exit(-1);
+    }
+    for(i=0;i < catalog->n;i++)	{ /* assign if eligble */
+      if(quake_qualified(catalog->quake[i].mag,catalog->quake[i].depth,
+			 catalog->sum->minmag,catalog->sum->maxmag,
+			 catalog->sum->mindepth,catalog->sum->maxdepth))
+	geo_tree_add_point(catalog->tree, catalog->quake[i].lat,catalog->quake[i].lon,i);
+    }
+    fprintf(stderr,"read_catalog: building tree with %d out of %d events (using only those within mag and depth bounds)...\n",
+	    catalog->tree->num_points,catalog->n);
+    start = clock();
+    geo_tree_build(catalog->tree);
+    end = clock();
+    build_time = ((BC_CPREC)(end - start)) / CLOCKS_PER_SEC;
+    fprintf(stderr,"read_catalog: KD tree built in %.3f seconds\n", build_time);
     catalog->dtree_init = BC_TRUE;
   }
   return 0;
@@ -1455,3 +1614,11 @@ void swap(BC_CPREC *a,BC_CPREC *b)
   *b = tmp;
 }
 
+BC_BOOLEAN quake_qualified(BC_CPREC qmag,BC_CPREC qdepth, BC_CPREC minmag, BC_CPREC maxmag,BC_CPREC mindepth, BC_CPREC maxdepth)
+{
+  if((qmag >= minmag) && (qmag <= maxmag) && (qdepth <= maxdepth) && (qdepth >= mindepth))
+    return BC_TRUE;
+  else
+    return BC_FALSE;
+
+}

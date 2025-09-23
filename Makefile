@@ -11,10 +11,9 @@ FFLAGS =  $(CFLAGS)
 SINCOS_DEF = -DHAVE_SINCOS
 
 
-
-
 DEFINES = $(SINCOS_DEF) $(DEBUG_DEF)
 
+# cproto -f2 *.c | grep -v main > proto.h
 HFILES = catalog.h proto.h eigen.h
 
 LDFLAGS = -lm
@@ -35,7 +34,7 @@ EISLIB = -Leispack/$(ARCH)/ -lmyeis
 
 CAT_OBJS = $(ODIR)/handle_catalog.o  $(ODIR)/fault_eq.o   \
 	$(ODIR)/linalg_misc_geo.o  $(ODIR)/bvalue.o \
-	$(ODIR)/handle_catalog_gmt.o $(ODIR)/michael_leasq.o \
+	$(ODIR)/handle_catalog_gmt.o $(ODIR)/michael_leasq.o $(ODIR)/geo_kdtree.o \
 	$(MECA_OBJS) 
 
 SINV_OBS = 	$(ODIR)/stress_inversion.o $(ODIR)/stability_criterion.o $(ODIR)/slip_deviation.o  
@@ -45,14 +44,14 @@ INCLUDES = $(GMT_INC)
 #INCLUDES = $(GMT_INC) 
 #
 # main programs
-PROGS = $(BDIR)/merge_catalog $(BDIR)/bin_catalog $(BDIR)/bin_catalog $(BDIR)/solve_stress_one_bin \
+PROGS = $(BDIR)/merge_catalog $(BDIR)/bin_catalog $(BDIR)/nsample_catalog $(BDIR)/solve_stress_one_bin \
 	$(BDIR)/m02dcfp $(BDIR)/calc_gr $(BDIR)/calc_gr_time $(BDIR)/m02mag
 
 # just needed for Simpson style stress state plotting
 EIGEN_PROGS = $(BDIR)/eigen  $(BDIR)/eigenvalues $(BDIR)/eigen3ds  $(BDIR)/eigenvalues3ds 
 
 #
-TEST_PROGS = $(BDIR)/test_eigen
+TEST_PROGS = $(BDIR)/test_eigen $(BDIR)/test_kdtree
 
 all: dirs progs libs eigen_progs test_progs
 
@@ -85,6 +84,10 @@ $(BDIR)/merge_catalog: merge_catalog.c $(CAT_OBJS)
 $(BDIR)/bin_catalog: bin_catalog.c $(CAT_OBJS)  $(SINV_OBS) $(ODIR)/eigen.o catalog.h
 	$(CC) $(CFLAGS) bin_catalog.c $(INCLUDES)  $(CAT_OBJS) $(ODIR)/eigen.o $(SINV_OBS)  \
 	-o $(BDIR)/bin_catalog    $(GMT_LIBS) $(EISLIB) $(LDFLAGS)
+
+$(BDIR)/nsample_catalog: nsample_catalog.c $(CAT_OBJS)  $(SINV_OBS) $(ODIR)/eigen.o catalog.h
+	$(CC) $(CFLAGS) nsample_catalog.c $(INCLUDES)  $(CAT_OBJS) $(ODIR)/eigen.o $(SINV_OBS)  \
+	-o $(BDIR)/nsample_catalog    $(GMT_LIBS) $(EISLIB) $(LDFLAGS)
 
 $(BDIR)/solve_stress_one_bin: solve_stress_one_bin.c $(CAT_OBJS)  $(SINV_OBS) $(ODIR)/eigen.o catalog.h
 	$(CC) $(CFLAGS) solve_stress_one_bin.c $(INCLUDES)  $(CAT_OBJS) $(ODIR)/eigen.o $(SINV_OBS)  \
@@ -127,6 +130,9 @@ $(BDIR)/eigenvalues3ds: $(ODIR)/eigen.tds.ov.o $(ODIR)/eigen.o
 $(BDIR)/test_eigen: test_eigen.c $(CAT_OBJS) $(ODIR)/eigen.o
 	$(CC) $(CFLAGS) test_eigen.c $(INCLUDES)  $(CAT_OBJS) \
 	-o $(BDIR)/test_eigen  $(ODIR)/eigen.o	$(EISLIB)  $(GMT_LIBS) $(LDFLAGS)
+
+$(BDIR)/test_kdtree: test_kdtree.c $(ODIR)/geo_kdtree.o $(ODIR)/linalg_misc_geo.o
+	$(CC) $(CFLAGS) test_kdtree.c $(INCLUDES) $(ODIR)/geo_kdtree.o $(ODIR)/linalg_misc_geo.o  -o $(BDIR)/test_kdtree $(LDFLAGS)
 
 
 $(ODIR)/eigen.main.o: eigen_driver.c $(HFILES)
