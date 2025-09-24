@@ -18,7 +18,8 @@ int main(int argc, char **argv)
   struct kostrov_sum *kostrov;
   int itmp;
   char out_filename[500],out_filename2[500],out_istring[500];
-  BC_BOOLEAN monte_carlo =   BC_FALSE, use_aki = BC_TRUE;
+  int monte_carlo = 0;
+  BC_BOOLEAN use_aki     =   BC_TRUE;
   BC_BOOLEAN remove_trace =  BC_TRUE;	/* remove trace from summations */
   BC_BOOLEAN calc_stress =   BC_TRUE;
   BC_BOOLEAN compute_dtree = BC_FALSE;
@@ -38,11 +39,9 @@ int main(int argc, char **argv)
   kostrov = catalog->sum;
   kostrov_set_defaults(kostrov); /* set binning defaults */
   
-
-  
   if(argc < 2){
     fprintf(stderr,"%s catalog.aki [dx, %g] [min_mag, %g] [max_mag, %g] [monte_carlo, %i] [min_lon, %g] [max_lon, %g] [min_lat, %g] [max_lat, %g] [max_depth, %g] [use_aki, %i] [weighting_method (0/1/2), %i] [min_depth, %g] [is_xy, %i] [out_istring, %s] [dy, dx]\n",
-	    argv[0],kostrov->dx,kostrov->minmag,kostrov->maxmag,(int)monte_carlo,
+	    argv[0],kostrov->dx,kostrov->minmag,kostrov->maxmag,monte_carlo,
 	    kostrov->dlonmin, kostrov->dlonmax, 
 	    kostrov->dlatmin, kostrov->dlatmax,
 	    kostrov->maxdepth,(int)use_aki,weighting_method,
@@ -57,10 +56,8 @@ int main(int argc, char **argv)
     sscanf(argv[3],"%lf",&kostrov->minmag);
   if(argc>4)
     sscanf(argv[4],"%lf",&kostrov->maxmag);
-  if(argc>5){
-    sscanf(argv[5],"%i",&itmp);
-    monte_carlo = (BC_BOOLEAN)itmp;
-  }
+  if(argc>5)
+    sscanf(argv[5],"%i",&monte_carlo);
   if(argc>6)sscanf(argv[6],"%lf",&kostrov->dlonmin);
   if(argc>7)sscanf(argv[7],"%lf",&kostrov->dlonmax);
   if(argc>8)sscanf(argv[8],"%lf",&kostrov->dlatmin);
@@ -85,7 +82,7 @@ int main(int argc, char **argv)
     sscanf(argv[16],"%lf",&kostrov->dy);
   }
   /* output filename for Kostrov summations */
-  snprintf(out_filename,sizeof(out_filename),"%s.%g.%g.%i",out_istring,kostrov->dx,kostrov->dy,(int)monte_carlo);
+  snprintf(out_filename,sizeof(out_filename),"%s.%g.%g.%i",out_istring,kostrov->dx,kostrov->dy,monte_carlo);
   
   if(use_aki){			/* aki with last column time */
     fprintf(stderr,"%s: assuming AKI format (last column is UNIX time)\n",argv[0]);
@@ -118,6 +115,18 @@ int main(int argc, char **argv)
      
      setup bins
   */
+  /* parameters */
+
+  setup_kostrov(catalog,weighting_method);
+  
+  /* 
+     sum 
+  */
+  sum_kostrov_bins(catalog,remove_trace,monte_carlo,BC_TRUE);
+  /* 
+     print non-zero 
+  */
+  print_kostrov_bins(catalog,out_filename,monte_carlo);
   if(calc_stress){
     /* compute Andy Michael style stress tensors */
     snprintf(out_filename2,sizeof(out_filename2),"%s.%g.%g",out_istring,kostrov->dx,kostrov->dy);

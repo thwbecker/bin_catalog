@@ -7,6 +7,9 @@
 
    there is also bin_catalog which uses simple binning
 
+   nmin, dist_max > 0, use bins with at least nmin entries within dist_max[km]
+   nmin<0, dist_max> 0, use bins with at -nmin entries as long as they are within dist_max[km]
+
    (c) Thorsten Becker, thwbecker@post.harvard.edu, see README
 
 */
@@ -21,12 +24,12 @@ int main(int argc, char **argv)
   
   int itmp,ic;
   char out_filename[500],out_filename2[500],out_istring[500];
-  BC_BOOLEAN monte_carlo =   BC_FALSE, use_aki = BC_TRUE;
+  BC_BOOLEAN use_aki = BC_TRUE;
   BC_BOOLEAN remove_trace =  BC_TRUE;	/* remove trace from summations */
   BC_BOOLEAN calc_stress =   BC_TRUE;
   BC_BOOLEAN compute_dtree = BC_TRUE;
-  const int  weighting_method = 0; /* 0: none */
-  
+  int  use_weights = 0; /* 0: none 1: by distance from center of bin*/
+  const int monte_carlo = 0;
 
   catalog=(struct cat *)calloc(1,sizeof(struct cat));
   /* default parameters */
@@ -48,9 +51,10 @@ int main(int argc, char **argv)
  
   ic=2;
   if(argc < ic){
-    fprintf(stderr,"%s catalog.aki [dx, %g] [min_mag, %g] [max_mag, %g] [min_lon, %g] [max_lon, %g] [min_lat, %g] [max_lat, %g] [max_depth, %g] [use_aki, %i] [nmin, %i] [dist_max, %g] [dmin, %g] [is_xy, %i] [out_istring, %s] [dy, dx]\n",
+    fprintf(stderr,"%s catalog.aki [dx, %g] [min_mag, %g] [max_mag, %g] [min_lon, %g] [max_lon, %g] [min_lat, %g] [max_lat, %g] [max_depth, %g] [use_aki, %i] [weights, %i] [nmin, %i] [dist_max, %g] [nmin, %g] [is_xy, %i] [out_istring, %s] [dy, dx]\n",
 	    argv[0],kostrov->dx,kostrov->minmag,kostrov->maxmag,kostrov->dlonmin, kostrov->dlonmax, kostrov->dlatmin, kostrov->dlatmax,
-	    kostrov->maxdepth,(int)use_aki,kostrov->nmin,kostrov->dist_max,kostrov->mindepth,(int)catalog->is_xy,out_istring);
+	    kostrov->maxdepth,(int)use_aki,use_weights,
+	    kostrov->nmin,kostrov->dist_max,kostrov->mindepth,(int)catalog->is_xy,out_istring);
     exit(-1);
   }
   if(argc > ic){
@@ -79,9 +83,11 @@ int main(int argc, char **argv)
     use_aki = (BC_BOOLEAN)itmp;
   }
   ic++;
-  if(argc>ic){
+  if(argc>ic)
+    sscanf(argv[ic],"%i",&use_weights);
+  ic++;
+  if(argc>ic)
     sscanf(argv[ic],"%i",&kostrov->nmin);
-  }
   ic++;
   if(argc>ic)
     sscanf(argv[ic],"%lf",&kostrov->dist_max);
@@ -102,11 +108,16 @@ int main(int argc, char **argv)
     sscanf(argv[ic],"%lf",&kostrov->dy);
   }
   ic++;
-  snprintf(out_filename,sizeof(out_filename),"%s.%g.%g",out_istring,kostrov->dx,kostrov->dy);
+  snprintf(out_filename,sizeof(out_filename),"%s.%g.%g.%i.%g",out_istring,
+	   kostrov->dx,kostrov->dy,kostrov->nmin,kostrov->dist_max);
   
-  fprintf(stderr,"%s: catalog: %s dx: %g dy: %g min_mag: %g max_mag: %g min_lon: %g max_lon: %g min_lat: %g: max_lat: %g min_depth: %g max_depth: %g use_aki: %i nmin: %i dist_max: %g is_xy: %i out_name: %s\n", 
-	  argv[0],argv[1],kostrov->dx,kostrov->dy,kostrov->minmag,kostrov->maxmag,kostrov->dlonmin, kostrov->dlonmax, kostrov->dlatmin, kostrov->dlatmax,
-	  kostrov->mindepth,kostrov->maxdepth,(int)use_aki,kostrov->nmin,kostrov->dist_max,(int)catalog->is_xy,out_filename);
+  fprintf(stderr,"%s: catalog: %s dx: %g dy: %g min_mag: %g max_mag: %g min_lon: %g max_lon: %g min_lat: %g: max_lat: %g\n", 
+	  argv[0],argv[1],kostrov->dx,kostrov->dy,kostrov->minmag,kostrov->maxmag,kostrov->dlonmin, kostrov->dlonmax, kostrov->dlatmin, kostrov->dlatmax);
+
+
+ fprintf(stderr,"%s: min_depth: %g max_depth: %g use_aki: %i use_weights: %i nmin: %i dist_max: %g is_xy: %i out_name: %s\n", 
+	 argv[0],kostrov->mindepth,kostrov->maxdepth,(int)use_aki,use_weights,
+	 kostrov->nmin,kostrov->dist_max,(int)catalog->is_xy,out_filename);
 
   
   if(use_aki){			/* aki with last column time */
@@ -128,13 +139,11 @@ int main(int argc, char **argv)
   */
   /* parameters */
   /*  */
-  setup_kostrov(catalog,weighting_method);
-
-  
+  setup_kostrov(catalog,use_weights);
   /* 
-
+     assemble based on nmin and dist_max criteria
   */
-  assemble_bins_based_on_distance(catalog,remove_trace,BC_TRUE);
+  assemble_bins_based_on_distance(catalog,remove_trace,monte_carlo,BC_TRUE);
   /* 
      print non-zero 
   */
@@ -142,7 +151,8 @@ int main(int argc, char **argv)
 
   if(calc_stress){
     /* compute Andy Michael style stress tensors */
-    snprintf(out_filename2,sizeof(out_filename2),"%s.%g.%g",out_istring,kostrov->dx,kostrov->dy);
+    snprintf(out_filename2,sizeof(out_filename2),"%s.%g.%g.%i.%g",out_istring,kostrov->dx,kostrov->dy,
+	     kostrov->nmin,kostrov->dist_max);
     calc_stress_tensor_for_kbins(catalog);
     print_stress_tensors(catalog,out_filename2);
   }

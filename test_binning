@@ -1,0 +1,142 @@
+#!/bin/bash
+
+dx=0.2
+dy=0.2
+cat=cheng25.aki;aki=1
+
+mmin=3;mmax=6.75;dmax=20;dmin=-5
+w=232;e=250;s=30;n=45
+
+
+if [ ! -s kostrov.$dx.$dy.0.norm.dat ];then
+
+    # regular binning
+    bin/bin_catalog  $cat $dx $mmin $mmax 0 $w $e $s $n $dmax $aki 0 $dmin 0 kostrov $dy
+else
+    echo $0: reusing kostrov.$dx.$dy.0.norm.dat 
+fi
+
+
+dweight=0;nmin1=-10;dist_max1=50
+if [ ! -s  nsample.$dx.$dy.$nmin1.$dist_max1.norm.dat ];then
+    bin/nsample_catalog  $cat $dx $mmin $mmax $w $e $s $n $dmax $aki $dweight $nmin1 $dist_max1 $dmin 0 nsample $dy
+else
+    echo $0: reusing nsample.$dx.$dy.$nmin1.$dist_max1.norm.dat
+fi
+
+dweight=0;nmin2=10;dist_max2=25
+if [ ! -s  nsample.$dx.$dy.$nmin2.$dist_max2.norm.dat ];then
+    bin/nsample_catalog  $cat $dx $mmin $mmax $w $e $s $n $dmax $aki $dweight $nmin2 $dist_max2 $dmin 0 nsample $dy
+else
+    echo $0: reusing  nsample.$dx.$dy.$nmin2.$dist_max2.norm.dat
+fi
+
+
+
+# simple plots
+
+makecpt -Croma -T-0.3/0.3/0.03 > tmp.cpt
+makecpt -Clajolla  -T0/1/0.1 > tmp.f.cpt
+
+om=1
+
+if [ $om = 1 ];then
+    reg=-R-10/3/-2/2.75
+    greg=-R-118.5/-115.5/32.5/36
+    proj=-JOa-116.5/33.5/143/20
+    psc_loc=-D5/8/3/.15h
+    psc_loc2=-D15/8/3/.15h
+    ann=af.5a2g5
+    scale=0.35
+else
+    reg=-R$w/$e/$s/$n
+    greg=$reg
+    proj=-JM7
+    psc_loc=-D6.35/7.5/3/.2
+    psc_loc2=-D5.7/7.5/3/.2
+    ann=af.15a1
+    scale=0.5
+fi
+
+fs=""
+for s in  kostrov nsample1 nsample2;do
+    if [ $s = kostrov ];then
+	alabel="bin"
+	sname=$s
+    elif [ $nsample1 ];then
+	alabel="dbin"
+	sname=nsample;nend=$nmin1.$dist_max1
+    else
+	sname=nsample;nend=$nmin2.$dist_max2
+	alabel="nbin"
+    fi
+    for m in kostrov stress ;do
+	if [ $m = kostrov ];then
+	    if [ $alabel = bin ];then
+		end=0.norm
+	    else
+		end=norm
+	    fi
+	else
+	    end=s
+	fi
+	if [ $sname = nsample ];then
+	    sfile=$sname.$dx.$dy.$nend.$end.dat
+	else
+	    sfile=$sname.$dx.$dy.$end.dat
+	fi
+	
+	if [ ! -s $sfile ];then
+	    echo $0: $sfile not found
+	    exit
+	fi
+	if [ $end = 0.norm ];then
+	    label=Kostrov
+	elif [ $end = s ];then
+	    label=Michael
+	elif [ $end = ds ];then
+	    label="Vavrycuk @~m@~=0.6"
+	elif [ $end = bs ];then
+	    label="Vavrycuk @~m@~@-bf@-"
+	else
+	    label=$end
+	fi
+    
+	ofile=simple.$s.$m.ps
+
+	
+	pscoast -Df -S200 -G120 -W0.5 $reg $proj -P -K -B$ann:."$s, $m": > $ofile
+	psxy $datadir/plate_boundaries/bird_PB2002/PB2002_tdiddy.gmt  -m  \
+	     $reg -fg  $proj  -O -K   -W1,darkblue  >> $ofile
+	psxy $datadir/faults/scitex.faults $reg $proj -O -W0.5,darkblue -m -K >> $ofile
+	psscale $psc_loc  -B.1/:@~e@~@-m@-: -E -O -K -Ctmp.cpt >> $ofile
+	
+	# 	m: Seismic (full) moment tensor:
+	#           X Y depth mrr mtt mff mrt mrf mtf exp [newX newY] [event_title].
+	gawk '{print($1,$2,$3,$4,$5,$6)}' $sfile | gawk -f tensornorm.awk  > tmp.norm
+	gawk '{print($1,$2,$3,$4,$5,$6,$7,$8)}' $sfile > tmp.1
+	paste tmp.1 tmp.norm | gawk '{print($7,$8,($4+$6)/2/$9,$1,$4,$6,$2,$3,$5,22,$7,$8)}' > tmp.plot
+	if [ $end = bs ];then
+	    gawk '{print($7,$8,$11)}' $sfile | psxy $reg $proj -t30 -SS.4  -O -K  -Ctmp.f.cpt >> $ofile
+	    psscale $psc_loc2  -B.2/:@~m@~:  -O -K -Ctmp.f.cpt >> $ofile
+	fi
+	rm tmp.norm tmp.1
+	# moment tensor
+	psmeca tmp.plot $reg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Ctmp.cpt "-Sm"$scale"/-1"  -O -K >> $ofile
+	# overlay double couple
+	psmeca tmp.plot $reg $proj  -L0.25 -W0.25 -D-1e5/1e5  "-Sd"$scale  -O  -T0 >> $ofile
+	rm tmp.plot 
+	modifybb $ofile
+	#gv $ofile;exit
+	fs="$fs $ofile"
+	((nplot=nplot+1))
+    done
+done
+
+#exit
+epsmerge -par -x 2 -y 3 --orientation Portrait $fs > stress_comp.ps
+psconvert -Tf stress_comp.ps
+rm $fs stress_comp.ps
+
+
+

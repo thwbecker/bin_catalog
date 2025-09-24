@@ -58,6 +58,8 @@
 #define BC_R2D_FAC 57.295779513082320876798154814105 // (180.0 / M_PI)
 #endif
 
+
+
 #define BC_R2D(x) ((x)* BC_R2D_FAC)
 #define BC_D2R(x) ((x)* BC_D2R_FAC)
 #ifndef BC_MEMERROR
@@ -92,6 +94,8 @@
 #define BC_RADIUS 6371.
 #define BC_NQUAKE_LIM_FOR_STRESS 2	/* min number of entries, has
 					   to be greater */
+
+#define BC_DEG_SCALE (BC_RADIUS*TWO_PI/360.)
 /*  */
 #define BC_MICHAEL_NMC 5000	/* monte carlo for michael inversion, 2000 good number for 95% confidence? */
 
