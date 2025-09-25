@@ -8,7 +8,7 @@
  */
 
 // Demo function
-void demo() {
+void demo2() {
   geo_tree_t *tree;
   FILE *in,*out;
   BC_CPREC dlon,dlat,dist;
@@ -73,6 +73,6 @@ void demo() {
 }
 
 int main() {
-    demo();
+    demo2();
     return 0;
 }

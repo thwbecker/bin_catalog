@@ -47,7 +47,7 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
        for each bin, pass all events with their two fault planes
 
     */
-    if(kostrov->bin[i].n > kostrov->nmin){	/* five parameters, at least nmin events */
+    if(kostrov->bin[i].n >= kostrov->nmin){	/* five parameters, at least nmin events */
 #ifdef DEBUG
       fprintf(stderr,"bin %05i: %g, %g working on stress inversion, N %i\n",
 	      i, kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);

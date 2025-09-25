@@ -29,7 +29,7 @@ min_mag=${19-0}			# min magnitude
 max_mag=${20-10}		# max magnitude
 add_wsm=${21-0}			# add world stress map
 force_inc=${22-"nan"}		# for increment for binning, else automatically detect
-
+dist_based=${23-0}		# distance based 
 tmpn=`mktemp`
 trap "rm -f $tmpn*" EXIT
 
@@ -361,20 +361,36 @@ else
 fi
 
 if [ $dmin = -10 ];then
-    sname=kostrov
-    soname=kmom
+    if [ $dist_based -eq 1 ];then
+	sname=nbased
+	soname=nkmom
+    else
+	sname=kostrov
+	soname=kmom
+    fi
 else
-    soname="kmom_b"$dmin
-    sname="kostrov_b"$dmin
+    if [ $dist_based -eq 1 ];then
+	soname="nkmom_b"$dmin
+	sname="nbased_b"$dmin
+    else
+	soname="kmom_b"$dmin
+	sname="kostrov_b"$dmin
+    fi
 fi
 echo $0:  $rcode $reg $preg $name $proj dx $kincx dy $kincy > /dev/stderr
 #exit
 if [ ! -s $sname.$kincx.$kincy.$name.0.norm.dat ];then
-
-    #
-    # do the summation
-    # 
-    bin_catalog $mom_file $kincx $min_mag $max_mag 0 $w $e $s $n $dmax $is_aki 0 $dmin 0 $sname $kincy
+    nmin_for_stress=5
+    if [ $dist_based -eq 1 ];then # optional, by distance
+	dy_km=`echo $kincy | gawk '{printf("%.1f",$1*111.19492664/1.2)}'` # distance in km sort of
+	#dy_km2=`echo $dy_km | gawk '{print($1*2)}'`
+	dweight=1
+	dist_max=$dy_km
+	nsample_catalog  $mom_file $kincx $min_mag $max_mag \
+			 $w $e $s $n $dmax $is_aki $dweight $nmin_for_stress $dist_max $dmin 0 $sname $kincy
+    else			# default, by bin
+	bin_catalog $mom_file $kincx $min_mag $max_mag 0 $w $e $s $n $dmax $is_aki 0 $dmin 0 $sname $kincy $nmin_for_stress
+    fi
     #
     for t in norm scaled;do	# Kostrov summations
 	if [ ! -s $sname.$kincx.$kincy.0.$t.dat ];then

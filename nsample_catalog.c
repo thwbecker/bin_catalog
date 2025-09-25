@@ -108,8 +108,8 @@ int main(int argc, char **argv)
     sscanf(argv[ic],BC_PREC_FMT,&kostrov->dy);
   }
   ic++;
-  snprintf(out_filename,sizeof(out_filename),"%s.%g.%g.%i.%g",out_istring,
-	   kostrov->dx,kostrov->dy,kostrov->nmin,kostrov->dist_max);
+  //snprintf(out_filename,sizeof(out_filename),"%s.%g.%g.%i.%g",out_istring,kostrov->dx,kostrov->dy,kostrov->nmin,kostrov->dist_max);
+  snprintf(out_filename,sizeof(out_filename),"%s.%g.%g.%i",out_istring,kostrov->dx,kostrov->dy,monte_carlo); /* backward compat */
   
   fprintf(stderr,"%s: catalog: %s dx: %g dy: %g min_mag: %g max_mag: %g min_lon: %g max_lon: %g min_lat: %g: max_lat: %g\n", 
 	  argv[0],argv[1],kostrov->dx,kostrov->dy,kostrov->minmag,kostrov->maxmag,kostrov->dlonmin, kostrov->dlonmax, kostrov->dlatmin, kostrov->dlatmax);
@@ -151,12 +151,12 @@ int main(int argc, char **argv)
 
   if(calc_stress){
     /* compute Andy Michael style stress tensors */
-    snprintf(out_filename2,sizeof(out_filename2),"%s.%g.%g.%i.%g",out_istring,kostrov->dx,kostrov->dy,
-	     kostrov->nmin,kostrov->dist_max);
+    snprintf(out_filename2,sizeof(out_filename2),"%s.%g.%g",out_istring,kostrov->dx,kostrov->dy);
     calc_stress_tensor_for_kbins(catalog);
     print_stress_tensors(catalog,out_filename2);
   }
-  geo_tree_destroy(catalog->tree);
+  //geo_tree_destroy(catalog->tree);
+  geo_search_destroy(catalog->tree);
   return 0;
 }
 

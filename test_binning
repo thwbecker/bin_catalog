@@ -11,32 +11,32 @@ reg=-R230/250/29/44
 echo $reg | gawk -f reg2wesn.awk > tmp.dat
 read w e s n < tmp.dat ; rm tmp.dat
 
+#dy=0.1				# spacing for binning
 dy=0.2				# spacing for binning
 
 # adjust for mean lat
 dx=`echo $dy $s $n | gawk  'BEGIN{pif=57.29577951308232087;}{lat=($2+$3)/2/pif;printf("%.2f",$1*cos(lat))}'`
-dy_km=`echo $dy | gawk '{printf("%.1f",$1*111.19492664)}'` # distance in km, roughly
-dy_km2=`echo $dy_km | gawk '{print($1*2)}'`
 
-mmin=3.5;mmax=6.75;dmax=15;dmin=-5
+dy_km=`echo $dy | gawk '{printf("%.1f",$1*111.19492664/1.2)}'` # distance in km sort of
+dy_km2=`echo $dy_km | gawk '{print($1*3)}'`
 
-nmink=10			  # min number
+mmin=3;mmax=6.75;dmax=15;dmin=-5
 
-dweight1=0;nmin1=-$nmink;dist_max1=$dy_km2 # number based, allowing for a bit more distance
-dweight2=0;nmin2=$nmink;dist_max2=$dy_km  # distance based
+nmink=8			  # min number
+
+dweight1=1;nmin1=$nmink;dist_max1=$dy_km # distance based
+dweight2=1;nmin2=-$nmink;dist_max2=$dy_km  #  number based, allowing for a bit more distance
 
 echo $0: $cat $reg $w $e $s $n mag $mmin $mmax dep $dmin $dmax
 echo $0: $dx $dy $dy_km $dy_km2
 
 
 if [ $clear -eq 1 ];then
-    rm kostrov.$dx.$dy.0.norm.dat nsample.$dx.$dy.$nmin1.$dist_max1.norm.dat   nsample.$dx.$dy.$nmin2.$dist_max2.norm.dat
-
+    rm kostrov.$dx.$dy.0.norm.dat nsample1.$dx.$dy.0.norm.dat   nsample2.$dx.$dy.0.norm.dat
 fi
 
 
 if [ ! -s kostrov.$dx.$dy.0.norm.dat ];then
-
     # regular binning
     bin/bin_catalog  $cat $dx $mmin $mmax 0 $w $e $s $n $dmax $aki 0 $dmin 0 kostrov $dy $nmink
 else
@@ -45,17 +45,17 @@ fi
 
 
 
-if [ ! -s  nsample.$dx.$dy.$nmin1.$dist_max1.norm.dat ];then
-    bin/nsample_catalog  $cat $dx $mmin $mmax $w $e $s $n $dmax $aki $dweight1 $nmin1 $dist_max1 $dmin 0 nsample $dy
+if [ ! -s  nsample1.$dx.$dy.0.norm.dat ];then
+    bin/nsample_catalog  $cat $dx $mmin $mmax $w $e $s $n $dmax $aki $dweight1 $nmin1 $dist_max1 $dmin 0 nsample1 $dy
 else
-    echo $0: reusing nsample.$dx.$dy.$nmin1.$dist_max1.norm.dat
+    echo $0: reusing nsample1.$dx.$dy.0.norm.dat
 fi
 
 
-if [ ! -s  nsample.$dx.$dy.$nmin2.$dist_max2.norm.dat ];then
-    bin/nsample_catalog  $cat $dx $mmin $mmax $w $e $s $n $dmax $aki $dweight2 $nmin2 $dist_max2 $dmin 0 nsample $dy
+if [ ! -s  nsample2.$dx.$dy.0.norm.dat ];then
+    bin/nsample_catalog  $cat $dx $mmin $mmax $w $e $s $n $dmax $aki $dweight2 $nmin2 $dist_max2 $dmin 0 nsample2 $dy
 else
-    echo $0: reusing  nsample.$dx.$dy.$nmin2.$dist_max2.norm.dat
+    echo $0: reusing  nsample2.$dx.$dy.0.norm.dat
 fi
 
 
@@ -74,7 +74,8 @@ if [ $om = 1 ];then
     psc_loc=-D5/8/3/.15h
     psc_loc2=-D15/8/3/.15h
     ann=af.5a2g5
-    scale=0.35
+    #    scale=0.15
+    scale=0.3
 else
     reg=-R$w/$e/$s/$n
     greg=$reg
@@ -82,36 +83,27 @@ else
     psc_loc=-D6.35/7.5/3/.2
     psc_loc2=-D5.7/7.5/3/.2
     ann=af.15a1
+    #    scale=0.25
     scale=0.5
 fi
 
 fs=""
 for s in  kostrov nsample1 nsample2;do
+    sname=$s
     if [ $s = kostrov ];then
 	alabel="bin"
-	sname=$s
     elif [ $nsample1 ];then
 	alabel="dbin"
-	sname=nsample;nend=$nmin1.$dist_max1
     else
-	sname=nsample;nend=$nmin2.$dist_max2
 	alabel="nbin"
     fi
     for m in kostrov stress ;do
 	if [ $m = kostrov ];then
-	    if [ $alabel = bin ];then
-		end=0.norm
-	    else
-		end=norm
-	    fi
+	    end=0.norm
 	else
 	    end=s
 	fi
-	if [ $sname = nsample ];then
-	    sfile=$sname.$dx.$dy.$nend.$end.dat
-	else
-	    sfile=$sname.$dx.$dy.$end.dat
-	fi
+	sfile=$sname.$dx.$dy.$end.dat
 	
 	if [ ! -s $sfile ];then
 	    echo $0: $sfile not found

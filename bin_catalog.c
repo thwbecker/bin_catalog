@@ -24,7 +24,7 @@ int main(int argc, char **argv)
   BC_BOOLEAN calc_stress =   BC_TRUE;
 
   BC_BOOLEAN compute_dtree = BC_FALSE; /* not needed */
-
+  /* default */
   int min_events_for_stress = 5; /* at least so many events to attempt a stress inversion */
 
   int  weighting_method = 0; /* 0: none 

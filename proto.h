@@ -25,16 +25,19 @@ double mom2mag(double);
 double mag2pot(double);
 double scalar_mom(double *);
 /* geo_kdtree.c */
-geo_tree_t *geo_tree_create(int);
-void geo_tree_destroy(geo_tree_t *);
-void destroy_tree_recursive(kd_node_t *);
-int geo_tree_add_point(geo_tree_t *, double, double, int);
-void geo_tree_build(geo_tree_t *);
-kd_node_t *build_tree_recursive(geo_tree_t *, int *, int, int);
-result_array_t *geo_tree_query_radius(geo_tree_t *, double, double, double, int);
-void search_radius_recursive(geo_tree_t *, kd_node_t *, double, double, double, result_array_t *, int, int);
-result_array_t *geo_tree_query_k_nearest(geo_tree_t *, double, double, int);
-void search_knn_recursive(geo_tree_t *, kd_node_t *, double, double, query_result_t *, int *, int, int);
+geo_search_t *geo_search_create(int);
+void geo_search_destroy(geo_search_t *);
+int geo_search_add_point(geo_search_t *, double, double, int);
+result_array_t *geo_search_query_radius(geo_search_t *, double, double, double, int);
+result_array_t *geo_search_query_k_nearest(geo_search_t *, double, double, int);
+double haversine_distance(double, double, double, double);
+double deg_to_rad(double);
+result_array_t *result_array_create(int);
+void result_array_add(result_array_t *, geo_point_t, double);
+void result_array_destroy(result_array_t *);
+int compare_by_distance(const void *, const void *);
+void print_results(result_array_t *, const char *);
+/* geo_kdtree_old.c */
 double haversine_distance(double, double, double, double);
 double deg_to_rad(double);
 int point_in_bounding_box(double, double, double, double, double);
@@ -143,4 +146,4 @@ void my6stress2m3x3(double *, double [3][3]);
 void michael_assign_to_matrix(double *, int *, double **, double **);
 /* test_eigen.c */
 /* test_kdtree.c */
-void demo(void);
+void demo2(void);

@@ -94,7 +94,7 @@ void kostrov_set_defaults(struct kostrov_sum *kostrov)
   kostrov->minmag=3.5;
   kostrov->maxmag=6.5;
   /*  */
-  kostrov->nmin = 20;		/* min number of events, used for
+  kostrov->nmin = 10;		/* min number of events, used for
 				   distance based and binning */
   kostrov->dist_max = 25;		/* maximum distance in km for
 					   distance based */
@@ -428,7 +428,8 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
   }
   kostrov = catalog->sum;
   if(verbose)
-    fprintf(stderr,"assemble_bins_based_on_distance: summing with nmin %i distmax %g\n",kostrov->nmin,kostrov->dist_max);
+    fprintf(stderr,"assemble_bins_based_on_distance: summing with nmin %i distmax %g\n",
+	    kostrov->nmin,kostrov->dist_max);
  
   if(catalog->is_xy){	
     fprintf(stderr,"assemble_bins_based_on_distance: cartesian not implemented\n");
@@ -472,9 +473,9 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
   for(i=0;i < kostrov->nxny;i++){/* bin loop */
     if(kostrov->nmin >= 0){	/* search by distance, and then use if
 				   we have more than nmin */
-      found = geo_tree_query_radius(catalog->tree,
-				    kostrov->bin[i].dlat,kostrov->bin[i].dlon,
-				    kostrov->dist_max, BC_FALSE);
+      //found = geo_tree_query_radius(catalog->tree,kostrov->bin[i].dlat,kostrov->bin[i].dlon,kostrov->dist_max, BC_FALSE);
+      found = geo_search_query_radius(catalog->tree,kostrov->bin[i].dlat,kostrov->bin[i].dlon,kostrov->dist_max, 1e5);
+      
       if(found->count >= kostrov->nmin)
 	use_found = BC_TRUE;
       else
@@ -485,9 +486,10 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
     }else{			/* search by finding number of -nmin
 				   closest neighbors, and the select
 				   within range */
-      found = geo_tree_query_k_nearest(catalog->tree, kostrov->bin[i].dlat,
-				       kostrov->bin[i].dlon,
-				       -kostrov->nmin);
+      //fprintf(stderr,"nearest query broken (?)\n");
+      //exit(-1);
+      //found = geo_tree_query_k_nearest(catalog->tree, kostrov->bin[i].dlat,kostrov->bin[i].dlon,-kostrov->nmin);
+      found = geo_search_query_k_nearest(catalog->tree, kostrov->bin[i].dlat,kostrov->bin[i].dlon,-kostrov->nmin);
       use_found = BC_TRUE;
       by_dist = BC_FALSE;
     }
@@ -593,6 +595,9 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
       }
     }
   }
+  if(kostrov->nmin < 0)		/* reset, so that stress inversions work */
+    kostrov->nmin = -kostrov->nmin;
+  
 }
 /* 
 
@@ -890,7 +895,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
       }
     }
   fclose(out1);
-  fprintf(stderr,"print_kostrov_bins: written normalized summations to %s,   %i out of %i cells, on avg %g +/- %g events\n",
+  fprintf(stderr,"print_kostrov_bins: normalized summations in %s,   %i out of %i cells, on avg %g +/- %g events\n",
 	  outname1,(int)m,
 	  kostrov->nxny,mn/m,sqrt ((m * mn2 - mn * mn) / (m*(m-1.))));
   if(monte_carlo){
@@ -916,7 +921,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
 	}
       }
     fclose(out1);
-    fprintf(stderr,"print_kostrov_bins: written sigma of normalized summations to %s,   %i out %i cells, on avg %g entries\n",
+    fprintf(stderr,"print_kostrov_bins: sigma of normalized summations in %s,   %i out %i cells, on avg %g entries\n",
 	    outname1,(int)m,kostrov->nxny,mn/m);
   }
   /* 
@@ -942,7 +947,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
       }
     }
   fclose(out2);
-  fprintf(stderr,"print_kostrov_bins: written scaled     summations to %s, using mean moment %.4e for scale (%.3e/%i)\n",
+  fprintf(stderr,"print_kostrov_bins: scaled     summations in %s, using mean moment %.4e for scale (%.3e/%i)\n",
 	  outname2,mscale,kostrov->mtot,(int)m);
 
 }
@@ -968,7 +973,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
   sprintf(outname1,"%s.s.dat",filename);
   out1 = myopen(outname1,"w","print_kostrov_bins");
   for(m=i=0;i < kostrov->nxny;i++)
-    if(kostrov->bin[i].n > kostrov->nmin){
+    if(kostrov->bin[i].n >= kostrov->nmin){
       m++;
       for(k=0;k < 6;k++)	/* stress tensor */
 	fprintf(out1,"%8.4f ",kostrov->bin[i].s[k]);
@@ -980,14 +985,14 @@ void print_stress_tensors(struct cat *catalog, char *filename)
       fprintf(out1,"\t%8.4f\n",tensor6_norm(kostrov->bin[i].ds));
     }
   fclose(out1);
-  fprintf(stderr,"print_stress_tensors: written stress tensors from Michael inversion to %s, %i out of %i cells filled\n",
-	  outname1,m,kostrov->nxny);
+  fprintf(stderr,"print_stress_tensors: stress tensors from Michael inversion in %s, %i out of %i cells filled (%i min number)\n",
+	  outname1,m,kostrov->nxny,kostrov->nmin);
 
   /* difference with normalized strain */
   sprintf(outname1,"%s.smn.dat",filename);
   out1 = myopen(outname1,"w","print_kostrov_bins");
   for(m=i=0;i < kostrov->nxny;i++)
-    if(kostrov->bin[i].n > kostrov->nmin){
+    if(kostrov->bin[i].n >= kostrov->nmin){
       m++;
       for(k=0;k < 6;k++){	
 	t1[k] = kostrov->bin[i].s[k];/* stress tensor */
@@ -1009,12 +1014,12 @@ void print_stress_tensors(struct cat *catalog, char *filename)
       fprintf(out1,"\t%8.4f\n",tensor6_norm(dt));
     }
   fclose(out1);
-  fprintf(stderr,"print_stress_tensors: written stress tensors minus normalized to %s\n",outname1);
+  fprintf(stderr,"print_stress_tensors: stress tensors minus normalized in %s\n",outname1);
   if(catalog->use_friction_solve){
     sprintf(outname1,"%s.ds.dat",filename); /* default friction */
     out1 = myopen(outname1,"w","print_kostrov_bins");
     for(m=i=0;i < kostrov->nxny;i++)
-      if(kostrov->bin[i].n > kostrov->nmin){
+      if(kostrov->bin[i].n >= kostrov->nmin){
 	m++;
 	for(k=0;k < 6;k++)	/* stress tensor */
 	  fprintf(out1,"%8.4f ",kostrov->bin[i].def_s[k]);
@@ -1023,14 +1028,14 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 	fprintf(out1,"\t%8.4f\t%5.3f\n",kostrov->bin[i].inst[1],BC_FRIC_DEF); 
       }
     fclose(out1);
-    fprintf(stderr,"print_stress_tensors: written def. friction %.3f  stress tensors to %s, %i out of %i cells filled\n",
+    fprintf(stderr,"print_stress_tensors: def. friction %.3f  stress tensors in %s, %i out of %i cells filled\n",
 	    BC_FRIC_DEF,outname1,m,kostrov->nxny);
     if(catalog->use_friction_solve>1){
       sprintf(outname1,"%s.bs.dat",filename); /* best friction */
       out1 = myopen(outname1,"w","print_kostrov_bins");
       mean_fric = 0;
       for(m=i=0;i < kostrov->nxny;i++)
-	if(kostrov->bin[i].n > kostrov->nmin){
+	if(kostrov->bin[i].n >= kostrov->nmin){
 	  m++;
 	  for(k=0;k < 6;k++)	/* stress tensor */
 	    fprintf(out1,"%8.4f ",kostrov->bin[i].best_s[k]);
@@ -1041,7 +1046,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 	}
       fclose(out1);
       mean_fric /= (BC_CPREC)m;
-      fprintf(stderr,"print_stress_tensors: written best (mean:   %.3f) stress tensors to %s, %i out of %i cells filled\n",
+      fprintf(stderr,"print_stress_tensors: best (mean:   %.3f) stress tensors in %s, %i out of %i cells filled\n",
 	      mean_fric,outname1,m,kostrov->nxny);
     }
   }
@@ -1295,36 +1300,38 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
       fprintf(stderr,"read_catalog: KDtree only geographic for now\n");
       exit(-1);
     }
-    catalog->tree = geo_tree_create(catalog->n); /* make room for the
-						    tree,
-						    preallocate */
+    //catalog->tree = geo_tree_create(catalog->n); /* make room for the tree, preallocate */
+    catalog->tree = geo_search_create(catalog->n); /* make room for the tree, preallocate */
     if (!catalog->tree) {
       fprintf(stderr,"read_catalog: failed to create KDtree\n");
       exit(-1);
     }
     if(0){			/* all events */
-      for(i=0;i < catalog->n;i++)      
-	geo_tree_add_point(catalog->tree, catalog->quake[i].dlat,
-			   catalog->quake[i].dlon,i);
+      for(i=0;i < catalog->n;i++)      {
+	//geo_tree_add_point(catalog->tree, catalog->quake[i].dlat,catalog->quake[i].dlon,i);
+	geo_search_add_point(catalog->tree, catalog->quake[i].dlat,catalog->quake[i].dlon,i);
+      }
       fprintf(stderr,"read_catalog: building tree with %d out of all %d events\n",
 	      catalog->tree->num_points,catalog->n);
     }else{
       for(i=0;i < catalog->n;i++)	{ /* assign if to be used only */
 	if(quake_qualified(catalog->quake[i].mag,catalog->quake[i].depth,
 			   catalog->sum->minmag,catalog->sum->maxmag,
-			   catalog->sum->mindepth,catalog->sum->maxdepth))
-	  geo_tree_add_point(catalog->tree, catalog->quake[i].dlat,
-			   catalog->quake[i].dlon,i);
+			   catalog->sum->mindepth,catalog->sum->maxdepth)){
+	  //geo_tree_add_point(catalog->tree, catalog->quake[i].dlat,catalog->quake[i].dlon,i);
+	  geo_search_add_point(catalog->tree, catalog->quake[i].dlat,catalog->quake[i].dlon,i);
+	}
       }
       fprintf(stderr,"read_catalog: building tree with %d out of %d events (using only those within mag and depth bounds)...\n",
 	      catalog->tree->num_points,catalog->n);
     }
+    
     /* make the actual tree */
-    start = clock();
-    geo_tree_build(catalog->tree);
-    end = clock();
-    build_time = ((BC_CPREC)(end - start)) / CLOCKS_PER_SEC;
-    fprintf(stderr,"read_catalog: KD tree built in %.3f seconds\n", build_time);
+    //start = clock();
+    //geo_tree_build(catalog->tree);
+    //end = clock();
+    //build_time = ((BC_CPREC)(end - start)) / CLOCKS_PER_SEC;
+    //fprintf(stderr,"read_catalog: KD tree built in %.3f seconds\n", build_time);
     catalog->dtree_init = BC_TRUE;
   }
   return 0;

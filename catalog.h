@@ -199,7 +199,8 @@ struct cat{
   /* for random numbers */
   long int seed;
   /* KD tree */
-  geo_tree_t *tree;
+  //geo_tree_t *tree;
+  geo_search_t *tree;
 };
 
 
