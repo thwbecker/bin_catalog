@@ -58,25 +58,25 @@ int main(int argc, char **argv)
     exit(-1);
   }
   if(argc > ic){
-    sscanf(argv[ic],"%lf",&kostrov->dx);
+    sscanf(argv[ic],BC_PREC_FMT,&kostrov->dx);
     kostrov->dy = kostrov->dx;
   }
   ic++;
   if(argc>ic)
-    sscanf(argv[ic],"%lf",&kostrov->minmag);
+    sscanf(argv[ic],BC_PREC_FMT,&kostrov->minmag);
   ic++;
   if(argc>ic)
-    sscanf(argv[ic],"%lf",&kostrov->maxmag);
+    sscanf(argv[ic],BC_PREC_FMT,&kostrov->maxmag);
   ic++;
-  if(argc>ic)sscanf(argv[ic],"%lf",&kostrov->dlonmin);
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->dlonmin);
   ic++;
-  if(argc>ic)sscanf(argv[ic],"%lf",&kostrov->dlonmax);
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->dlonmax);
   ic++;
-  if(argc>ic)sscanf(argv[ic],"%lf",&kostrov->dlatmin);
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->dlatmin);
   ic++;
-  if(argc>ic)sscanf(argv[ic],"%lf",&kostrov->dlatmax);
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->dlatmax);
   ic++;
-  if(argc>ic)sscanf(argv[ic],"%lf",&kostrov->maxdepth);
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->maxdepth);
   ic++;
   if(argc>ic){
     sscanf(argv[ic],"%i",&itmp);
@@ -90,10 +90,10 @@ int main(int argc, char **argv)
     sscanf(argv[ic],"%i",&kostrov->nmin);
   ic++;
   if(argc>ic)
-    sscanf(argv[ic],"%lf",&kostrov->dist_max);
+    sscanf(argv[ic],BC_PREC_FMT,&kostrov->dist_max);
   ic++;
   if(argc>ic)
-    sscanf(argv[ic],"%lf",&kostrov->mindepth);
+    sscanf(argv[ic],BC_PREC_FMT,&kostrov->mindepth);
   ic++;
   if(argc>ic){
     sscanf(argv[ic],"%i",&itmp);
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
   }
   ic++;
   if(argc>ic){
-    sscanf(argv[ic],"%lf",&kostrov->dy);
+    sscanf(argv[ic],BC_PREC_FMT,&kostrov->dy);
   }
   ic++;
   snprintf(out_filename,sizeof(out_filename),"%s.%g.%g.%i.%g",out_istring,

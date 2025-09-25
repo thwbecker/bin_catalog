@@ -320,7 +320,12 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
 	    /*  */
 	    kostrov->bin[ibin].weight[jbq] = weight; /* reassign the weight of this
 							quake in the binning */
-	    kostrov->bin[ibin].sumw += weight;	/* sum weights for bin, should total unity */
+	    kostrov->bin[ibin].sumw += weight;	/* sum weights for
+						   bin, should total
+						   unity (this is done
+						   automatically in
+						   add_quake_bin_to_list
+						   normally */
 	    /*  */
 	    kostrov->mtot += catalog->quake[iquake].m0 * weight; /* total potency */
 	    for(j=0;j<6;j++){
@@ -462,7 +467,7 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
   */
   if(kostrov->weighting_method){
     wscale = (kostrov->dx+kostrov->dy)/2.0;
-    wscale *= 2*BC_DEG_SCALE;
+    wscale *= BC_DEG_SCALE;
   }
   for(i=0;i < kostrov->nxny;i++){/* bin loop */
     if(kostrov->nmin >= 0){	/* search by distance, and then use if
@@ -1650,6 +1655,17 @@ BC_CPREC quake_scale_lkm(BC_CPREC m0)
  */
 void add_quake_to_bin_list(unsigned int iquake, struct bn *bin,BC_CPREC weight)
 {
+  int i;
+#ifdef DEBUG
+  /* check if in list */
+  for(i=0;i<bin->n;i++){
+    if(bin->quake[i] == iquake){
+      fprintf(stderr,"add_quake_to_bin_list: ERROR: bin already contains quake %i as entry %i out of %i\n",
+	      iquake,i+1,bin->n+1);
+      exit(-1);
+    }
+  }
+#endif
   bin->quake[bin->n] = iquake; /* add to list */
   bin->weight[bin->n] = weight;
   //fprintf(stderr,"add_quake_to_bin_list: added %i with weight %g for entry %i\n",bin->quake[bin->n],bin->weight[bin->n],bin->n+1);

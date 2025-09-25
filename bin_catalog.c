@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 {
   struct cat *catalog;
   struct kostrov_sum *kostrov;
-  int itmp;
+  int itmp,ic;
   char out_filename[500],out_filename2[500],out_istring[500];
   int monte_carlo = 0;
   BC_BOOLEAN use_aki     =   BC_TRUE;
@@ -32,61 +32,57 @@ int main(int argc, char **argv)
 				2: normalized by numbers over time 
 			     */
   catalog=(struct cat *)calloc(1,sizeof(struct cat));
-
+  
   catalog->use_friction_solve = 2; /* 1: additional stress inversion 2: optimize friction*/
   //catalog->use_friction_solve = 1; /* 1: additional stress inversion 2: optimize friction*/
   sprintf(out_istring,"kostrov");
-    
+  
   if(!catalog)
     BC_MEMERROR(argv[0]);
-
+  
   kostrov = catalog->sum;
   kostrov_set_defaults(kostrov); /* set binning defaults */
-  kostrov->nmin = min_events_for_stress;
-
   
-  if(argc < 2){
-    fprintf(stderr,"%s catalog.aki [dx, %g] [min_mag, %g] [max_mag, %g] [monte_carlo, %i] [min_lon, %g] [max_lon, %g] [min_lat, %g] [max_lat, %g] [max_depth, %g] [use_aki, %i] [weighting_method (0/1/2), %i] [min_depth, %g] [is_xy, %i] [out_istring, %s] [dy, dx]\n",
+  
+  ic=2;
+  if(argc < ic){
+    fprintf(stderr,"%s catalog.aki [dx, %g] [min_mag, %g] [max_mag, %g] [monte_carlo, %i] [min_lon, %g] [max_lon, %g] [min_lat, %g] [max_lat, %g] [max_depth, %g] [use_aki, %i] [weighting_method (0/1/2), %i] [min_depth, %g] [is_xy, %i] [out_istring, %s] [dy, dx] [nmin_for_stress, %i]\n",
 	    argv[0],kostrov->dx,kostrov->minmag,kostrov->maxmag,monte_carlo,
 	    kostrov->dlonmin, kostrov->dlonmax, 
 	    kostrov->dlatmin, kostrov->dlatmax,
 	    kostrov->maxdepth,(int)use_aki,weighting_method,
-	    kostrov->mindepth,(int)catalog->is_xy,out_istring);
+	    kostrov->mindepth,(int)catalog->is_xy,out_istring,min_events_for_stress);
     exit(-1);
   }
-  if(argc>2){
-    sscanf(argv[2],"%lf",&kostrov->dx);
+  if(argc>ic){
+    sscanf(argv[ic],BC_PREC_FMT,&kostrov->dx);
     kostrov->dy = kostrov->dx;
   }
-  if(argc>3)
-    sscanf(argv[3],"%lf",&kostrov->minmag);
-  if(argc>4)
-    sscanf(argv[4],"%lf",&kostrov->maxmag);
-  if(argc>5)
-    sscanf(argv[5],"%i",&monte_carlo);
-  if(argc>6)sscanf(argv[6],"%lf",&kostrov->dlonmin);
-  if(argc>7)sscanf(argv[7],"%lf",&kostrov->dlonmax);
-  if(argc>8)sscanf(argv[8],"%lf",&kostrov->dlatmin);
-  if(argc>9)sscanf(argv[9],"%lf",&kostrov->dlatmax);
-  if(argc>10)sscanf(argv[10],"%lf",&kostrov->maxdepth);
-  if(argc>11){
-    sscanf(argv[11],"%i",&itmp);
-    use_aki = (BC_BOOLEAN)itmp;
+  ic++;
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->minmag);ic++;
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->maxmag);ic++;
+  if(argc>ic)sscanf(argv[ic],"%i",       &monte_carlo);ic++;
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->dlonmin);ic++;
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->dlonmax);ic++;
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->dlatmin);ic++;
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->dlatmax);ic++;
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->maxdepth);ic++;
+  if(argc>ic){
+    sscanf(argv[ic],"%i",&itmp);use_aki = (BC_BOOLEAN)itmp;
   }
-  if(argc>12){
-    sscanf(argv[12],"%i",&weighting_method);
-  }
-  if(argc>13)sscanf(argv[13],"%lf",&kostrov->mindepth);
-  if(argc>14){
-    sscanf(argv[14],"%i",&itmp);
+  ic++;
+  if(argc>ic)sscanf(argv[ic],"%i",&weighting_method);ic++;
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->mindepth);ic++;
+  if(argc>ic){
+    sscanf(argv[ic],"%i",&itmp);
     catalog->is_xy = (BC_BOOLEAN)itmp;
   }
-  if(argc>15){
-    sprintf(out_istring,"%s",argv[15]);
-  }
-  if(argc>16){
-    sscanf(argv[16],"%lf",&kostrov->dy);
-  }
+  ic++;
+  if(argc>ic)sprintf(out_istring,"%s",argv[ic]);ic++;
+  if(argc>ic)sscanf(argv[ic],BC_PREC_FMT,&kostrov->dy);ic++;
+  if(argc>ic)sscanf(argv[ic],"%i",&min_events_for_stress);ic++;
+  /*  */
+  kostrov->nmin = min_events_for_stress;
   /* output filename for Kostrov summations */
   snprintf(out_filename,sizeof(out_filename),"%s.%g.%g.%i",out_istring,kostrov->dx,kostrov->dy,monte_carlo);
   
