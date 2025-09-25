@@ -17,14 +17,14 @@ else
 fi
 
 
-dweight=0;nmin1=-10;dist_max1=50
+dweight=0;nmin1=-20;dist_max1=30
 if [ ! -s  nsample.$dx.$dy.$nmin1.$dist_max1.norm.dat ];then
     bin/nsample_catalog  $cat $dx $mmin $mmax $w $e $s $n $dmax $aki $dweight $nmin1 $dist_max1 $dmin 0 nsample $dy
 else
     echo $0: reusing nsample.$dx.$dy.$nmin1.$dist_max1.norm.dat
 fi
 
-dweight=0;nmin2=10;dist_max2=25
+dweight=0;nmin2=20;dist_max2=20
 if [ ! -s  nsample.$dx.$dy.$nmin2.$dist_max2.norm.dat ];then
     bin/nsample_catalog  $cat $dx $mmin $mmax $w $e $s $n $dmax $aki $dweight $nmin2 $dist_max2 $dmin 0 nsample $dy
 else

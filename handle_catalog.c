@@ -94,8 +94,10 @@ void kostrov_set_defaults(struct kostrov_sum *kostrov)
   kostrov->minmag=3.5;
   kostrov->maxmag=6.5;
   /*  */
-  kostrov->nmin = 20;		/* min number of events */
-  kostrov->dist_max = 25;		/* maximum distance in km */
+  kostrov->nmin = 20;		/* min number of events, used for
+				   distance based and binning */
+  kostrov->dist_max = 25;		/* maximum distance in km for
+					   distance based */
   /*  */
   kostrov->dlonmin = 232;
   kostrov->dlonmax = 250;
