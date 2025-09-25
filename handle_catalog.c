@@ -963,7 +963,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
   sprintf(outname1,"%s.s.dat",filename);
   out1 = myopen(outname1,"w","print_kostrov_bins");
   for(m=i=0;i < kostrov->nxny;i++)
-    if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){
+    if(kostrov->bin[i].n > kostrov->nmin){
       m++;
       for(k=0;k < 6;k++)	/* stress tensor */
 	fprintf(out1,"%8.4f ",kostrov->bin[i].s[k]);
@@ -982,7 +982,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
   sprintf(outname1,"%s.smn.dat",filename);
   out1 = myopen(outname1,"w","print_kostrov_bins");
   for(m=i=0;i < kostrov->nxny;i++)
-    if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){
+    if(kostrov->bin[i].n > kostrov->nmin){
       m++;
       for(k=0;k < 6;k++){	
 	t1[k] = kostrov->bin[i].s[k];/* stress tensor */
@@ -1009,7 +1009,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
     sprintf(outname1,"%s.ds.dat",filename); /* default friction */
     out1 = myopen(outname1,"w","print_kostrov_bins");
     for(m=i=0;i < kostrov->nxny;i++)
-      if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){
+      if(kostrov->bin[i].n > kostrov->nmin){
 	m++;
 	for(k=0;k < 6;k++)	/* stress tensor */
 	  fprintf(out1,"%8.4f ",kostrov->bin[i].def_s[k]);
@@ -1025,7 +1025,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
       out1 = myopen(outname1,"w","print_kostrov_bins");
       mean_fric = 0;
       for(m=i=0;i < kostrov->nxny;i++)
-	if(kostrov->bin[i].n > BC_NQUAKE_LIM_FOR_STRESS){
+	if(kostrov->bin[i].n > kostrov->nmin){
 	  m++;
 	  for(k=0;k < 6;k++)	/* stress tensor */
 	    fprintf(out1,"%8.4f ",kostrov->bin[i].best_s[k]);

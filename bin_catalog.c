@@ -22,7 +22,11 @@ int main(int argc, char **argv)
   BC_BOOLEAN use_aki     =   BC_TRUE;
   BC_BOOLEAN remove_trace =  BC_TRUE;	/* remove trace from summations */
   BC_BOOLEAN calc_stress =   BC_TRUE;
-  BC_BOOLEAN compute_dtree = BC_FALSE;
+
+  BC_BOOLEAN compute_dtree = BC_FALSE; /* not needed */
+
+  int min_events_for_stress = 5; /* at least so many events to attempt a stress inversion */
+
   int  weighting_method = 0; /* 0: none 
 				1: distance from center of time 
 				2: normalized by numbers over time 
@@ -38,6 +42,8 @@ int main(int argc, char **argv)
 
   kostrov = catalog->sum;
   kostrov_set_defaults(kostrov); /* set binning defaults */
+  kostrov->nmin = min_events_for_stress;
+
   
   if(argc < 2){
     fprintf(stderr,"%s catalog.aki [dx, %g] [min_mag, %g] [max_mag, %g] [monte_carlo, %i] [min_lon, %g] [max_lon, %g] [min_lat, %g] [max_lat, %g] [max_depth, %g] [use_aki, %i] [weighting_method (0/1/2), %i] [min_depth, %g] [is_xy, %i] [out_istring, %s] [dy, dx]\n",

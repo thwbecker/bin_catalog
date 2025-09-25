@@ -26,10 +26,12 @@
 
 #define BC_NDIM 3 			/* three dimensions */
 #define BC_MICHAEL_NPAR  5	/* five parameters for michael inversion */
-#ifndef BC_BOOLEAN 
+
+#ifndef BC_BOOLEAN
 #define BC_BOOLEAN unsigned short
 #endif
 #define BC_SWITCH unsigned short int
+
 #define BC_TRUE 1
 #define BC_FALSE 0
 
@@ -92,8 +94,6 @@
 #define BC_TIME_CLOSE 0.0003 /* 0.00025 is <~1 min */
 
 #define BC_RADIUS 6371.
-#define BC_NQUAKE_LIM_FOR_STRESS 2	/* min number of entries, has
-					   to be greater */
 
 #define BC_DEG_SCALE (BC_RADIUS*TWO_PI/360.)
 /*  */
