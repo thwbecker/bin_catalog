@@ -42,7 +42,7 @@ elif [ $region -eq 1 ];then # SAF
 	inc=0.5
 elif [ $region -eq 2 ];then # SAM
 	name=SAM
-	reg="265 340 -65 22"
+	reg="267 330 -65 22"
 	inc=2
 elif [ $region -eq 3 ];then # Lau basin
 	name=LAU
@@ -50,7 +50,7 @@ elif [ $region -eq 3 ];then # Lau basin
 	inc=1
 elif [ $region -eq 4 ];then # North America
 	name=NAM
-	reg="230 294 22 55"
+	reg="229.5 294.5 22.5 55"
 	inc=0.25
 elif [ $region -eq 5 ];then # Phillipines
 	name=PHI
@@ -70,7 +70,8 @@ elif [ $region -eq 8 ];then # CAR
 	#reg="265 310 0 25"
 	#reg="280 302 3 21"
 	#reg="260 310 -20 40"
-	reg="260 310 -20 34"
+	#reg="260 310 -20 34"
+	reg="-110 -50 -20 34"
 	inc=1
 elif [ $region -eq 9 ];then # New Zealand
 	name=NZL
@@ -177,8 +178,9 @@ elif [ $region -eq 31 ];then # Antarctica
     inc=1
 elif [ $region -eq 32 ];then # larger Western US
     name=WUS
-    reg="233 252 32 50"
-#    reg="234 255 30 50"
+    #reg="233 254 30 50"
+    reg="225 254 30 58"
+
     inc=1
 elif [ $region -eq 33 ];then # Greece
     name=GRE
@@ -186,11 +188,12 @@ elif [ $region -eq 33 ];then # Greece
     inc=1
 elif [ $region -eq 34 ];then # Europe
     name=EUR
-    reg="-10 45 30 60"
+    reg="-13 45 29 72"
     inc=2
 elif [ $region -eq 35 ];then # Socal, high resolution
     name=SCAh
-    reg="239.5 244.5 32 36"
+    #reg="239.5 244.5 32 36"
+    reg="237 247 30 39"
     inc=0.05
 elif [ $region -eq 36 ];then # smaller Socal
     name=SCAs
@@ -396,7 +399,7 @@ elif [ $region -eq 80  ];then # ME4 Azores
     reg="-40 20 25 50"
     inc=1
 elif [ $region -eq 81 ];then # Alps, Apennines, Calabria
-    name=CAL
+    name=CLB
     reg="4 19 36 48.5"
     inc=0.1
 elif [ $region -eq 82 ];then # JDF
@@ -459,8 +462,8 @@ elif [ $region -eq 94 ];then # greater CAR
     inc=1
 elif [ $region -eq 95 ];then # North and South American, Americas, Cordillera
     name=CAR3
-    #    reg="-120 -32.5 -40 50"
-    reg="-120 -40 -30 40"
+    reg="-133 -32.5 -60 53"
+    #reg="-120 -40 -30 40"
     inc=1
 elif [ $region -eq 96 ];then # Moroc
     name=MOR
@@ -480,7 +483,7 @@ elif [ $region -eq 99 ];then # Alaska
     inc=1
 elif [ $region -eq 100 ];then # North Cali
     name=nCAL
-    reg="-126 -118 35 42"
+    reg="-126 -118 35 44"
     inc=1
 elif [ $region -eq 101 ];then	# Iran big
     name=IRAb
@@ -506,6 +509,27 @@ elif [ $region -eq 106 ];then # supper small
     name=SCAS
     reg="-120.80 -120.3 35.84 36.20"
     inc=0.01
+elif [ $region -eq 107 ];then # Centralmost Andes / IPOC
+    name=IPO
+    reg="-71.5 -66 -25 -20"
+    #reg="-71.5 -67.25 -24.5 -19.5"
+    inc=1
+elif [ $region -eq 108 ];then # Nazca
+    name=NAZ
+    reg="-132 -124 40 52"
+    inc=1
+elif [ $region -eq 109 ];then # Scandinavia
+    name=SKA
+    reg="3 40 53 72"
+    inc=1
+elif [ $region -eq 110 ];then # North America, big for GIA
+    name=GIA
+    reg="210 330 25 80"
+    inc=2
+elif [ $region -eq 111 ];then # California (catalog)
+    name=CAL
+    reg="-128 -112 30 42"
+    inc=.1
 else
     echo $0: region $region undefined
     exit
@@ -531,10 +555,11 @@ elif [ $region -eq 0 ];then
     #ann=-Bg30/g30WesN
     ann=""
 elif [ $region -eq 2 ];then	# SAM
-    proj=-JH`echo $reg1 | gawk -f reg2midlon.awk`/7
-#    proj=-JN`echo $reg1 | gawk -f reg2midlon.awk`/7
-    pscr="-Di -A500"
-    ann=-Ba30f10/a30f10WesN
+    #proj=-JH`echo $reg1 | gawk -f reg2midlon.awk`/7
+    #    proj=-JN`echo $reg1 | gawk -f reg2midlon.awk`/7
+    proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/8
+    pscr="-Di -A5000"
+    ann=-Ba20f2WesN
 elif [[ $region -eq 6  ]];then # japan
     proj=-JM7
     pscr="-Di -A5000"
@@ -563,7 +588,7 @@ elif [ $region -eq 11 ];then
 elif [ $region -eq 12 ];then # Africa
     pscr=-Di
     proj=-JH15/7
-    ann=-Ba10f2WesN
+    ann=-Ba20f5WesN
 elif [ $region -eq 13 ];then # Himalaya
     pscr=-Df
     proj=-JH90/7
@@ -639,7 +664,8 @@ elif [ $region -eq 29 ];then # Iceland
     proj=-JM7
 elif [ $region -eq 4 ];then	# NAM
     pscr="-Df -A5000"
-    proj=-JH`echo $reg1 | gawk -f reg2midlon.awk`/12
+    #proj=-JH`echo $reg1 | gawk -f reg2midlon.awk`/12
+    proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/8
     ann=-Ba10f2WesN
 elif [ $region -eq 37 ];then	# eUS
     pscr="-Df -A5000"
@@ -674,9 +700,10 @@ elif [ $region -eq 32 ];then 	# larger Western US
     pscr="-Dh -A5000"
     
 elif [ $region -eq 34 ];then 	# EUR
-    ann=-Ba5f1WeSn
-    proj=-JH17.5/7
-    pscr="-Dh -N1 -N2"
+    ann=-Ba20f2WeSn
+    proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/9
+    #proj=-JH17.5/7
+    pscr="-Di -A5000" # -N1 -N2"
 elif [ $region -eq 35 ];then 	# SoCal
     ann=-Ba1f.2WeSn
     proj=-JM7
@@ -865,9 +892,9 @@ elif [ $region -eq 94 ];then # CAR3
     ann=-Ba10f2WesN
     proj=-JM7
 elif [ $region -eq 95 ];then # 
-    pscr="-Df -A5000"
-    ann=-Ba10f2WesN
-    proj=-JM7
+    pscr="-Di -A20000"
+    ann=-Ba20f2WesN
+    proj=-JM8
 elif [ $region -eq 96 ];then # 
     pscr="-Df -A5000"
     ann=-Ba2f.5WesN
@@ -907,6 +934,15 @@ elif [ $region -eq 106 ];then
     ann=-Ba.1f.01WesN
     proj=-JM7
     pscr="-Df"
+elif [ $region -eq 107 ];then
+    ann=-Ba1f.2WesN
+    proj=-JM7
+    pscr="-Df"
+elif [ $region -eq 110 ];then 	# GIA
+    ann=-Ba20f2WesN
+    proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/9
+    #proj=-JH17.5/7
+    pscr="-Di -A5000" # -N1 -N2"
 else
     ann=-Ba2f.2WesN
     proj=-JM7

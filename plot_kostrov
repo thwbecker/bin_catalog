@@ -28,6 +28,7 @@ dmin=${18--10}			# minimum depth
 min_mag=${19-0}			# min magnitude
 max_mag=${20-10}		# max magnitude
 add_wsm=${21-0}			# add world stress map
+force_inc=${22-"nan"}		# for increment for binning, else automatically detect
 
 tmpn=`mktemp`
 trap "rm -f $tmpn*" EXIT
@@ -178,7 +179,8 @@ elif [ $rcode = 111 ];then	# allcal
     ann=-Ba2f.2WesN
     proj=-JM13
     #kinc=0.2
-    kinc=0.1
+    #kinc=0.1
+    kinc=0.05
     if [ $plot_stress = 0 ];then
 	cmt_size=0.5
     else
@@ -337,7 +339,12 @@ elif [ $rcode = 110 ];then
     pscl=-Dx4.5/-.1/3/.1h
 fi
 
-
+if [ $force_inc = "nan" ];then
+    echo $0: using region determined increment of $kinc for binning for x
+else
+    kinc=$force_inc
+    echo $0: overriding regional binning with  $kinc for x
+fi
 
 kincy=$kinc
 if [ $rcode = 99 ];then
