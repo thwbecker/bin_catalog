@@ -473,24 +473,27 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
   for(i=0;i < kostrov->nxny;i++){/* bin loop */
     if(kostrov->nmin >= 0){	/* search by distance, and then use if
 				   we have more than nmin */
+      /* an attempt to do R or KDTree */
       //found = geo_tree_query_radius(catalog->tree,kostrov->bin[i].dlat,kostrov->bin[i].dlon,kostrov->dist_max, BC_FALSE);
-      found = geo_search_query_radius(catalog->tree,kostrov->bin[i].dlat,kostrov->bin[i].dlon,kostrov->dist_max, 1e5);
-      
+      /* bare bones exhaustive search, slow */
+      found = geo_search_query_radius(catalog->tree,kostrov->bin[i].dlat,kostrov->bin[i].dlon,kostrov->dist_max);
       if(found->count >= kostrov->nmin)
 	use_found = BC_TRUE;
       else
 	use_found = BC_FALSE;
       by_dist = BC_TRUE;
-      //#ifdef DEBUG
-      //#endif
     }else{			/* search by finding number of -nmin
 				   closest neighbors, and the select
 				   within range */
-      //fprintf(stderr,"nearest query broken (?)\n");
-      //exit(-1);
+      /* this was an attempt for an R or KDtree search */
       //found = geo_tree_query_k_nearest(catalog->tree, kostrov->bin[i].dlat,kostrov->bin[i].dlon,-kostrov->nmin);
+      /* this is a bare bones implementation of an exhaustive search */
       found = geo_search_query_k_nearest(catalog->tree, kostrov->bin[i].dlat,kostrov->bin[i].dlon,-kostrov->nmin);
-      use_found = BC_TRUE;
+      /* only use if furthest is within range */
+      if((found->results+(-kostrov->nmin-1))->distance_km<=kostrov->dist_max)
+	use_found = BC_TRUE;
+      else
+	use_found = BC_FALSE;
       by_dist = BC_FALSE;
     }
     /* assing if more than nmin */
@@ -505,24 +508,21 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
 #endif
       for(j=0;j < found->count;j++){ /* loop through found */
 	result = &found->results[j]; /* this entry in list */
-	if(by_dist || (result->distance_km <= kostrov->dist_max)){ /* either already by dist, 
-								      or check if to use within nmin neighbors */
-	  if(kostrov->weighting_method == 0)
-	    weight = 1.0;		
-	  else{			/* weight by distance */
-	    dx = result->distance_km/wscale;
-	    weight = exp(-dx*dx);
-	  }
-	  this_quake = (unsigned int)result->point.code;
-	  //fprintf(stderr,"bin %05i found %03i/%03i/%03i code %07i distance %11g weight %11g\n",i,j,found->count,kostrov->bin[i].n,this_quake,result->distance_km,weight);
-	  /* this will increment the quakes in bin count */
-	  add_quake_to_bin_list(this_quake,(kostrov->bin+i),weight);
-
-	  kostrov->mtot += catalog->quake[this_quake].m0*weight; /* total potency */
-	  for(k=0;k<6;k++){
-	    kostrov->bin[i].m[k]  += (catalog->quake[this_quake].m[k] * weight * catalog->quake[this_quake].m0); /* scaled sum */
-	    kostrov->bin[i].mnloc[k] += weight * catalog->quake[this_quake].m[k]; /* normalized sum */
-	  }
+	if(kostrov->weighting_method == 0)
+	  weight = 1.0;		
+	else{			/* weight by distance */
+	  dx = result->distance_km/wscale;
+	  weight = exp(-dx*dx);
+	}
+	this_quake = (unsigned int)result->point.code;
+	//fprintf(stderr,"bin %05i found %03i/%03i/%03i code %07i distance %11g weight %11g\n",i,j,found->count,kostrov->bin[i].n,this_quake,result->distance_km,weight);
+	/* this will increment the quakes in bin count */
+	add_quake_to_bin_list(this_quake,(kostrov->bin+i),weight);
+	
+	kostrov->mtot += catalog->quake[this_quake].m0*weight; /* total potency */
+	for(k=0;k<6;k++){
+	  kostrov->bin[i].m[k]  += (catalog->quake[this_quake].m[k] * weight * catalog->quake[this_quake].m0); /* scaled sum */
+	  kostrov->bin[i].mnloc[k] += weight * catalog->quake[this_quake].m[k]; /* normalized sum */
 	}
       }
       if(kostrov->bin[i].n)
@@ -1295,13 +1295,13 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
     fprintf(stderr,"read_catalog: found %i duplicates\n",ndup);
   fclose(in);
   if(compute_dtree){
-    /* make a KD tree */
+    /* make a KD tree or build a search array */
     if(catalog->is_xy){
-      fprintf(stderr,"read_catalog: KDtree only geographic for now\n");
+      fprintf(stderr,"read_catalog: KD/Rtree only geographic for now\n");
       exit(-1);
     }
     //catalog->tree = geo_tree_create(catalog->n); /* make room for the tree, preallocate */
-    catalog->tree = geo_search_create(catalog->n); /* make room for the tree, preallocate */
+    catalog->tree = geo_search_create(catalog->n); /* simple search */
     if (!catalog->tree) {
       fprintf(stderr,"read_catalog: failed to create KDtree\n");
       exit(-1);
@@ -1311,8 +1311,6 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
 	//geo_tree_add_point(catalog->tree, catalog->quake[i].dlat,catalog->quake[i].dlon,i);
 	geo_search_add_point(catalog->tree, catalog->quake[i].dlat,catalog->quake[i].dlon,i);
       }
-      fprintf(stderr,"read_catalog: building tree with %d out of all %d events\n",
-	      catalog->tree->num_points,catalog->n);
     }else{
       for(i=0;i < catalog->n;i++)	{ /* assign if to be used only */
 	if(quake_qualified(catalog->quake[i].mag,catalog->quake[i].depth,
@@ -1322,7 +1320,8 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
 	  geo_search_add_point(catalog->tree, catalog->quake[i].dlat,catalog->quake[i].dlon,i);
 	}
       }
-      fprintf(stderr,"read_catalog: building tree with %d out of %d events (using only those within mag and depth bounds)...\n",
+      
+      fprintf(stderr,"read_catalog: building searcj with %d out of %d events (using only those within bounds)",
 	      catalog->tree->num_points,catalog->n);
     }
     

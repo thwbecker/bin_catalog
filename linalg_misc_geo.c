@@ -140,16 +140,19 @@ BC_CPREC distance_geo(BC_CPREC lon1,BC_CPREC lat1,
 		      BC_CPREC lon2,BC_CPREC lat2,
 		      BC_CPREC coslat1, BC_CPREC coslat2)
 {
-  BC_CPREC tmp1,tmp2,tmp3;
-
+  BC_CPREC tmp1,tmp2,tmp3,dist;
   tmp1 = sin((lat1 - lat2)/2.0);
   tmp1 = tmp1 * tmp1;
-  tmp2 = sin((lon1 - lon2)/2.0);
+  tmp2 = sin((lon1-lon2)/2.0);
+
   tmp2 = tmp2 * tmp2;
   tmp2 *= coslat1;
   tmp2 *= coslat2;
   tmp3 = sqrt(tmp1+tmp2);
-  return 2.0*asin(tmp3)*BC_RADIUS;
+  dist = 2.0*asin(tmp3)*BC_RADIUS;
+
+  //fprintf(stderr,"%g %g %g %g - %g \n",BC_R2D(lon1),BC_R2D(lat1),BC_R2D(lon2),BC_R2D(lat2),dist);
+  return dist;
 }
 /* compute the distance between quake i of catalog one and quake j (or
    bin j) of catalog two, depending on cartesian coordinates or not */

@@ -4,7 +4,7 @@
 #include <time.h>
 #include <string.h>
 
-#ifndef BC_DEFINES_DEFINED
+#ifndef __BC_DEFINES_DEFINED__
 
 /* modes */
 #define BC_AKI 0
@@ -61,7 +61,6 @@
 #endif
 
 
-
 #define BC_R2D(x) ((x)* BC_R2D_FAC)
 #define BC_D2R(x) ((x)* BC_D2R_FAC)
 #ifndef BC_MEMERROR
@@ -103,7 +102,7 @@
 #define BC_MICHAEL_RSWEEP_MAX 50000	/* max sweep number for random sampling */
 #define BC_MICHAEL_RACC 1e-4	/* random sweep accuracy */
 
-#define BC_DEFINES_DEFINED
+#define __BC_DEFINES_DEFINED__
 
 #endif
 

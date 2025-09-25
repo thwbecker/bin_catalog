@@ -13,8 +13,8 @@
 
 // Structure to represent a geographic point
 typedef struct {
-  double lat;
-  double lon;
+  BC_CPREC lat,cos_lat;
+  BC_CPREC lon;
   int code;
 } geo_point_t;
 
