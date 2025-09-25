@@ -382,7 +382,7 @@ echo $0:  $rcode $reg $preg $name $proj dx $kincx dy $kincy > /dev/stderr
 if [ ! -s $sname.$kincx.$kincy.$name.0.norm.dat ];then
     nmin_for_stress=5
     if [ $dist_based -eq 1 ];then # optional, by distance
-	dy_km=`echo $kincy | gawk '{printf("%.1f",$1*111.19492664/1.2)}'` # distance in km sort of
+	dy_km=`echo $kincy | gawk '{printf("%.1f",$1*111.19492664/1.5)}'` # distance in km sort of
 	#dy_km2=`echo $dy_km | gawk '{print($1*2)}'`
 	dweight=1
 	dist_max=$dy_km
