@@ -25,12 +25,7 @@ ARCH=$(shell uname -m | awk '{print(tolower($$1))}')
 # for eigenroutines, my version of NETLIB eispack
 EISLIB = -Leispack/$(ARCH)/ -lmyeis
 
-# GMT 4.5.18 meca objects - used to be linked, now included
-#GMT = $(GMT4HOME)/
-#GMT_INC = -I$(GMT)/include/ -I$(GMT)/src/meca/
-#GMT_LIBS = -L$(GMT)/lib/ -L$(NETCDFDIR)/lib/ -lpsl -lgmt -lnetcdf 
 
-#MECA_OBJS =  $(GMT)/src/meca/utilmeca.o
 
 CAT_OBJS = $(ODIR)/handle_catalog.o  $(ODIR)/fault_eq.o   \
 	$(ODIR)/linalg_misc_geo.o  $(ODIR)/bvalue.o \
@@ -78,36 +73,36 @@ dist_clean:
 
 $(BDIR)/merge_catalog: merge_catalog.c $(CAT_OBJS)
 	$(CC) $(CFLAGS) merge_catalog.c $(INCLUDES)  $(CAT_OBJS) \
-	-o $(BDIR)/merge_catalog  $(GMT_LIBS) $(LDFLAGS)
+	-o $(BDIR)/merge_catalog   $(LDFLAGS)
 
 
 $(BDIR)/bin_catalog: bin_catalog.c $(CAT_OBJS)  $(SINV_OBS) $(ODIR)/eigen.o catalog.h
 	$(CC) $(CFLAGS) bin_catalog.c $(INCLUDES)  $(CAT_OBJS) $(ODIR)/eigen.o $(SINV_OBS)  \
-	-o $(BDIR)/bin_catalog    $(GMT_LIBS) $(EISLIB) $(LDFLAGS)
+	-o $(BDIR)/bin_catalog     $(EISLIB) $(LDFLAGS)
 
 $(BDIR)/nsample_catalog: nsample_catalog.c $(CAT_OBJS)  $(SINV_OBS) $(ODIR)/eigen.o catalog.h
 	$(CC) $(CFLAGS) nsample_catalog.c $(INCLUDES)  $(CAT_OBJS) $(ODIR)/eigen.o $(SINV_OBS)  \
-	-o $(BDIR)/nsample_catalog    $(GMT_LIBS) $(EISLIB) $(LDFLAGS)
+	-o $(BDIR)/nsample_catalog     $(EISLIB) $(LDFLAGS)
 
 $(BDIR)/solve_stress_one_bin: solve_stress_one_bin.c $(CAT_OBJS)  $(SINV_OBS) $(ODIR)/eigen.o catalog.h
 	$(CC) $(CFLAGS) solve_stress_one_bin.c $(INCLUDES)  $(CAT_OBJS) $(ODIR)/eigen.o $(SINV_OBS)  \
-	-o $(BDIR)/solve_stress_one_bin    $(GMT_LIBS) $(EISLIB) $(LDFLAGS)
+	-o $(BDIR)/solve_stress_one_bin     $(EISLIB) $(LDFLAGS)
 
 $(BDIR)/m02mag: m02mag.c $(CAT_OBJS) catalog.h
 	$(CC) $(CFLAGS) m02mag.c $(INCLUDES)   $(CAT_OBJS) \
-	-o $(BDIR)/m02mag  $(GMT_LIBS)  $(LDFLAGS)
+	-o $(BDIR)/m02mag    $(LDFLAGS)
 
 $(BDIR)/m02dcfp: m02dcfp.c $(CAT_OBJS)   catalog.h
 	$(CC) $(CFLAGS) m02dcfp.c $(INCLUDES)  $(CAT_OBJS) \
-	-o $(BDIR)/m02dcfp    $(GMT_LIBS)  $(LDFLAGS)
+	-o $(BDIR)/m02dcfp      $(LDFLAGS)
 
 $(BDIR)/calc_gr: calc_gr.c  $(CAT_OBJS)   catalog.h
 	$(CC) $(CFLAGS) calc_gr.c $(INCLUDES)  $(CAT_OBJS)  \
-	-o $(BDIR)/calc_gr    $(GMT_LIBS)  $(LDFLAGS)
+	-o $(BDIR)/calc_gr      $(LDFLAGS)
 
 $(BDIR)/calc_gr_time: calc_gr_time.c  $(CAT_OBJS)   catalog.h
 	$(CC) $(CFLAGS) calc_gr_time.c $(INCLUDES)  $(CAT_OBJS)  \
-	-o $(BDIR)/calc_gr_time    $(GMT_LIBS)  $(LDFLAGS)
+	-o $(BDIR)/calc_gr_time      $(LDFLAGS)
 
 
 $(BDIR)/eigen: $(ODIR)/eigen.main.o $(ODIR)/eigen.o
@@ -129,7 +124,7 @@ $(BDIR)/eigenvalues3ds: $(ODIR)/eigen.tds.ov.o $(ODIR)/eigen.o
 
 $(BDIR)/test_eigen: test_eigen.c $(CAT_OBJS) $(ODIR)/eigen.o
 	$(CC) $(CFLAGS) test_eigen.c $(INCLUDES)  $(CAT_OBJS) \
-	-o $(BDIR)/test_eigen  $(ODIR)/eigen.o	$(EISLIB)  $(GMT_LIBS) $(LDFLAGS)
+	-o $(BDIR)/test_eigen  $(ODIR)/eigen.o	$(EISLIB)   $(LDFLAGS)
 
 $(BDIR)/test_kdtree: test_kdtree.c $(ODIR)/geo_kdtree.o $(ODIR)/linalg_misc_geo.o
 	$(CC) $(CFLAGS) test_kdtree.c $(INCLUDES) $(ODIR)/geo_kdtree.o $(ODIR)/linalg_misc_geo.o  -o $(BDIR)/test_kdtree $(LDFLAGS)
