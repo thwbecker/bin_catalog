@@ -13,8 +13,11 @@ void calc_eigensystem_vec6(double *, double *, double *, unsigned short, unsigne
 void calc_eigensystem_sym_3x3(double [3][3], double *, double *, unsigned short, unsigned short);
 void calc_eigensystem_sym_9(double *, double *, double *, unsigned short, unsigned short);
 void indexx(int, double *, int *);
+double det3x3(double [3][3]);
 /* eigen_3ds_simple.c */
 /* eigen_driver.c */
+double gamma_clvd(double *);
+
 int eigen_values_from_3dsym(double *, double *);
 double rclvd(double *);
 /* fault_eq.c */

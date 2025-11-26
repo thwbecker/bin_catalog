@@ -1,7 +1,18 @@
 #include "catalog.h"
 #include "eigen.h"
 
-BC_CPREC rclvd(BC_CPREC *norm_mat) /* CLVD component of normalized tensor */
+
+BC_CPREC gamma_clvd(BC_CPREC *norm_mat) /* \Gamma CLVD component of normalized tensor */
+{
+  const BC_CPREC three_times_sqrt_six = 7.348469228349534294591852224117674175897;
+  BC_CPREC t[3][3];
+  tens6to3by3(norm_mat, t);
+  return three_times_sqrt_six * det3x3(t); /* divide by |t|^3, but normalized */
+  
+}
+
+  
+BC_CPREC rclvd(BC_CPREC *norm_mat) /* r_CLVD component of normalized tensor */
 {
   const BC_CPREC sqrt_six_over_two = 1.224744871391589049098642037352945695982973740328335064216346;
   BC_CPREC eigen[3];
@@ -30,6 +41,16 @@ int eigen_values_from_3dsym(BC_CPREC *mat6, BC_CPREC *eigen)
   a[8] =      mat6[BC_PP];			/* a33 */
   SROUT(&n, &n, a, eigen, &matz, z, fv1, fv2, &ierr); /* eigenvalue/eigensystem routine from EISPACK */
   return ierr;
+}
+
+
+BC_CPREC det3x3(BC_CPREC a[3][3])
+{
+  BC_CPREC rdet;
+  rdet  = a[0][0]*(a[1][1]*a[2][2] - a[1][2]*a[2][1]);
+  rdet -= a[0][1]*(a[1][0]*a[2][2] - a[1][2]*a[2][0]);
+  rdet += a[0][2]*(a[1][0]*a[2][1] - a[1][1]*a[2][0]);
+  return rdet;
 }
 
 void ranger(BC_CPREC *z)

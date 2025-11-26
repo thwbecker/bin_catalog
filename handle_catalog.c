@@ -895,8 +895,9 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
 		kostrov_bdlon(ind,kostrov),kostrov_bdlat(ind,kostrov),
 		kostrov->bin[ind].n,kostrov->bin[ind].men,kostrov->bin[ind].mens);
 	/* print CLVD measure, rclvd = 0 for pure DC */
-	fprintf(out2,"%8.3f %8.3f %.6f\n",
-		kostrov_bdlon(ind,kostrov),kostrov_bdlat(ind,kostrov),rclvd(kostrov->bin[ind].mn));
+	fprintf(out2,"%8.3f %8.3f %.7e %.7e\n",
+		kostrov_bdlon(ind,kostrov),kostrov_bdlat(ind,kostrov),
+		rclvd(kostrov->bin[ind].mn),gamma_clvd(kostrov->bin[ind].mn));
       }
     }
   }
