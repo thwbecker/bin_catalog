@@ -8,8 +8,7 @@
    there is also nsample_catalog which tries to find the closest
    events and has more flexibility in terms of sampling
 
-   (c) Thorsten Becker, thwbecker@post.harvard.edu, see README
-
+   (c) 2020 - 2025, Thorsten Becker, thwbecker@post.harvard.edu, see README
 */
 
 int main(int argc, char **argv)

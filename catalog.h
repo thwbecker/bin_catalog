@@ -40,6 +40,8 @@
 #define BC_PREC_FMT "%lf"
 #define BC_PREC2_FMT "%lf %lf"
 
+#define BC_CHAR_LEN 350
+
 #define BC_RGEN ran2
 
 /* from GMT 4.5.18 */

@@ -42,8 +42,10 @@ INCLUDES = $(GMT_INC)
 PROGS = $(BDIR)/merge_catalog $(BDIR)/bin_catalog $(BDIR)/nsample_catalog $(BDIR)/solve_stress_one_bin \
 	$(BDIR)/m02dcfp $(BDIR)/calc_gr $(BDIR)/calc_gr_time $(BDIR)/m02mag
 
-# just needed for Simpson style stress state plotting
-EIGEN_PROGS = $(BDIR)/eigen  $(BDIR)/eigenvalues $(BDIR)/eigen3ds  $(BDIR)/eigenvalues3ds 
+# standalone codes needed for Simpson style stress state plotting
+EIGEN_PROGS = $(BDIR)/eigen  \
+	$(BDIR)/eigenvalues $(BDIR)/eigen3ds  \
+	$(BDIR)/eigenvalues3ds 
 
 #
 TEST_PROGS = $(BDIR)/test_eigen $(BDIR)/test_kdtree
@@ -73,7 +75,7 @@ dist_clean:
 
 $(BDIR)/merge_catalog: merge_catalog.c $(CAT_OBJS)
 	$(CC) $(CFLAGS) merge_catalog.c $(INCLUDES)  $(CAT_OBJS) \
-	-o $(BDIR)/merge_catalog   $(LDFLAGS)
+	-o $(BDIR)/merge_catalog $(EISLIB)   $(LDFLAGS)
 
 
 $(BDIR)/bin_catalog: bin_catalog.c $(CAT_OBJS)  $(SINV_OBS) $(ODIR)/eigen.o catalog.h
@@ -90,19 +92,19 @@ $(BDIR)/solve_stress_one_bin: solve_stress_one_bin.c $(CAT_OBJS)  $(SINV_OBS) $(
 
 $(BDIR)/m02mag: m02mag.c $(CAT_OBJS) catalog.h
 	$(CC) $(CFLAGS) m02mag.c $(INCLUDES)   $(CAT_OBJS) \
-	-o $(BDIR)/m02mag    $(LDFLAGS)
+	-o $(BDIR)/m02mag  $(EISLIB)   $(LDFLAGS)
 
 $(BDIR)/m02dcfp: m02dcfp.c $(CAT_OBJS)   catalog.h
 	$(CC) $(CFLAGS) m02dcfp.c $(INCLUDES)  $(CAT_OBJS) \
-	-o $(BDIR)/m02dcfp      $(LDFLAGS)
+	-o $(BDIR)/m02dcfp    $(EISLIB)   $(LDFLAGS)
 
 $(BDIR)/calc_gr: calc_gr.c  $(CAT_OBJS)   catalog.h
 	$(CC) $(CFLAGS) calc_gr.c $(INCLUDES)  $(CAT_OBJS)  \
-	-o $(BDIR)/calc_gr      $(LDFLAGS)
+	-o $(BDIR)/calc_gr     $(EISLIB)  $(LDFLAGS)
 
 $(BDIR)/calc_gr_time: calc_gr_time.c  $(CAT_OBJS)   catalog.h
 	$(CC) $(CFLAGS) calc_gr_time.c $(INCLUDES)  $(CAT_OBJS)  \
-	-o $(BDIR)/calc_gr_time      $(LDFLAGS)
+	-o $(BDIR)/calc_gr_time  $(EISLIB)     $(LDFLAGS)
 
 
 $(BDIR)/eigen: $(ODIR)/eigen.main.o $(ODIR)/eigen.o
@@ -110,7 +112,8 @@ $(BDIR)/eigen: $(ODIR)/eigen.main.o $(ODIR)/eigen.o
 	-o $(BDIR)/eigen $(EISLIB) $(LDFLAGS) 
 
 $(BDIR)/eigenvalues: $(ODIR)/eigen.ov.o $(ODIR)/eigen.o
-	$(CC) $(CFLAGS) $(ODIR)/eigen.ov.o $(ODIR)/eigen.o -o $(BDIR)/eigenvalues \
+	$(CC) $(CFLAGS) $(ODIR)/eigen.ov.o $(ODIR)/eigen.o \
+	-o $(BDIR)/eigenvalues \
 	$(EISLIB) $(LDFLAGS) 
 
 $(BDIR)/eigen3ds: $(ODIR)/eigen.tds.o $(ODIR)/eigen.o
@@ -127,7 +130,8 @@ $(BDIR)/test_eigen: test_eigen.c $(CAT_OBJS) $(ODIR)/eigen.o
 	-o $(BDIR)/test_eigen  $(ODIR)/eigen.o	$(EISLIB)   $(LDFLAGS)
 
 $(BDIR)/test_kdtree: test_kdtree.c $(ODIR)/geo_kdtree.o $(ODIR)/linalg_misc_geo.o
-	$(CC) $(CFLAGS) test_kdtree.c $(INCLUDES) $(ODIR)/geo_kdtree.o $(ODIR)/linalg_misc_geo.o  -o $(BDIR)/test_kdtree $(LDFLAGS)
+	$(CC) $(CFLAGS) test_kdtree.c $(INCLUDES) $(ODIR)/geo_kdtree.o \
+	$(ODIR)/linalg_misc_geo.o  -o $(BDIR)/test_kdtree $(EISLIB) $(LDFLAGS)
 
 
 $(ODIR)/eigen.main.o: eigen_driver.c $(HFILES)

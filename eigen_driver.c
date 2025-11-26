@@ -10,7 +10,6 @@
   
   if 3D_SYMMETRIC is set, will expect a11 a12 a13 a22 a23 a33 only
 
-  $Id: eigen.c,v 1.5 2005/03/16 22:59:59 becker Exp becker $
 
 */
 #include "eigen.h"

@@ -855,7 +855,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
   FILE *out1,*out2;
   int i,j,ind,k;
   BC_CPREC mn,mn2,m;
-  char outname1[300],outname2[300];
+  char outname1[BC_CHAR_LEN],outname2[BC_CHAR_LEN],outname3[BC_CHAR_LEN];
   BC_CPREC mscale;
   struct kostrov_sum *kostrov;
   if(!catalog->sum->init){
@@ -870,9 +870,11 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
 
   */
   m=mn=mn2=0.;
-  sprintf(outname1,"%s.norm.dat",filename);
-  out1 = myopen(outname1,"w","print_kostrov_bins");
-  for(i=0;i < kostrov->nx;i++)
+  snprintf(outname1,BC_CHAR_LEN,"%s.norm.dat",filename);
+  out1 = myopen(outname1,"w","print_kostrov_bins"); /* regular bins */
+  snprintf(outname3,BC_CHAR_LEN,"%s.clvd.dat",filename); /* CLVD measures */
+  out2 = myopen(outname3,"w","print_kostrov_bins");
+  for(i=0;i < kostrov->nx;i++){
     for(j=0;j < kostrov->ny;j++){
       ind =  i * kostrov->ny + j;
       if(kostrov->bin[ind].n){
@@ -888,13 +890,18 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
 							      take out
 							      area */
 	}
-	/* print bin centers */
+	/* print bin centers and some statistics into */
 	fprintf(out1,"%8.3f %8.3f %12i %12.5e %12.5e\n",
 		kostrov_bdlon(ind,kostrov),kostrov_bdlat(ind,kostrov),
 		kostrov->bin[ind].n,kostrov->bin[ind].men,kostrov->bin[ind].mens);
+	/* print CLVD measure, rclvd = 0 for pure DC */
+	fprintf(out2,"%8.3f %8.3f %.6f\n",
+		kostrov_bdlon(ind,kostrov),kostrov_bdlat(ind,kostrov),rclvd(kostrov->bin[ind].mn));
       }
     }
+  }
   fclose(out1);
+  fclose(out2);
   fprintf(stderr,"print_kostrov_bins: normalized summations in %s,   %i out of %i cells, on avg %g +/- %g events\n",
 	  outname1,(int)m,
 	  kostrov->nxny,mn/m,sqrt ((m * mn2 - mn * mn) / (m*(m-1.))));
@@ -905,7 +912,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
 
     */
     m=mn=0.;
-    sprintf(outname1,"%s.norm.sigma.dat",filename);
+    snprintf(outname1,BC_CHAR_LEN,"%s.norm.sigma.dat",filename);
     out1 = myopen(outname1,"w","print_kostrov_bins");
     for(i=0;i < kostrov->nx;i++)
       for(j=0;j < kostrov->ny;j++){
@@ -932,7 +939,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
   */
   mscale = kostrov->mtot/m;
 
-  sprintf(outname2,"%s.scaled.dat",filename);
+  snprintf(outname2,BC_CHAR_LEN,"%s.scaled.dat",filename);
   out2 = myopen(outname2,"w","print_kostrov_bins");
   for(i=0;i < kostrov->nx;i++)
     for(j=0;j < kostrov->ny;j++){
@@ -961,7 +968,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 {
   FILE *out1;
   int i,k,m;
-  char outname1[300];
+  char outname1[BC_CHAR_LEN];
   struct kostrov_sum *kostrov;
   BC_CPREC t1[6],t2[6],dt[6],mean_fric;
   if(!catalog->sum->init){
@@ -970,7 +977,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
   }
   kostrov = catalog->sum;
 
-  sprintf(outname1,"%s.s.dat",filename);
+  snprintf(outname1,BC_CHAR_LEN,"%s.s.dat",filename);
   out1 = myopen(outname1,"w","print_kostrov_bins");
   for(m=i=0;i < kostrov->nxny;i++)
     if(kostrov->bin[i].n >= kostrov->nmin){
@@ -989,7 +996,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 	  outname1,m,kostrov->nxny,kostrov->nmin);
 
   /* difference with normalized strain */
-  sprintf(outname1,"%s.smn.dat",filename);
+  snprintf(outname1,BC_CHAR_LEN,"%s.smn.dat",filename);
   out1 = myopen(outname1,"w","print_kostrov_bins");
   for(m=i=0;i < kostrov->nxny;i++)
     if(kostrov->bin[i].n >= kostrov->nmin){
@@ -1016,7 +1023,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
   fclose(out1);
   fprintf(stderr,"print_stress_tensors: stress tensors minus normalized in %s\n",outname1);
   if(catalog->use_friction_solve){
-    sprintf(outname1,"%s.ds.dat",filename); /* default friction */
+    snprintf(outname1,BC_CHAR_LEN,"%s.ds.dat",filename); /* default friction */
     out1 = myopen(outname1,"w","print_kostrov_bins");
     for(m=i=0;i < kostrov->nxny;i++)
       if(kostrov->bin[i].n >= kostrov->nmin){
@@ -1031,7 +1038,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
     fprintf(stderr,"print_stress_tensors: def. friction %.3f  stress tensors in %s, %i out of %i cells filled\n",
 	    BC_FRIC_DEF,outname1,m,kostrov->nxny);
     if(catalog->use_friction_solve>1){
-      sprintf(outname1,"%s.bs.dat",filename); /* best friction */
+      snprintf(outname1,BC_CHAR_LEN,"%s.bs.dat",filename); /* best friction */
       out1 = myopen(outname1,"w","print_kostrov_bins");
       mean_fric = 0;
       for(m=i=0;i < kostrov->nxny;i++)
@@ -1074,7 +1081,7 @@ void print_summed_moment(struct cat *catalog, char *filename)
 {
   FILE *out1;
   int i,j,ind;
-  char outname1[300];
+  char outname1[BC_CHAR_LEN];
   BC_CPREC me_min=1e30,me_max=-1e30;
   struct kostrov_sum *kostrov;
   if(!catalog->sum->init){
@@ -1082,7 +1089,7 @@ void print_summed_moment(struct cat *catalog, char *filename)
     exit(-1);
   }
   kostrov = catalog->sum;
-  sprintf(outname1,"%s.dat",filename);
+  snprintf(outname1,BC_CHAR_LEN,"%s.dat",filename);
   out1 = myopen(outname1,"w","print_summed_moment");
   for(i=0;i < kostrov->nx;i++)
     for(j=0;j < kostrov->ny;j++){

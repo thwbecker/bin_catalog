@@ -15,6 +15,8 @@ void calc_eigensystem_sym_9(double *, double *, double *, unsigned short, unsign
 void indexx(int, double *, int *);
 /* eigen_3ds_simple.c */
 /* eigen_driver.c */
+int eigen_values_from_3dsym(double *, double *);
+double rclvd(double *);
 /* fault_eq.c */
 void stridip(double, double, double, double *, double *);
 void find_alt_plane(double, double, double, double *, double *, double *);

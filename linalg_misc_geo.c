@@ -1,4 +1,36 @@
 #include "catalog.h"
+#include "eigen.h"
+
+BC_CPREC rclvd(BC_CPREC *norm_mat) /* CLVD component of normalized tensor */
+{
+  const BC_CPREC sqrt_six_over_two = 1.224744871391589049098642037352945695982973740328335064216346;
+  BC_CPREC eigen[3];
+  eigen_values_from_3dsym(norm_mat, eigen); /* compute eigenvalues */
+  
+  //fprintf(stderr,"%g %g %g\t%g %g %g\t%g %g %g\t%g %g %g\n",norm_mat[0],norm_mat[1],norm_mat[2],norm_mat[1],norm_mat[3],norm_mat[4],norm_mat[2],norm_mat[4],norm_mat[5],eigen[0],eigen[1],eigen[2]);
+  return sqrt_six_over_two * eigen[1]; /* divide sqrt(E:E) but normalized */
+}
+
+/* compute eigenvalues for a [3,3] matrix provides as a [6] vector for
+   the upper triangle 
+
+   eigenvalues will be sorted in ascending order, eigen[0] <= eigen[1] <= eigen[2]
+   
+*/
+int eigen_values_from_3dsym(BC_CPREC *mat6, BC_CPREC *eigen)
+{
+  int n=3,matz=0;		/* matz = 0 only values 1 = vectors, too */
+  int ierr;
+  COMP_PRECISION a[9],z[20],fv1[3],fv2[3];
+  a[0]      = mat6[BC_RR];			/* a11 */
+  a[1]=a[3] = mat6[BC_RT];			/* a12 */
+  a[2]=a[6] = mat6[BC_RP];			/* a13 */
+  a[4]      = mat6[BC_TT];			/* a22 */
+  a[5]=a[7] = mat6[BC_TP];			/* a23 */
+  a[8] =      mat6[BC_PP];			/* a33 */
+  SROUT(&n, &n, a, eigen, &matz, z, fv1, fv2, &ierr); /* eigenvalue/eigensystem routine from EISPACK */
+  return ierr;
+}
 
 void ranger(BC_CPREC *z)
 /* makes z in 0 to 360 in degrees */
@@ -195,7 +227,8 @@ void normalize_tens6(BC_CPREC *m6)	/* normalize a tensor given in 0...5
   //fprintf(stderr,"old norm: %12.5e new norm: %12.5e\n",norm,tensor6_norm(m6));
 }
 
-/* tensor in [6] notation */
+/* compute tensor norm from symmetric tensor provided in [6]
+   notation */
 BC_CPREC tensor6_norm(BC_CPREC *m6)	/* plug in upper triangle */
 {
   BC_CPREC t[3][3], ret;
