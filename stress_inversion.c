@@ -70,7 +70,8 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
 	  }
 #endif
       }
-      solve_stress_michael_random_sweep(kostrov->bin[i].n,angles,weights,kostrov->bin[i].s,kostrov->bin[i].ds,&catalog->seed);
+      solve_stress_michael_random_sweep(kostrov->bin[i].n,angles,weights,kostrov->bin[i].s,
+					kostrov->bin[i].ds,&catalog->seed,BC_MICHAEL_RSWEEP_MAX);
       calc_average_instability(kostrov->bin[i].n,angles,weights,BC_FRIC_DEF,kostrov->bin[i].s,ainst); /* instability of default stress */
       kostrov->bin[i].inst[0] = ainst[0];
       
@@ -87,7 +88,7 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
 	adjust_stress_for_friction(kostrov->bin[i].n,angles,weights,kostrov->bin[i].s,
 				   kostrov->bin[i].def_s,kostrov->bin[i].best_s,&(kostrov->bin[i].best_fric),
 				   (kostrov->bin[i].inst+1),(kostrov->bin[i].inst+2),optim_verbose,
-				   ((catalog->use_friction_solve>1)?(BC_TRUE):(BC_FALSE)),&rsweep,&osweep);
+				   catalog->use_friction_solve-1,&rsweep,&osweep);
 #ifdef DEBUG	
 	fprintf(stderr,"bin %05i: adjust_stress_for_friction: df sweep %i total sweep %i\n",i,rsweep,osweep);
 #endif
@@ -102,7 +103,14 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
    solve for the five component stress tensor a la Andy Michael 
 
    angles [6 = 2 times 3] are given in radians TWO SETS OF ANGLES
+
+
+   michael_rsweep_max is by default something like 50000, but can be
+   zero to not do any random sweeps (there is also
+   solve_stress_michael_specified_plane which does ~the same thing)
    
+
+
    input:
 
    nquakes number of events
@@ -117,12 +125,11 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
 */
 void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *weights,
 				       BC_CPREC *stress, BC_CPREC *sig_stress,
-				       long int *seed)
+				       long int *seed, int michael_rsweep_max)
 {
   const int npar = BC_MICHAEL_NPAR;
   const int ndim = BC_NDIM;
-  const int nrandom_limit  = BC_MICHAEL_NMC; /* monte carlo
-						simulations (2000 good
+  const int nrandom_limit  = BC_MICHAEL_NMC; /* monte carlo simulations (2000 good
 						number for 95%
 						confidence?)*/
   BC_BOOLEAN proceed,acc_bail,iter_warned;
@@ -131,117 +138,129 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
   BC_CPREC ind_stress[6],*slick,*amat,tot_stress[6],tot_stress2[6],snorm,last_stress[6],this_stress[6],ds,tmp;
   size_t ssize = 6*sizeof(BC_CPREC);
   BC_CPREC bail_acc_squared = BC_MICHAEL_RACC*BC_MICHAEL_RACC;
-  slick = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim);
-  amat = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim*npar);
-  for(i=0;i < 6;i++){
-    tot_stress[i] = tot_stress2[i] = last_stress[i] = 0.0;
-  }
-  iter_warned = BC_FALSE;
-  proceed  = BC_TRUE;
-  nrandom=0;
-  do{
-    acc_bail = BC_FALSE;
-    /* converted from Andy Michael's slick routine */
-    nobs = 0;
-    for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6){
-      /* randomly assign fault planes */
-      if(BC_RGEN(seed) >= 0.5)
-	michael_assign_to_matrix((angles+iquake6),  &nobs,&slick,&amat);
-      else			/* alternate FP */
-	michael_assign_to_matrix((angles+iquake6+3),&nobs,&slick,&amat);
-    }  /* end of data assignment loop */
-    /* 
-       michael least squares solve, augmented by weights (will
-       override amat and slick)
-    */
-    michael_solve_lsq(npar,ndim,nobs,amat,slick,weights,ind_stress);
-    for(i=icheck=0;i<6;i++){
-      if(!finite(ind_stress[i])){
-	if(!iter_warned){
-	  fprintf(stderr,"ssm random_sweep: WARNING: ind_stress not finite\n");
-	  for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6){
-	    for(j=0;j<6;j++)
-	      fprintf(stderr,"%6.3f ",(float)*(angles+iquake6+j));
-	    fprintf(stderr,"\n");
-	  }
-	}
-	iter_warned = BC_TRUE;
-      }else{
-	icheck++;
-      }      
-    }
-    if(icheck == 6){		/* all finite */
-      for(i=0;i<6;i++){
-	tot_stress[i]  += ind_stress[i];
-	tot_stress2[i] += ind_stress[i] * ind_stress[i];
-      }
-      nrandom++;
-    }
-    if(nrandom%100==0){
-      /* every 100 iterations, check for finiteness and convergence */
-      ds = 0;
-      for(i=0;i<6;i++){
-	if(!finite(tot_stress[i])){
-	  fprintf(stderr,"ssm random_sweep: ERROR: tot_stress not finite\n");
-	  exit(-1);
-	}
-	this_stress[i] = tot_stress[i]/(BC_CPREC)nrandom;
-	tmp = this_stress[i] - last_stress[i];
-	ds += tmp*tmp;
-      }
-      if(ds < bail_acc_squared)
-	acc_bail = BC_TRUE;
-#ifdef SUPER_DEBUG
-      fprintf(stderr,"ssm random_sweep: iter %05i s %12g %12g %12g %12g %12g %12g: diff: %12.5e\n",nrandom,
-	      this_stress[0], this_stress[1], this_stress[2], this_stress[3], this_stress[4],this_stress[5],sqrt(ds));
-#endif
-      memcpy(last_stress,this_stress,ssize);
-    }
-    if(acc_bail || (nrandom > BC_MICHAEL_RSWEEP_MAX))
-      proceed = BC_FALSE;
-  }while(proceed);
-  if(nrandom>BC_MICHAEL_RSWEEP_MAX){
-    if(!warned){
-      fprintf(stderr,"ssm random_sweep: WARNING: bailed on max sweeps (%i) not accuracy (%12.5e) on at least one bin\n",
-	      nrandom,sqrt(ds));
-      warned = BC_TRUE;
-    }
-  }
-  for(i=0;i<6;i++){
-    sig_stress[i] = std_quick(nrandom,tot_stress[i],tot_stress2[i]);
-    stress[i] = tot_stress[i]/(BC_CPREC)nrandom;
-  }
-  /* normalize tensor */
-  snorm = tensor6_norm(stress);
-  for(i=0;i<6;i++){
-    stress[i]     /= snorm;
-    sig_stress[i] /= snorm;
-  }
-  /*
-  fprintf(stderr,"stress_solve: avg: %12g(%12g) %12g(%12g) %12g(%12g) %12g(%12g) %12g(%12g) %12g(%12g)\n",
-	  stress[0],sig_stress[0],stress[1],sig_stress[1],stress[2],sig_stress[2],
-	  stress[3],sig_stress[3],stress[4],sig_stress[4],stress[5],sig_stress[5]);
-  */
-  
  
-  free(amat);
-  free(slick);
+  if(michael_rsweep_max == 0){	/* running the stuff below only once
+				   gives the same answer, do like so
+				   to avoid having an if statement */
+    solve_stress_michael_specified_plane(nquakes,angles,weights,stress);
+    for(i=0;i < 6;i++)
+      sig_stress[i]=NAN;
+  }else{
+    slick = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim);
+    amat = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim*npar);
+    for(i=0;i < 6;i++){
+      tot_stress[i] = tot_stress2[i] = last_stress[i] = 0.0;
+    }
+    iter_warned = BC_FALSE;
+    proceed  = BC_TRUE;
+    nrandom=0;
+    
+    do{
+      acc_bail = BC_FALSE;
+      /* converted from Andy Michael's slick routine */
+      nobs = 0;
+      for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6){
+	/* randomly assign fault planes */
+	if(BC_RGEN(seed) >= 0.5)
+	  michael_assign_to_matrix((angles+iquake6),  &nobs,&slick,&amat);
+	else			/* alternate FP */
+	  michael_assign_to_matrix((angles+iquake6+3),&nobs,&slick,&amat);
+      }  /* end of data assignment loop */
+      /* 
+	 michael least squares solve, augmented by weights (will
+	 override amat and slick)
+      */
+      michael_solve_lsq(npar,ndim,nobs,amat,slick,weights,ind_stress);
+      for(i=icheck=0;i<6;i++){
+	if(!finite(ind_stress[i])){
+	  if(!iter_warned){
+	    fprintf(stderr,"ssm random_sweep: WARNING: ind_stress not finite\n");
+	    for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6){
+	      for(j=0;j<6;j++)
+		fprintf(stderr,"%6.3f ",(float)*(angles+iquake6+j));
+	      fprintf(stderr,"\n");
+	    }
+	  }
+	  iter_warned = BC_TRUE;
+	}else{
+	  icheck++;
+	}      
+      }
+      if(icheck == 6){		/* all finite */
+	for(i=0;i<6;i++){
+	  tot_stress[i]  += ind_stress[i];
+	  tot_stress2[i] += ind_stress[i] * ind_stress[i];
+	}
+	nrandom++;
+      }
+      if(nrandom%100==0){
+	/* every 100 iterations, check for finiteness and convergence */
+	ds = 0;
+	for(i=0;i<6;i++){
+	  if(!finite(tot_stress[i])){
+	    fprintf(stderr,"ssm random_sweep: ERROR: tot_stress not finite\n");
+	    exit(-1);
+	  }
+	  this_stress[i] = tot_stress[i]/(BC_CPREC)nrandom;
+	  tmp = this_stress[i] - last_stress[i];
+	  ds += tmp*tmp;
+	}
+	if(ds < bail_acc_squared)
+	  acc_bail = BC_TRUE;
+#ifdef SUPER_DEBUG
+	fprintf(stderr,"ssm random_sweep: iter %05i s %12g %12g %12g %12g %12g %12g: diff: %12.5e\n",nrandom,
+		this_stress[0], this_stress[1], this_stress[2], this_stress[3], this_stress[4],this_stress[5],sqrt(ds));
+#endif
+	memcpy(last_stress,this_stress,ssize);
+      }
+      if(acc_bail || (nrandom > BC_MICHAEL_RSWEEP_MAX))
+	proceed = BC_FALSE;
+    }while(proceed);
+    if(nrandom > BC_MICHAEL_RSWEEP_MAX){
+      if(!warned){
+	fprintf(stderr,"ssm random_sweep: WARNING: bailed on max sweeps (%i) not accuracy (%12.5e) on at least one bin\n",
+		nrandom,sqrt(ds));
+	warned = BC_TRUE;
+      }
+    }
+    for(i=0;i<6;i++){
+      sig_stress[i] = std_quick(nrandom,tot_stress[i],tot_stress2[i]);
+      stress[i] = tot_stress[i]/(BC_CPREC)nrandom;
+    }
+    /* normalize tensor */
+    snorm = tensor6_norm(stress);
+    for(i=0;i<6;i++){
+      stress[i]     /= snorm;
+      sig_stress[i] /= snorm;
+    }
+    /*
+      fprintf(stderr,"stress_solve: avg: %12g(%12g) %12g(%12g) %12g(%12g) %12g(%12g) %12g(%12g) %12g(%12g)\n",
+      stress[0],sig_stress[0],stress[1],sig_stress[1],stress[2],sig_stress[2],
+      stress[3],sig_stress[3],stress[4],sig_stress[4],stress[5],sig_stress[5]);
+    */
+    free(amat);
+    free(slick);
+  }
+ 
+ 
 }
 
-/* istress = iniitial stress
+/* istress = initial stress
 
    dstress = stress for default friction
    bstress = stress for best friction, given deviation
    best_fric
+
+   optimize
  */
 void adjust_stress_for_friction(int n, BC_CPREC *iangles, BC_CPREC *weights,
 				BC_CPREC *istress,BC_CPREC *dstress,BC_CPREC *bstress,
 				BC_CPREC *best_fric, BC_CPREC *dinst,BC_CPREC *binst,
-				BC_BOOLEAN verbose, BC_BOOLEAN optimize,int *rsweep,int *osweep)
+				BC_BOOLEAN verbose, int optimize,int *rsweep,int *osweep)
 {
   BC_CPREC max[2],friction;
   BC_CPREC tstress[6],inst[2],sdev[2],mdev[2];
-  BC_CPREC *angles;
+  BC_CPREC *angles,fric_min,fric_max,fric_inc;
   size_t asize,ssize;
   int i,isweep;
   asize = sizeof(BC_CPREC)*n*6;
@@ -270,14 +289,19 @@ void adjust_stress_for_friction(int n, BC_CPREC *iangles, BC_CPREC *weights,
   *dinst = inst[0];		/* keep default instability */
 
   *osweep =0;
-  if(optimize){
+  if(optimize > 0){
     /* optimize */
+    if(optimize==1){
+      fric_min=0;fric_max=1;fric_inc=BC_FRIC_SCAN_INC;
+    }else{
+      fric_min=0.2;fric_max=0.8;fric_inc=BC_FRIC_SCAN_INC2;
+    }
     max[0] = -10;
-    for(friction=BC_FRIC_SCAN_INC;friction < 1;friction += BC_FRIC_SCAN_INC){ /* scan
-										 friction
-										 for
-										 maximum
-										 instability */
+    for(friction=fric_min;friction <= fric_max;friction += fric_inc){ /* scan
+									 friction
+									 for
+									 maximum
+									 instability */
       memcpy(tstress,istress,ssize);
       memcpy(angles,iangles,asize);
       optimize_angles_via_instability(n,angles,weights,friction,tstress,inst,&isweep);
@@ -316,13 +340,11 @@ void adjust_stress_for_friction(int n, BC_CPREC *iangles, BC_CPREC *weights,
 
 
 
-
-
 /* 
 
    JUST ONE SET OF ANGLES TO USE 
 
- */
+*/
 void solve_stress_michael_specified_plane(int nquakes, BC_CPREC *angles,BC_CPREC *weights,BC_CPREC *stress)
 {
   const int npar = BC_MICHAEL_NPAR;

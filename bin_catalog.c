@@ -8,7 +8,7 @@
    there is also nsample_catalog which tries to find the closest
    events and has more flexibility in terms of sampling
 
-   (c) 2020 - 2025, Thorsten Becker, thwbecker@post.harvard.edu, see README
+   (c) 2020 - 2026, Thorsten Becker, thwbecker@post.harvard.edu, see README
 */
 
 int main(int argc, char **argv)
@@ -31,9 +31,10 @@ int main(int argc, char **argv)
 				2: normalized by numbers over time 
 			     */
   catalog=(struct cat *)calloc(1,sizeof(struct cat));
-  
-  catalog->use_friction_solve = 2; /* 1: additional stress inversion 2: optimize friction*/
-  //catalog->use_friction_solve = 1; /* 1: additional stress inversion 2: optimize friction*/
+
+  /* 1: additional stress inversion 2: optimize friction 0...1 3: optimzie 0.2...0.8 */
+  catalog->use_friction_solve = 3;
+  //catalog->use_friction_solve = 1; 
   sprintf(out_istring,"kostrov");
   
   if(!catalog)

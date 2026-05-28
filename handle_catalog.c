@@ -1406,7 +1406,7 @@ void print_quake(FILE *out, struct qke quake, int mode)
 
 /* 
    read AKI & Richards format, assume all angles and coordinates are in degree 
-   and last column is time
+   AND LAST COLUMN IS TIME IN SECOND
 */
 //
 // print(lon,lat,dep,str[1],dip[1],rake[1],mag,lon,lat,tsec);

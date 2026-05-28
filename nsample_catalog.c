@@ -37,8 +37,8 @@ int main(int argc, char **argv)
   kostrov_set_defaults(kostrov); /* set binning defaults */
   
   /*  */
-  catalog->use_friction_solve = 2; /* 1: additional stress inversion 2: optimize friction*/
-  //catalog->use_friction_solve = 1; /* 1: additional stress inversion 2: optimize friction*/
+  catalog->use_friction_solve = 3; /* 1: additional stress inversion 2: optimize friction 0...1 3: 0.2...0.8*/
+  //catalog->use_friction_solve = 1; 
   
   snprintf(out_istring,sizeof(out_istring),"nsample");
   

@@ -29,17 +29,22 @@ EISLIB = -Leispack/$(ARCH)/ -lmyeis
 
 CAT_OBJS = $(ODIR)/handle_catalog.o  $(ODIR)/fault_eq.o   \
 	$(ODIR)/linalg_misc_geo.o  $(ODIR)/bvalue.o \
-	$(ODIR)/handle_catalog_gmt.o $(ODIR)/michael_leasq.o $(ODIR)/geo_kdtree.o \
+	$(ODIR)/handle_catalog_gmt.o $(ODIR)/michael_leasq.o \
+	$(ODIR)/geo_kdtree.o \
 	$(MECA_OBJS) 
 
-SINV_OBS = 	$(ODIR)/stress_inversion.o $(ODIR)/stability_criterion.o $(ODIR)/slip_deviation.o  
+# from Vavrychuk
+SINV_OBS = 	$(ODIR)/stress_inversion.o \
+	$(ODIR)/stability_criterion.o $(ODIR)/slip_deviation.o  
 
 
 INCLUDES = $(GMT_INC)
 #INCLUDES = $(GMT_INC) 
 #
 # main programs
-PROGS = $(BDIR)/merge_catalog $(BDIR)/bin_catalog $(BDIR)/nsample_catalog $(BDIR)/solve_stress_one_bin \
+PROGS = $(BDIR)/merge_catalog $(BDIR)/bin_catalog \
+	$(BDIR)/nsample_catalog $(BDIR)/solve_stress_one_bin \
+	$(BDIR)/calc_aux_plane \
 	$(BDIR)/m02dcfp $(BDIR)/calc_gr $(BDIR)/calc_gr_time $(BDIR)/m02mag
 
 # standalone codes needed for Simpson style stress state plotting
@@ -50,7 +55,7 @@ EIGEN_PROGS = $(BDIR)/eigen  \
 #
 TEST_PROGS = $(BDIR)/test_eigen $(BDIR)/test_kdtree
 
-all: dirs progs libs eigen_progs test_progs
+all: dirs libs progs eigen_progs test_progs
 
 progs:
 	make $(PROGS)
@@ -81,6 +86,12 @@ $(BDIR)/merge_catalog: merge_catalog.c $(CAT_OBJS)
 $(BDIR)/bin_catalog: bin_catalog.c $(CAT_OBJS)  $(SINV_OBS) $(ODIR)/eigen.o catalog.h
 	$(CC) $(CFLAGS) bin_catalog.c $(INCLUDES)  $(CAT_OBJS) $(ODIR)/eigen.o $(SINV_OBS)  \
 	-o $(BDIR)/bin_catalog     $(EISLIB) $(LDFLAGS)
+
+$(BDIR)/calc_aux_plane: calc_aux_plane.c $(CAT_OBJS)  $(SINV_OBS) \
+	$(ODIR)/eigen.o catalog.h
+	$(CC) $(CFLAGS) calc_aux_plane.c $(INCLUDES)  $(CAT_OBJS) \
+	$(ODIR)/eigen.o $(SINV_OBS)  \
+	-o $(BDIR)/calc_aux_plane     $(EISLIB) $(LDFLAGS)
 
 $(BDIR)/nsample_catalog: nsample_catalog.c $(CAT_OBJS)  $(SINV_OBS) $(ODIR)/eigen.o catalog.h
 	$(CC) $(CFLAGS) nsample_catalog.c $(INCLUDES)  $(CAT_OBJS) $(ODIR)/eigen.o $(SINV_OBS)  \
