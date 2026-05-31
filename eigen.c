@@ -7,12 +7,12 @@ void calc_eigensystem_vec6(COMP_PRECISION *a,
 			   BC_BOOLEAN ivec,BC_BOOLEAN largest_first)
 {
   COMP_PRECISION b[9];
-  b[RR] = a[0];
-  b[RT] = a[1];
-  b[RP] = a[2];
-  b[TT] = a[3];
-  b[TP] = a[4];
-  b[PP] = a[5];
+  b[EIG_RR] = a[0];
+  b[EIG_RT] = a[1];
+  b[EIG_RP] = a[2];
+  b[EIG_TT] = a[3];
+  b[EIG_TP] = a[4];
+  b[EIG_PP] = a[5];
   calc_eigensystem_sym_9(b,eval,evec,ivec,largest_first);
 }
 
@@ -22,12 +22,12 @@ void calc_eigensystem_sym_3x3(COMP_PRECISION a[3][3],COMP_PRECISION *eval,
 			      BC_BOOLEAN ivec,BC_BOOLEAN largest_first)
 {
   COMP_PRECISION b[9];
-  b[RR] = a[0][0];
-  b[RT] = a[0][1];
-  b[RP] = a[0][2];
-  b[TT] = a[1][1];
-  b[TP] = a[1][2];
-  b[PP] = a[2][2];
+  b[EIG_RR] = a[0][0];
+  b[EIG_RT] = a[0][1];
+  b[EIG_RP] = a[0][2];
+  b[EIG_TT] = a[1][1];
+  b[EIG_TP] = a[1][2];
+  b[EIG_PP] = a[2][2];
   calc_eigensystem_sym_9(b,eval,evec,ivec,largest_first);
 }
 
@@ -88,7 +88,7 @@ void calc_eigensystem_sym_9(COMP_PRECISION *a,COMP_PRECISION *eval,
   // this is unnecessary, do it for safety
   // (will, however, overwrite the presumed symmetric entries)
   //
-  a[TR]=a[RT];a[PR]=a[RP];a[PT]=a[TP];
+  a[EIG_TR]=a[EIG_RT];a[EIG_PR]=a[EIG_RP];a[EIG_PT]=a[EIG_TP];
   memcpy(loca,a,(size_t)9*sizeof(COMP_PRECISION));
   //
   // EISPACK matz flag, 0: only eigenvalues, !=0: values + vectors
@@ -97,13 +97,13 @@ void calc_eigensystem_sym_9(COMP_PRECISION *a,COMP_PRECISION *eval,
   // from EISPACK
   SROUT(&n,&n,loca,eval,&matz,evec,fv1,fv2,&ierr);
   if(ierr){
-    fprintf(stderr,"calc_eigensystem_sym: runtime error %i in routine\n",ierr);
+    fprintf(stderr,"calc_eigensystem_sym_9: runtime error %i in routine\n",ierr);
     exit(-1);
   }
   for(i=0;i < 3;i++){
     /*  */
     if(!finite(eval[i]))
-      fprintf(stderr,"calc_eigensystem_sym: WARNING: eigenvalue %i not finite\n",i);
+      fprintf(stderr,"calc_eigensystem_sym_9: WARNING: eigenvalue %i not finite\n",i);
     if(icalc_vectors){
       /* make sure eigenvectors are pointing in standard direction */
       if(evec[i*3+0] < 0)
@@ -117,9 +117,7 @@ void calc_eigensystem_sym_9(COMP_PRECISION *a,COMP_PRECISION *eval,
     FSWAP(*(evec+0),*(evec+6+0));
     FSWAP(*(evec+1),*(evec+6+1));
     FSWAP(*(evec+2),*(evec+6+2));
-    
   }
-  
 }
 
 

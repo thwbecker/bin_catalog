@@ -142,7 +142,7 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
   if(michael_rsweep_max == 0){	/* running the stuff below only once
 				   gives the same answer, do like so
 				   to avoid having an if statement */
-    solve_stress_michael_specified_plane(nquakes,angles,weights,stress);
+    solve_stress_michael_specified_plane(nquakes,angles,weights,stress,BC_TRUE);
     for(i=0;i < 6;i++)
       sig_stress[i]=NAN;
   }else{
@@ -337,15 +337,16 @@ void adjust_stress_for_friction(int n, BC_CPREC *iangles, BC_CPREC *weights,
 }
 
 
-
-
-
 /* 
 
-   JUST ONE SET OF ANGLES TO USE 
+   Michael, just one set of angles to use - like slick.c (but note
+   that we are using the strike azimuth, not dip azimuth, for the
+   angles)
 
 */
-void solve_stress_michael_specified_plane(int nquakes, BC_CPREC *angles,BC_CPREC *weights,BC_CPREC *stress)
+void solve_stress_michael_specified_plane(int nquakes, BC_CPREC *angles,
+					  BC_CPREC *weights,BC_CPREC *stress,
+					  BC_BOOLEAN normalize)
 {
   const int npar = BC_MICHAEL_NPAR;
   const int ndim = BC_NDIM;
@@ -359,11 +360,10 @@ void solve_stress_michael_specified_plane(int nquakes, BC_CPREC *angles,BC_CPREC
   nobs = 0;
   for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6)
     michael_assign_to_matrix((angles+iquake6),&nobs,&slick,&amat);
+  /*  */
   michael_solve_lsq(npar,ndim,nobs,amat,slick,weights,stress);
-  /* normalize tensor */
-  snorm = tensor6_norm(stress);
-  for(i=0;i<6;i++)
-    stress[i]     /= snorm;
+  if(normalize)
+    normalize_tens6(stress,stress);
   free(amat);
   free(slick);
 }
@@ -376,16 +376,20 @@ void solve_stress_michael_specified_plane(int nquakes, BC_CPREC *angles,BC_CPREC
    this will overwrite amat and slick
 
 */
-void michael_solve_lsq(int npar,int ndim, int nobs, BC_CPREC *amat, BC_CPREC *slick,BC_CPREC *weights,
+// debug the matrix assemble and solution?
+//#define BC_SDD_DEBUG
+void michael_solve_lsq(int npar,int ndim, int nobs, BC_CPREC *amat,
+		       BC_CPREC *slick,BC_CPREC *weights,
 		       BC_CPREC *stress)
 {
   int m,i,j,k,moff;
   BC_CPREC *a2,*cc,sigma,lstress[6],w;
-
+#ifdef BC_SDD_DEBUG
+  FILE *out1,*out2;
+#endif
   m = nobs * ndim;
   a2 = (BC_CPREC *)malloc(sizeof(BC_CPREC)*npar*npar);
   cc = (BC_CPREC *)malloc(sizeof(BC_CPREC)*npar);
-
   /* rescale with weights */
   for(i=0;i < nobs;i++){
     w = weights[i];		/* weight for each observation */
@@ -396,28 +400,50 @@ void michael_solve_lsq(int npar,int ndim, int nobs, BC_CPREC *amat, BC_CPREC *sl
 	amat[moff*npar+k] *= w;
     }
   }
+#ifdef BC_SDD_DEBUG
+  out1 = fopen("a.dat","w");
+  out2 = fopen("b.dat","w");
+  for(i=0;i < nobs;i++){
+    for(j=0;j < ndim;j++){
+      moff = i*ndim+j;
+      fprintf(out2,"%15.7e\n",slick[moff]);
+      for(k=0;k < npar;k++)
+	fprintf(out1,"%15.7e ",amat[moff*npar+k]);
+      fprintf(out1,"\n");
+    }
+  }
+  fclose(out1);  fclose(out2);
+#endif
     
   /* solve equations via linear least squares */
   /*               0    1   2  3    4   5   */
   /* lstress is in xx, xy, xz, yy, yz, zz format E, N, U */
   /* 
-     solve amat.ltress = slick in a least squares sense 
+x     solve amat.ltress = slick in a least squares sense 
   */
   michael_leasq(amat,npar,m,lstress,slick,a2,cc,&sigma); 
+#ifdef BC_SDD_DEBUG
+  out1 = fopen("x.dat","w");
+  for(k=0;k < npar;k++)
+    fprintf(out1,"%15.7e\n",lstress[k]);
+  fclose(out1);
+#endif 
   /* 
-     fix zz element by using trace = 0 
+     we solve for five components, assign sixth (zz) element by using
+     the trace = 0 constraint
   */
   lstress[5]= -(lstress[0]+lstress[3]);
+
   /* 
-     reassign from ENU to my spherical coordinates 
+     reassign from Michael cooridnate system (xyz = ENU) to my
+     spherical coordinates
   */
-  
-  stress[BC_PP] =  lstress[0];	/*  xx */
-  stress[BC_TP] = -lstress[1];	/* -yx */
-  stress[BC_RP] =  lstress[2];	/*  xz */
-  stress[BC_TT] =  lstress[3];	/*  yy */
-  stress[BC_RT] = -lstress[4];	/* -yz */
-  stress[BC_RR] =  lstress[5];	/*  zz */
+  stress[BC_RR] =  lstress[5];	/*  zz =  UU */
+  stress[BC_RT] = -lstress[4];	/* -yz = -NU */
+  stress[BC_RP] =  lstress[2];	/*  xz =  EU */
+  stress[BC_TT] =  lstress[3];	/*  yy =  NN */
+  stress[BC_TP] = -lstress[1];	/* -yx = -EN */
+  stress[BC_PP] =  lstress[0];	/*  xx =  EE */
   
   free(a2);free(cc);
 }
@@ -439,14 +465,25 @@ void my6stress2m3x3(BC_CPREC *svec,BC_CPREC msmat[3][3])
 
    z,z2,z3 are 
 
-   angles[3] strike, dip, rake angles (aki and richards) in radians
+   angles[3] strike, dip, rake angles (Aki and Richards) convention IN RADIANS
 
    from Andy Michael's slick.c routine
 
    NOTE: 
    
-   this is converted from Michael's direction (i.e. strike + pi/2),
-   dip, rake to Aki and Richards
+   this is converted from Michael who uses 
+
+   dip direction (i.e. strike + pi/2), dip, and rake 
+   
+   From Michael's description:
+
+   "The first number on each line is the dip direction of the fault
+    plane in degrees East of North.  The second number on each line is the
+    dip of the fault plane.  The third number on each line is the rake of
+    the fault, such that 0 is left lateral motion, 90 is thrust motion, 
+    180 is right lateral motion, and 270 is normal faulting."
+
+   else, this checks out against SATSI
    
 */
 void michael_assign_to_matrix(BC_CPREC *angles,int *nobs,BC_CPREC **slick,BC_CPREC **amat)
@@ -456,17 +493,27 @@ void michael_assign_to_matrix(BC_CPREC *angles,int *nobs,BC_CPREC **slick,BC_CPR
   const int ndim = BC_NDIM;
   const int npar = BC_MICHAEL_NPAR;
   
-  
-  /*  */
-  sincos(angles[0]+ M_PI_2, &sin_z, &cos_z); /* this needs to be flipped it seems */
+  /* strike */
+  /* 
+     using this convention, A, b, and x are identical with Michael
+     slick.c and x solution checks out for both as actual least
+     squares solution
+  */
+  //sincos(angles[0],         &sin_z, &cos_z); 
+  sincos(angles[0]+ M_PI_2, &sin_z, &cos_z); /* convert from A&R
+						strike azimuth to dip
+						azimuth which is
+						strike + 90 = strike + pi/2 */
+  /* dip */
   sincos(angles[1],         &sin_z2,&cos_z2);
+  /* rake */
   sincos(angles[2],         &sin_z3,&cos_z3);
     
     
   n1=sin_z*sin_z2;  /* normal vector to fault plane */
   n2=cos_z*sin_z2;
   n3=cos_z2;
-
+  /* squared normal vector components */
   n12 = n1*n1;
   n22 = n2*n2;
   n32 = n3*n3;
@@ -477,8 +524,6 @@ void michael_assign_to_matrix(BC_CPREC *angles,int *nobs,BC_CPREC **slick,BC_CPR
   *(*slick+j)=  -cos_z3*cos_z-sin_z3*sin_z*cos_z2;
   *(*slick+j+1)= cos_z3*sin_z-sin_z3*cos_z*cos_z2;
   *(*slick+j+2)= sin_z3*sin_z2;
-
-
  
   /* find the matrix elements */
   ind = j*npar;
@@ -487,21 +532,21 @@ void michael_assign_to_matrix(BC_CPREC *angles,int *nobs,BC_CPREC **slick,BC_CPR
   *(*amat+ind+2)    = n3-2.*n12*n3;
   *(*amat+ind+3)    = -n1*n22+n1*n32;
   *(*amat+ind+4)    = -2.*n1*n2*n3;
-
+  //fprintf(stderr,"%8.4f %8.4f %8.4f %8.4f %8.4f\n", *(*amat+ind+0), *(*amat+ind+1), *(*amat+ind+2), *(*amat+ind+3), *(*amat+ind+4));
   ind += npar;
   *(*amat+ind+0)= -n2*n12+n2*n32;
   *(*amat+ind+1)= n1-2.*n1*n22;
   *(*amat+ind+2)= -2.*n1*n2*n3;
   *(*amat+ind+3)= n2-n22*n2+n2*n32;
   *(*amat+ind+4)= n3-2.*n22*n3;
-
+  //fprintf(stderr,"%8.4f %8.4f %8.4f %8.4f %8.4f\n", *(*amat+ind+0), *(*amat+ind+1), *(*amat+ind+2), *(*amat+ind+3), *(*amat+ind+4));
   ind += npar;
   *(*amat+ind+0)= -n3*n12-n3+n32*n3;
   *(*amat+ind+1)= -2.*n1*n2*n3;
   *(*amat+ind+2)= n1-2.*n1*n32;
   *(*amat+ind+3)= -n3*n22-n3+n32*n3;
   *(*amat+ind+4)= n2-2.*n2*n32;
-
+  //fprintf(stderr,"%8.4f %8.4f %8.4f %8.4f %8.4f\n", *(*amat+ind+0), *(*amat+ind+1), *(*amat+ind+2), *(*amat+ind+3), *(*amat+ind+4));
   /* increment counter and make room for more */
   *nobs = *nobs + 1;
   /*  */

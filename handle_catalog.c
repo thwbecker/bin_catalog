@@ -882,7 +882,7 @@ void print_kostrov_bins(struct cat *catalog, char *filename,BC_BOOLEAN monte_car
 	mn2 += (BC_CPREC)(kostrov->bin[ind].n * kostrov->bin[ind].n);
 	m += 1.0;			/* number filled */
 	/* normalize */
-	normalize_tens6(kostrov->bin[ind].mn);
+	normalize_tens6(kostrov->bin[ind].mn,kostrov->bin[ind].mn);
 	for(k=0;k < 6;k++){
 	  //fprintf(stderr,"%g\n",tensor6_norm(kostrov->bin[ind].mn));
 	  fprintf(out1,"%20.8e ",kostrov->bin[ind].mn[k]); /* norm,
@@ -1006,7 +1006,8 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 	t1[k] = kostrov->bin[i].s[k];/* stress tensor */
 	t2[k] = kostrov->bin[i].mn[k]; /* normalized strain */
       }
-      normalize_tens6(t1);normalize_tens6(t2);
+      normalize_tens6(t1,t1);
+      normalize_tens6(t2,t2);
       for(k=0;k < 6;k++){	/* difference tensor */
 	dt[k] = t1[k] - t2[k];
       }

@@ -18,7 +18,7 @@ double det3x3(double [3][3]);
 /* eigen_driver.c */
 double gamma_clvd(double *);
 
-int eigen_values_from_3dsym(double *, double *);
+int eigen_values_3dsym_vec6(double *, double *);
 double rclvd(double *);
 /* fault_eq.c */
 void stridip(double, double, double, double *, double *);
@@ -92,11 +92,14 @@ void mattosixsym(double [3][3], double *);
 void get_gen_rot(double [3][3], double, double, double);
 void rotate_mat(double [3][3], double [3][3], double [3][3]);
 void remove_trace(double *);
+double trace6(double *);
 double distance_cart(double, double, double, double);
 double distance_geo(double, double, double, double, double, double);
 double distance(struct cat *, struct cat *, int, int);
 void get_index_vector(int **, int, int, long *);
-void normalize_tens6(double *);
+void normalize_tens6(double *,double *);
+void max_normalize_tens6(double *,double *);
+void max_ev_normalize_tens6(double *,double *);
 double tensor6_norm(double *);
 void tens6to3by3(double *, double [3][3]);
 double std_quick(int, double, double);
@@ -130,7 +133,7 @@ void stability_criterion_eig(double *, double *, double, double *, unsigned shor
 void calc_stress_tensor_for_kbins(struct cat *);
 void solve_stress_michael_random_sweep(int, double *, double *, double *, double *, long int *,int);
 void adjust_stress_for_friction(int, double *, double *, double *, double *, double *, double *, double *, double *, unsigned short, int, int *, int *);
-void solve_stress_michael_specified_plane(int, double *, double *, double *);
+void solve_stress_michael_specified_plane(int, double *, double *, double *,unsigned short);
 void michael_solve_lsq(int, int, int, double *, double *, double *, double *);
 void my6stress2m3x3(double *, double [3][3]);
 void michael_assign_to_matrix(double *, int *, double **, double **);

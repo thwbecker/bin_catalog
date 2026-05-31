@@ -55,8 +55,8 @@ void optimize_angles_via_instability(int n,BC_CPREC *angles,
   while(nswap){
     *nsweep =0;
     while(nswap && (*nsweep < max_sweep)){
-      /* solve stresses anew with current planes */
-      solve_stress_michael_specified_plane(n,angles,weights,stress);
+      /* solve stresses anew with current planes, should we normalize? */
+      solve_stress_michael_specified_plane(n,angles,weights,stress,BC_TRUE);
       /* compute the eigensystem for this set of stresses */
       calc_eigensystem_vec6(stress,sigma,svec,BC_TRUE,BC_TRUE);
       /* compute stability and take note of those planes to swap */

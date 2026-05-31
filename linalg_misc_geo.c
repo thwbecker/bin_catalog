@@ -2,21 +2,22 @@
 #include "eigen.h"
 
 
-BC_CPREC gamma_clvd(BC_CPREC *norm_mat) /* \Gamma CLVD component of normalized tensor */
+BC_CPREC gamma_clvd(BC_CPREC *norm_vec6) /* \Gamma CLVD component of
+					    normalized tensor in six
+					    component vector format*/
 {
   const BC_CPREC three_times_sqrt_six = 7.348469228349534294591852224117674175897;
   BC_CPREC t[3][3];
-  tens6to3by3(norm_mat, t);
+  tens6to3by3(norm_vec6, t);
   return three_times_sqrt_six * det3x3(t); /* divide by |t|^3, but normalized */
   
 }
-
   
-BC_CPREC rclvd(BC_CPREC *norm_mat) /* r_CLVD component of normalized tensor */
+BC_CPREC rclvd(BC_CPREC *norm_vec6) /* r_CLVD component of normalized tensor in six component vector format */
 {
   const BC_CPREC sqrt_six_over_two = 1.224744871391589049098642037352945695982973740328335064216346;
   BC_CPREC eigen[3];
-  eigen_values_from_3dsym(norm_mat, eigen); /* compute eigenvalues */
+  eigen_values_3dsym_vec6(norm_vec6, eigen); /* compute eigenvalues */
   
   //fprintf(stderr,"%g %g %g\t%g %g %g\t%g %g %g\t%g %g %g\n",norm_mat[0],norm_mat[1],norm_mat[2],norm_mat[1],norm_mat[3],norm_mat[4],norm_mat[2],norm_mat[4],norm_mat[5],eigen[0],eigen[1],eigen[2]);
   return sqrt_six_over_two * eigen[1]; /* divide sqrt(E:E) but normalized */
@@ -28,19 +29,11 @@ BC_CPREC rclvd(BC_CPREC *norm_mat) /* r_CLVD component of normalized tensor */
    eigenvalues will be sorted in ascending order, eigen[0] <= eigen[1] <= eigen[2]
    
 */
-int eigen_values_from_3dsym(BC_CPREC *mat6, BC_CPREC *eigen)
+int eigen_values_3dsym_vec6(BC_CPREC *vec6, BC_CPREC *eigen)
 {
-  int n=3,matz=0;		/* matz = 0 only values 1 = vectors, too */
-  int ierr;
-  COMP_PRECISION a[9],z[20],fv1[3],fv2[3];
-  a[0]      = mat6[BC_RR];			/* a11 */
-  a[1]=a[3] = mat6[BC_RT];			/* a12 */
-  a[2]=a[6] = mat6[BC_RP];			/* a13 */
-  a[4]      = mat6[BC_TT];			/* a22 */
-  a[5]=a[7] = mat6[BC_TP];			/* a23 */
-  a[8] =      mat6[BC_PP];			/* a33 */
-  SROUT(&n, &n, a, eigen, &matz, z, fv1, fv2, &ierr); /* eigenvalue/eigensystem routine from EISPACK */
-  return ierr;
+  COMP_PRECISION vec[9];	/* not computed! */
+  calc_eigensystem_vec6(vec6,eigen,vec,BC_FALSE,BC_TRUE);
+  return 0;
 }
 
 
@@ -80,13 +73,13 @@ BC_CPREC max_x_from_int_vector(BC_CPREC *x, int *y, int n)
    alpha,beta,gamma in radians
 
  */
-void rotate_vec6(BC_CPREC *tin, BC_CPREC *tout, BC_CPREC alpha, BC_CPREC beta, BC_CPREC gamma)
+void rotate_vec6(BC_CPREC *tin6, BC_CPREC *tout6, BC_CPREC alpha, BC_CPREC beta, BC_CPREC gamma)
 {
   BC_CPREC r[3][3],xin[3][3],xout[3][3];
   get_gen_rot(r,alpha,beta,gamma); /* get rotation matrix */
-  sixsymtomat(tin,xin);		   /* convert to 3x3 */
+  sixsymtomat(tin6,xin);		   /* convert to 3x3 */
   rotate_mat(xin,xout,r);	   /* rotate 3x3 */
-  mattosixsym(xout,tout);	   /* convert to [6] */
+  mattosixsym(xout,tout6);	   /* convert to [6] */
 }
 /* convert symmetric [6] storage to [3][3] matrix */
 void sixsymtomat(BC_CPREC *in6,BC_CPREC out[3][3])
@@ -160,6 +153,10 @@ void rotate_mat(BC_CPREC xin[3][3],BC_CPREC xout[3][3],
       for(k=0;k<3;k++)
 	xout[i][j] += r[i][k] * tmp[k][j];
     }
+}
+BC_CPREC trace6(BC_CPREC *a)
+{
+  return a[BC_RR] +  a[BC_PP] +  a[BC_TT];
 }
 void remove_trace(BC_CPREC *a)
 {
@@ -236,17 +233,51 @@ void get_index_vector(int **ind, int n, int random,long *seed)
       *(*ind+i) = i;
   }
 }
-void normalize_tens6(BC_CPREC *m6)	/* normalize a tensor given in 0...5
-				   format */
+void normalize_tens6(BC_CPREC *m6,BC_CPREC *m6out)
+/* normalize a tensor given in 0...5 format, m6out can be m6in */
 {
   BC_CPREC norm;
   int i;
   norm = tensor6_norm(m6);
   for(i=0;i<6;i++)
-    m6[i] /= norm;
-  /* test */
-  //fprintf(stderr,"old norm: %12.5e new norm: %12.5e\n",norm,tensor6_norm(m6));
+    m6out[i] = m6[i]/norm;
+  //fprintf(stderr,"normalize_tens6: old norm: %12.5e new norm: %12.5e\n",norm,tensor6_norm(m6out));
 }
+
+void max_normalize_tens6(BC_CPREC *m6,BC_CPREC *m6out)
+/* normalize a tensor given in 0...5 format, 
+   by the absolute maxium entry,
+   m6out can be m6in */
+{
+  BC_CPREC max,tmp;
+  int i;
+  max = fabs(m6[0]);
+  for(i=1;i<6;i++){
+    if((tmp=fabs(m6[i])) > max)
+      max = tmp;
+  }
+  for(i=0;i<6;i++)
+    m6out[i] = m6[i]/max;
+}
+
+void max_ev_normalize_tens6(BC_CPREC *m6,BC_CPREC *m6out)
+/* normalize a tensor given in 0...5 format, 
+   by the max absolute eigenvalue
+   m6out can be m6in */
+{
+  BC_CPREC max,tmp,eigen[3];
+  int i;
+  eigen_values_3dsym_vec6(m6, eigen);
+  max = fabs(eigen[0]);
+  for(i=1;i<3;i++){
+    if((tmp=fabs(eigen[i])) > max)
+      max = tmp;
+  }
+  for(i=0;i<6;i++)
+    m6out[i] = m6[i]/max;
+}
+
+
 
 /* compute tensor norm from symmetric tensor provided in [6]
    notation */

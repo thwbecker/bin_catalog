@@ -1,15 +1,19 @@
 #include "catalog.h"
 /* 
-   read AKI style events or in strike, dip, rake format and perform
-   stress inversion
+   read 
+   - MY AKI style events, or
+   - strike, dip, rake format 
+   
+   and perform stress inversion, Michael or Vavrychuk type
 
-   (c) 2020 - 2026, Thorsten Becker, thwbecker@post.harvard.edu, see README
+   (c) 2020 - 2026, Thorsten Becker, thwbecker@post.harvard.edu, see
+   README
 */
 int main(int argc, char **argv)
 {
  struct cat *catalog;
  BC_CPREC *weights,*angles,sdev[2],
-   sig_stress[6],stress[6],dstress[6],bstress[6],best_fric,bdev,ddev,inst[2];
+   sig_stress[6],stress[6],nstress[6],dstress[6],bstress[6],best_fric,bdev,ddev,inst[2];
  BC_SWITCH *select;
  int i,i6,rsweep,tsweep;
  long int seed = -1;
@@ -56,17 +60,28 @@ int main(int argc, char **argv)
      select[i]=0;
    }
  }
- /* solve for those particular planes */
- solve_stress_michael_specified_plane(catalog->n, angles, weights,stress);
- fprintf(stderr,"single1:          %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\n",
-	 stress[0],stress[1],stress[2],stress[3],stress[4],stress[5]);
- /* randomized  */
+ /* solve Michael style for those particular planes */
+ solve_stress_michael_specified_plane(catalog->n, angles, weights,stress,BC_FALSE);
+ fprintf(stderr,"single:           %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\ttr: %6.3f\n",
+	 stress[BC_RR],stress[BC_RT],stress[BC_RP],stress[BC_TT],stress[BC_TP],stress[BC_PP],trace6(stress));
+ /* proper normalized */
+ normalize_tens6(stress,nstress);
+ fprintf(stderr,"s norm:           %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\ttr: %6.3f\n",
+	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP],trace6(nstress));
+ /* max normalized */
+ max_normalize_tens6(stress,nstress);
+ fprintf(stderr,"s max_norm:       %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\ttr: %6.3f\n",
+	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP],trace6(nstress));
+
+ /* 
+    randomized Michael
+ */
  solve_stress_michael_random_sweep(catalog->n, angles,weights,stress, sig_stress,&seed,BC_MICHAEL_RSWEEP_MAX);
  calc_misfits_from_single_angle_set(stress,angles,catalog->n, sdev);
  calc_average_instability(catalog->n,angles,weights,BC_FRIC_DEF, stress,inst);
- fprintf(stderr,"srandom:          %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
-	 stress[0],stress[1],stress[2],stress[3],stress[4],stress[5],1-sdev[0],1-sdev[1],inst[0],inst[1]);
- /* for default and best friction */
+ fprintf(stderr,"srandom:          %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\ttr: %6.3f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
+	 stress[0],stress[1],stress[2],stress[3],stress[4],stress[5],trace6(stress),1-sdev[0],1-sdev[1],inst[0],inst[1]);
+ /* Varychuk for default and best friction */
  adjust_stress_for_friction(catalog->n,angles,weights,stress,dstress,bstress,&best_fric,&ddev,&bdev,
 			    BC_TRUE,BC_TRUE,&rsweep,&tsweep);
 

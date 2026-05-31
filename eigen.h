@@ -22,16 +22,16 @@
 #endif
 
 /* matrix */
-#define RR 0 // first six are used to initialize symmetric matrices
-#define RT 1
-#define RP 2
-#define TT 4
-#define TP 5
-#define PP 8
+#define EIG_RR 0 // first six are used to initialize symmetric matrices
+#define EIG_RT 1
+#define EIG_RP 2
+#define EIG_TT 4
+#define EIG_TP 5
+#define EIG_PP 8
 
-#define TR 3 // these are the (possibly) symmetric parts
-#define PR 6
-#define PT 7
+#define EIG_TR 3 // these are the (possibly) symmetric parts
+#define EIG_PR 6
+#define EIG_PT 7
 
 #ifndef BC_BOOLEAN 
 #define BC_BOOLEAN unsigned short
