@@ -88,7 +88,7 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
 	adjust_stress_for_friction(kostrov->bin[i].n,angles,weights,kostrov->bin[i].s,
 				   kostrov->bin[i].def_s,kostrov->bin[i].best_s,&(kostrov->bin[i].best_fric),
 				   (kostrov->bin[i].inst+1),(kostrov->bin[i].inst+2),optim_verbose,
-				   catalog->use_friction_solve-1,&rsweep,&osweep);
+				   catalog->use_friction_solve-1,&rsweep,&osweep,BC_FRIC_DEF);
 #ifdef DEBUG	
 	fprintf(stderr,"bin %05i: adjust_stress_for_friction: df sweep %i total sweep %i\n",i,rsweep,osweep);
 #endif
@@ -256,7 +256,8 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
 void adjust_stress_for_friction(int n, BC_CPREC *iangles, BC_CPREC *weights,
 				BC_CPREC *istress,BC_CPREC *dstress,BC_CPREC *bstress,
 				BC_CPREC *best_fric, BC_CPREC *dinst,BC_CPREC *binst,
-				BC_BOOLEAN verbose, int optimize,int *rsweep,int *osweep)
+				BC_BOOLEAN verbose, int optimize,int *rsweep,int *osweep,
+				BC_CPREC default_friction)
 {
   BC_CPREC max[2],friction;
   BC_CPREC tstress[6],inst[2],sdev[2],mdev[2];
@@ -265,27 +266,24 @@ void adjust_stress_for_friction(int n, BC_CPREC *iangles, BC_CPREC *weights,
   int i,isweep;
   asize = sizeof(BC_CPREC)*n*6;
   ssize = sizeof(BC_CPREC)*6;
-
   angles=(BC_CPREC *)malloc(asize);
-
-  
   /* 
      default friction 
   */
   memcpy(dstress,istress,ssize);
   memcpy(angles,iangles,asize);
-  optimize_angles_via_instability(n,angles,weights,BC_FRIC_DEF,dstress,inst,rsweep); /* for default friction */
+  optimize_angles_via_instability(n,angles,weights,default_friction,dstress,inst,rsweep); /* for default friction */
   if(inst[1] > inst[0]){	/* messed up */
     for(i=0;i<n;i++)		/* swap all angles */
       swap_angles((angles+i*6));
-    optimize_angles_via_instability(n,angles,weights,BC_FRIC_DEF,dstress,inst,&isweep);
+    optimize_angles_via_instability(n,angles,weights,default_friction,dstress,inst,&isweep);
     *rsweep += isweep;
   }
   /* compute the slip misgit angles */
   calc_misfits_from_single_angle_set(dstress,angles,n, sdev);
   if(verbose)
-    fprintf(stderr,"default: s(%4.2f): %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
-	    BC_FRIC_DEF,dstress[0],dstress[1],dstress[2],dstress[3],dstress[4],dstress[5],1-sdev[0],1-sdev[1],inst[0],inst[1]);
+    fprintf(stderr,"default: s(%4.2f): %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
+	    default_friction,dstress[0],dstress[1],dstress[2],dstress[3],dstress[4],dstress[5],1-sdev[0],1-sdev[1],inst[0],inst[1]);
   *dinst = inst[0];		/* keep default instability */
 
   *osweep =0;
@@ -307,7 +305,7 @@ void adjust_stress_for_friction(int n, BC_CPREC *iangles, BC_CPREC *weights,
       optimize_angles_via_instability(n,angles,weights,friction,tstress,inst,&isweep);
       *osweep += isweep;
 #ifdef SUPER_DEBUG
-      fprintf(stderr,"         s(%4.2f): %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev:               \tinst: %7.5f %7.5f\n",
+      fprintf(stderr,"         s(%4.2f): %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\t                    \tinst: %7.5f %7.5f\n",
 	      friction,tstress[0],tstress[1],tstress[2],tstress[3],tstress[4],tstress[5],inst[0],inst[1]);
 #endif
       if(inst[1] > inst[0]){
@@ -328,7 +326,7 @@ void adjust_stress_for_friction(int n, BC_CPREC *iangles, BC_CPREC *weights,
     }
     *binst = max[0];
     if(verbose)
-      fprintf(stderr,"optim:   s(%4.2f): %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
+      fprintf(stderr,"optim:   s(%4.2f): %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
 	      *best_fric,bstress[0],bstress[1],bstress[2],bstress[3],bstress[4],bstress[5],1-mdev[0],1-mdev[1],max[0],max[1]);
   }else{
     *binst = NAN;

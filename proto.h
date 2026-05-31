@@ -132,7 +132,7 @@ void stability_criterion_eig(double *, double *, double, double *, unsigned shor
 /* stress_inversion.c */
 void calc_stress_tensor_for_kbins(struct cat *);
 void solve_stress_michael_random_sweep(int, double *, double *, double *, double *, long int *,int);
-void adjust_stress_for_friction(int, double *, double *, double *, double *, double *, double *, double *, double *, unsigned short, int, int *, int *);
+void adjust_stress_for_friction(int, double *, double *, double *, double *, double *, double *, double *, double *, unsigned short, int, int *, int *,double);
 void solve_stress_michael_specified_plane(int, double *, double *, double *,unsigned short);
 void michael_solve_lsq(int, int, int, double *, double *, double *, double *);
 void my6stress2m3x3(double *, double [3][3]);

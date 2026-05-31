@@ -12,10 +12,10 @@
 int main(int argc, char **argv)
 {
  struct cat *catalog;
- BC_CPREC *weights,*angles,sdev[2],
+ BC_CPREC *weights,*angles,sdev[2],use_friction,
    sig_stress[6],stress[6],nstress[6],dstress[6],bstress[6],best_fric,bdev,ddev,inst[2];
  BC_SWITCH *select;
- int i,i6,rsweep,tsweep;
+ int i,i6,rsweep,tsweep,optimize;
  long int seed = -1;
  struct qke quake[1];
  catalog=(struct cat *)calloc(1,sizeof(struct cat));
@@ -62,28 +62,56 @@ int main(int argc, char **argv)
  }
  /* solve Michael style for those particular planes */
  solve_stress_michael_specified_plane(catalog->n, angles, weights,stress,BC_FALSE);
- fprintf(stderr,"single:           %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\ttr: %6.3f\n",
+ fprintf(stderr,"single, no norm:  %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\ttr: %7.4f\n",
 	 stress[BC_RR],stress[BC_RT],stress[BC_RP],stress[BC_TT],stress[BC_TP],stress[BC_PP],trace6(stress));
+
+ /* max abs eigen value normalized */
+ max_ev_normalize_tens6(stress,nstress);
+ fprintf(stderr,"evmax_norm:       %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
+	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP]);
+
  /* proper normalized */
  normalize_tens6(stress,nstress);
- fprintf(stderr,"s norm:           %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\ttr: %6.3f\n",
-	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP],trace6(nstress));
- /* max normalized */
- max_normalize_tens6(stress,nstress);
- fprintf(stderr,"s max_norm:       %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\ttr: %6.3f\n",
-	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP],trace6(nstress));
+ fprintf(stderr,"s norm:           %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
+	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP]);
 
+ /* needed for instability and varychuk inversion */
+ use_friction = 0.6;
+  
  /* 
     randomized Michael
  */
  solve_stress_michael_random_sweep(catalog->n, angles,weights,stress, sig_stress,&seed,BC_MICHAEL_RSWEEP_MAX);
  calc_misfits_from_single_angle_set(stress,angles,catalog->n, sdev);
- calc_average_instability(catalog->n,angles,weights,BC_FRIC_DEF, stress,inst);
- fprintf(stderr,"srandom:          %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\ttr: %6.3f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
-	 stress[0],stress[1],stress[2],stress[3],stress[4],stress[5],trace6(stress),1-sdev[0],1-sdev[1],inst[0],inst[1]);
- /* Varychuk for default and best friction */
+ calc_average_instability(catalog->n,angles,weights,use_friction,stress,inst);
+ fprintf(stderr,"srandom:          %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
+	 stress[0],stress[1],stress[2],stress[3],stress[4],stress[5],1-sdev[0],1-sdev[1],inst[0],inst[1]);
+ /* 
+    Varychuk for default and best friction 
+ */
+ optimize = 1;
  adjust_stress_for_friction(catalog->n,angles,weights,stress,dstress,bstress,&best_fric,&ddev,&bdev,
-			    BC_TRUE,BC_TRUE,&rsweep,&tsweep);
+			    BC_FALSE,optimize,&rsweep,&tsweep,use_friction);
+ /* 
+    default 
+ */
+ calc_misfits_from_single_angle_set(dstress,angles,catalog->n,sdev);
+ calc_average_instability(catalog->n,angles,weights,use_friction,dstress,inst);
+ fprintf(stderr,"sfitd(%.3f):     %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
+	 use_friction,dstress[0],dstress[1],dstress[2],dstress[3],dstress[4],dstress[5],
+	 1-sdev[0],1-sdev[1],inst[0],inst[1]);
+ //max_ev_normalize_tens6(dstress,nstress);fprintf(stderr,"evmax_norm:       %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP]);
+ /* 
+    best 
+ */
+ calc_misfits_from_single_angle_set(bstress,angles,catalog->n, sdev);
+ calc_average_instability(catalog->n,angles,weights,best_fric,bstress,inst);
+ fprintf(stderr,"sfitb(%.3f):     %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
+	 best_fric,bstress[0],bstress[1],bstress[2],bstress[3],bstress[4],bstress[5],1-sdev[0],1-sdev[1],inst[0],inst[1]);
+ //max_ev_normalize_tens6(bstress,nstress); fprintf(stderr,"evmax_norm:       %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP]);
+
+ 
+ 
 
  return 0;
 }
