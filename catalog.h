@@ -86,7 +86,9 @@
 #define BC_FRIC_DEF 0.6
 #define BC_FRIC_SCAN_INC 0.025	/* increment for friction scan 0...1 */
 #define BC_FRIC_SCAN_INC2 0.01	/* increment for friction scan 0.2...0.8 */
-#define BC_MAX_SWEEP_FAC 2	/* multiple of number of bins */
+
+#define BC_VI_ITER 6
+#define BC_VI_NREAL 10
 /* 
 
    catalog closeness

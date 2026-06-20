@@ -140,3 +140,7 @@ void michael_assign_to_matrix(double *, int *, double **, double **);
 /* test_eigen.c */
 /* test_kdtree.c */
 void demo2(void);
+
+void stress_inversion_mstyle(int , BC_CPREC *, BC_CPREC *,BC_CPREC , BC_CPREC, BC_CPREC ,
+                             int , int , long int *,BC_CPREC *, BC_CPREC *,BC_CPREC *, BC_CPREC *,
+                             BC_CPREC *);

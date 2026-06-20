@@ -43,7 +43,7 @@ void optimize_angles_via_instability(int n,BC_CPREC *angles,
   toswap = (BC_BOOLEAN *)malloc(sizeof(BC_BOOLEAN)*n);
   if((!bangles)||(!toswap))
     BC_MEMERROR("optimize_angles_via_instability");
-  max_sweep = 5 + BC_MAX_SWEEP_FAC * n;
+  max_sweep = 5 + 2 * n;
   min_sweep = 3;
   if(max_sweep < 10)
     max_sweep = 10;
