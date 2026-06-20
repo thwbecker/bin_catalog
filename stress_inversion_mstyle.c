@@ -114,6 +114,7 @@ static void mstyle_select_planes(int n, BC_CPREC *angles, BC_CPREC mu,
       tn  = p1s + sf * p2s - p3s;                    /* normalized normal */
       tmp = p1s + sf * sf * p2s + p3s - tn * tn;
       ts  = (tmp > 0.0) ? sqrt(tmp) : 0.0;           /* normalized shear  */
+      /* compute instability here */
       inst[p] = (ts - mu * (tn - 1.0)) / ff;
     }
     memcpy(sel + j6, angles + j6, 6 * sizeof(BC_CPREC));
@@ -169,7 +170,8 @@ void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
     }
     solve_stress_michael_specified_plane(n, rnd, weights, raw, BC_FALSE);
     max_ev_normalize_tens6(raw, tnorm); /* match linear_stress_inversion_Michael */
-    for (k = 0; k < 6; k++) acc[k] += tnorm[k];
+    for (k = 0; k < 6; k++)
+      acc[k] += tnorm[k];
   }
   max_ev_normalize_tens6(acc, tau);     /* tau0 (scale is irrelevant to iter) */
 
@@ -181,8 +183,11 @@ void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
       solve_stress_michael_specified_plane(n, sel, weights, raw, BC_FALSE);
       max_ev_normalize_tens6(raw, tau); /* match linear_stress_inversion */
     }
-    if (mean_inst > best_mean) { best_mean = mean_inst; fopt_l = mu; }
-    if (finc <= 0.0) break;             /* guard against fmin==fmax, finc 0 */
+    if (mean_inst > best_mean) {
+      best_mean = mean_inst; fopt_l = mu;
+    }
+    if (finc <= 0.0)
+      break;             /* guard against fmin==fmax, finc 0 */
   }
 
   /* -------- final pass at optimum friction (tau carries over) -------- */

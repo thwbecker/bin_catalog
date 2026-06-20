@@ -96,12 +96,12 @@ int main(int argc, char **argv)
 			 dstress, &shape_ratio, &best_fric, &mean_instability, NULL);
  fprintf(stderr, "mstyle R = %.4f   friction_opt = %.3f   mean_instability = %.5f\n",
 	 shape_ratio, best_fric, mean_instability);
- fprintf(stderr,"single, no norm:  %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\ttr: %7.4f\n",
+ fprintf(stderr,"evmax_norm:       %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\ttr: %7.4f\n",
 	 dstress[BC_RR],dstress[BC_RT],dstress[BC_RP],dstress[BC_TT],dstress[BC_TP],dstress[BC_PP],trace6(dstress));
 
- /* max abs eigen value normalized */
- max_ev_normalize_tens6(dstress,nstress);
- fprintf(stderr,"evmax_norm:       %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
+ /* regular norm */
+ normalize_tens6(stress,nstress);
+ fprintf(stderr,"s norm:           %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
 	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP]);
  
 
