@@ -34,7 +34,7 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
   BC_CPREC *angles,*weights,ainst[2],shape_ratio,fopt,minst,fmin,fmax,finc;
 #ifdef DEBUG
   int k;
-  BC_CPREC sdev[2];
+  BC_CPREC dotp[2];
 #endif
   kostrov = catalog->sum;
   angles = (BC_CPREC *)malloc(6*sizeof(BC_CPREC));
@@ -77,11 +77,11 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
       kostrov->bin[i].inst[0] = ainst[0];
       
 #ifdef DEBUG
-      calc_misfits_from_single_angle_set(kostrov->bin[i].s,angles,kostrov->bin[i].n, sdev);
-      fprintf(stderr,"srandom:          %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev: %7.5f a%7.5f\tinst: %7.5f %7.5f\n",
+      calc_misfits_from_single_angle_set(kostrov->bin[i].s,angles,kostrov->bin[i].n, dotp);
+      fprintf(stderr,"srandom:          %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tdotp: %7.5f a%7.5f\tinst: %7.5f %7.5f\n",
 	      kostrov->bin[i].s[0],kostrov->bin[i].s[1],kostrov->bin[i].s[2],kostrov->bin[i].s[3],
 	      kostrov->bin[i].s[4],kostrov->bin[i].s[5],
-	      sdev[0],sdev[1],ainst[0],ainst[1]);
+	      dotp[0],dotp[1],ainst[0],ainst[1]);
 #endif
       if(catalog->use_friction_solve){
 	/* Vavrycuk , default fixed friction -> def_s, inst[1] */

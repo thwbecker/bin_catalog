@@ -118,12 +118,10 @@ double dabs(double);
 void michael_atransa(double *, int, int, double *);
 void michael_atransb(double *, int, int, double *, double *);
 void michael_sigsq(double *, int, int, double *, double *, double *);
-/* nsample_catalog.c */
-/* slip_deviation.c */
 void calc_misfits_from_single_angle_set(double *, double *, int, double *);
-void slip_deviation_svec_single(double *, double *, double *, double *);
-void slip_deviation_mmat_single(double [3][3], double *, double *, double *);
-double slip_deviation_dotp(double *, double *, double [3][3]);
+void slip_dotp_svec_single(double *, double *, double *, double *);
+void slip_dotp_mmat_single(double [3][3], double *, double *, double *);
+double slip_dotp_dotp(double *, double *, double [3][3]);
 /* solve_stress_one_bin.c */
 /* stress_inversion.c */
 void calc_stress_tensor_for_kbins(struct cat *);

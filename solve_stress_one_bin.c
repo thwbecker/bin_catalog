@@ -12,7 +12,7 @@
 int main(int argc, char **argv)
 {
  struct cat *catalog;
- BC_CPREC *weights,*angles,sdev[2],use_friction,fopt,shape_ratio,
+ BC_CPREC *weights,*angles,dotp[2],use_friction,fopt,shape_ratio,
    sig_stress[6],stress[6],nstress[6],dstress[6],bstress[6],best_fric,mean_instability;
  BC_SWITCH *select;
  int i,i6,rsweep,tsweep,optimize;
@@ -82,9 +82,9 @@ int main(int argc, char **argv)
     randomized Michael
  */
  solve_stress_michael_random_sweep(catalog->n, angles,weights,stress, sig_stress,&seed,BC_MICHAEL_RSWEEP_MAX);
- calc_misfits_from_single_angle_set(stress,angles,catalog->n, sdev);
- fprintf(stderr,"srandom:          %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\t sdev: %7.5f %7.5f\n\n",
-	 stress[BC_RR],stress[BC_RT],stress[BC_RP],stress[BC_TT],stress[BC_TP],stress[BC_PP],sdev[0],sdev[1]);
+ calc_misfits_from_single_angle_set(stress,angles,catalog->n, dotp);
+ fprintf(stderr,"srandom:          %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\t dotp: %7.5f %7.5f\n\n",
+	 stress[BC_RR],stress[BC_RT],stress[BC_RP],stress[BC_TT],stress[BC_TP],stress[BC_PP],dotp[0],dotp[1]);
  /* 
     Varychuk for default and best friction 
  */
@@ -95,9 +95,9 @@ int main(int argc, char **argv)
 			   BC_VI_ITER,  BC_VI_NREAL, &seed,
 			   dstress, &shape_ratio, &best_fric, &mean_instability, NULL,
 			   BC_STRESS_NORM_TENSOR);
- calc_misfits_from_single_angle_set(dstress,angles,catalog->n, sdev);
- fprintf(stderr, "Vav fixed R = %.4f   friction_opt = %.3f   mean_instability = %.5f sdev: %7.5f %7.5f\n",
-	 shape_ratio, best_fric, mean_instability,sdev[0],sdev[1]);
+ calc_misfits_from_single_angle_set(dstress,angles,catalog->n, dotp);
+ fprintf(stderr, "Vav fixed R = %.4f   friction_opt = %.3f   mean_instability = %.5f dotp: %7.5f %7.5f\n",
+	 shape_ratio, best_fric, mean_instability,dotp[0],dotp[1]);
  fprintf(stderr,"s norm:           %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
 	 dstress[BC_RR],dstress[BC_RT],dstress[BC_RP],dstress[BC_TT],dstress[BC_TP],dstress[BC_PP]);
  
@@ -110,9 +110,9 @@ int main(int argc, char **argv)
  stress_inversion_vavrycuk(catalog->n, angles, weights, 0.01, 0.99, 0.001,BC_VI_ITER,  BC_VI_NREAL, &seed,
 			   dstress, &shape_ratio, &best_fric, &mean_instability, NULL,
 			 BC_STRESS_NORM_TENSOR);
- calc_misfits_from_single_angle_set(dstress,angles,catalog->n, sdev);
- fprintf(stderr, "Vav sweep R = %.4f   friction_opt = %.3f   mean_instability = %.5f sdev: %7.5f %7.5f\n",
-	 shape_ratio, best_fric, mean_instability,sdev[0],sdev[1]);
+ calc_misfits_from_single_angle_set(dstress,angles,catalog->n, dotp);
+ fprintf(stderr, "Vav sweep R = %.4f   friction_opt = %.3f   mean_instability = %.5f dotp: %7.5f %7.5f\n",
+	 shape_ratio, best_fric, mean_instability,dotp[0],dotp[1]);
  fprintf(stderr,"s norm:           %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
 	 dstress[BC_RR],dstress[BC_RT],dstress[BC_RP],dstress[BC_TT],dstress[BC_TP],dstress[BC_PP]);
  
