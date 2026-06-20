@@ -33,8 +33,9 @@ CAT_OBJS = $(ODIR)/handle_catalog.o  $(ODIR)/fault_eq.o   \
 	$(ODIR)/geo_kdtree.o  $(ODIR)/eigen.o \
 	$(MECA_OBJS) 
 
-# from Vavrychuk
-SINV_OBS = 	$(ODIR)/stress_inversion.o $(ODIR)/stress_inversion_vavrycuk.o $(ODIR)/slip_deviation.o  
+# from Michael and Vavrychuk
+SINV_OBS = 	$(ODIR)/stress_inversion.o 	$(ODIR)/stress_inversion_michael.o \
+	$(ODIR)/stress_inversion_vavrycuk.o 
 
 
 INCLUDES = $(GMT_INC)
