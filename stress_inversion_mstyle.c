@@ -101,10 +101,8 @@ static void mstyle_select_planes(int n, BC_CPREC *angles, BC_CPREC mu,
   for (j = j6 = 0; j < n; j++, j6 += 6) {
     for (p = 0; p < 2; p++) {          /* p=0 -> plane 1, p=1 -> plane 2 */
       off = j6 + p * 3;
-      ss = sin(angles[off]);
-      cs = cos(angles[off]);
-      sd = sin(angles[off + 1]);
-      cd = cos(angles[off + 1]);
+      sincos(angles[off],     &ss, &cs);
+      sincos(angles[off + 1], &sd, &cd);
       /* MATLAB Cartesian fault normal (strike used directly, no +pi/2) */
       nx = -sd * ss;
       ny =  sd * cs;
@@ -193,13 +191,16 @@ void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
     solve_stress_michael_specified_plane(n, sel, weights, raw, BC_FALSE);
     max_ev_normalize_tens6(raw, tau);
   }
+  /* resolve planes and mean instability consistent with the FINAL tensor
+     (the loop above leaves mean_inst one solve behind tau) */
+  mstyle_select_planes(n, angles, fopt_l, tau, sel, &mean_inst);
 
   /* -------- outputs -------- */
   memcpy(stress, tau, 6 * sizeof(BC_CPREC));
   calc_eigensystem_vec6(tau, sg, sv, BC_FALSE, BC_FALSE); /* ascending */
   *shape_ratio = (sg[0] - sg[1]) / (sg[0] - sg[2]);
   *fopt  = fopt_l;
-  *minst = best_mean;
+  *minst = mean_inst;
   if (sel_out)
     memcpy(sel_out, sel, asize);
 
