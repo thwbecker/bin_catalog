@@ -100,7 +100,7 @@ int main(int argc, char **argv)
 	 dstress[BC_RR],dstress[BC_RT],dstress[BC_RP],dstress[BC_TT],dstress[BC_TP],dstress[BC_PP],trace6(dstress));
 
  /* regular norm */
- normalize_tens6(stress,nstress);
+ normalize_tens6(dstress,nstress);
  fprintf(stderr,"s norm:           %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
 	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP]);
  

@@ -138,7 +138,7 @@ static void mstyle_select_planes(int n, BC_CPREC *angles, BC_CPREC mu,
     n_real            realizations for init     (MATLAB N_realizations, 10)
     seed              RNG seed (ran2 convention; pass a negative long)
   outputs:
-    stress    (6) max|eig|-normalized tensor, r,theta,phi order
+    stress    (6) MAX|EIG|-NORMALIZED TENSOR, R,theta,phi order
     shape_ratio   (sigma1-sigma2)/(sigma1-sigma3), ascending convention
     fopt          optimum friction
     minst         mean instability at the optimum
