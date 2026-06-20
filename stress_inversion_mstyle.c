@@ -56,67 +56,89 @@
 */
 
 /*
-  pick, for each event, the more unstable of its two original nodal
-  planes under stress tensor "stress" and friction "mu", writing the
-  selected planes (selected plane first in each 6-block) into sel.
-  returns the mean of the per-event chosen instabilities in *mean_inst.
+  shared instability kernel, MATLAB (Vavrycuk reference) convention.
 
-  faithful port of stability_criterion.m. The Michael tensor is
-  converted from the spherical storage used here (RR,RT,RP,TT,TP,PP)
-  to the MATLAB Cartesian frame, eigendecomposed in that frame, and the
-  MATLAB fault normal and instability formula are applied directly, with
-  sigma1 = smallest eigenvalue (ascending sort, as in the .m file).
+  mstyle_eigen: convert the Michael tensor from the spherical storage
+  used here (RR,RT,RP,TT,TP,PP) to the MATLAB Cartesian 3x3
+  [[xx,xy,xz],[xy,yy,yz],[xz,yz,zz]], packed for calc_eigensystem_vec6
+  as [xx,xy,xz,yy,yz,zz] (verified relation: xx=TT, yy=PP, zz=RR,
+  xy=-TP, xz=RT, yz=-RP), and eigendecompose ascending so sigma[0] is
+  the smallest eigenvalue (sigma1 in the .m file). Returns the three
+  eigenvectors (v1=min .. v3=max) and sf = 1 - 2R.
+
+  Working in this frame is what makes the MATLAB fault normal and the
+  eigenvectors mutually consistent. This is the single definition of
+  instability used by both the iterative solver and the averaging
+  routine, so the two never drift apart.
 */
-static void mstyle_select_planes(int n, BC_CPREC *angles, BC_CPREC mu,
-                                 BC_CPREC *stress, BC_CPREC *sel,
-                                 BC_CPREC *mean_inst)
+void mstyle_eigen(const BC_CPREC *stress,
+		  BC_CPREC *v1, BC_CPREC *v2, BC_CPREC *v3,
+		  BC_CPREC *sf)
 {
-  BC_CPREC m6[6], sigma[3], svec[9], v1[3], v2[3], v3[3];
-  BC_CPREC sf, ff, acc = 0.0;
-  BC_CPREC ss, cs, sd, cd, nx, ny, nz, p1, p2, p3, p1s, p2s, p3s;
-  BC_CPREC tn, ts, tmp, inst[2];
-  int j, j6, p, off;
-
-  /* convert the Michael tensor from spherical storage to the MATLAB
-     Cartesian 3x3 [[xx,xy,xz],[xy,yy,yz],[xz,yz,zz]], packed for
-     calc_eigensystem_vec6 as [xx,xy,xz,yy,yz,zz]. verified relation:
-     xx=TT, yy=PP, zz=RR, xy=-TP, xz=RT, yz=-RP. Working in this frame
-     is what makes the MATLAB normal and eigenvectors consistent. */
+  BC_CPREC m6[6], sigma[3], svec[9];
   m6[0] =  stress[BC_TT];   /* xx */
   m6[1] = -stress[BC_TP];   /* xy */
   m6[2] =  stress[BC_RT];   /* xz */
   m6[3] =  stress[BC_PP];   /* yy */
   m6[4] = -stress[BC_RP];   /* yz */
   m6[5] =  stress[BC_RR];   /* zz */
+  calc_eigensystem_vec6(m6, sigma, svec, BC_TRUE, BC_FALSE); /* ascending */
+  v1[0] = svec[0]; v1[1] = svec[1]; v1[2] = svec[2]; /* sigma1 (min) */
+  v2[0] = svec[3]; v2[1] = svec[4]; v2[2] = svec[5]; /* sigma2       */
+  v3[0] = svec[6]; v3[1] = svec[7]; v3[2] = svec[8]; /* sigma3 (max) */
+  *sf = 1.0 - 2.0 * (sigma[0] - sigma[1]) / (sigma[0] - sigma[2]);
+}
 
-  /* ascending eigenvalues: sigma[0] = smallest = sigma1 (MATLAB) */
-  calc_eigensystem_vec6(m6, sigma, svec, BC_TRUE, BC_FALSE);
-  v1[0] = svec[0]; v1[1] = svec[1]; v1[2] = svec[2]; /* sigma1 (min)  */
-  v2[0] = svec[3]; v2[1] = svec[4]; v2[2] = svec[5]; /* sigma2        */
-  v3[0] = svec[6]; v3[1] = svec[7]; v3[2] = svec[8]; /* sigma3 (max)  */
+/*
+  Vavrycuk instability of the two nodal planes of one event (6 angles,
+  radians), given the eigensystem from mstyle_eigen, sf = 1-2R, friction
+  mu, and ff = mu + sqrt(1+mu*mu). Result in inst[0] (plane 1), inst[1]
+  (plane 2). sigma1 = smallest eigenvalue, MATLAB Cartesian normal.
+*/
+void mstyle_plane_inst(const BC_CPREC *v1, const BC_CPREC *v2,
+		       const BC_CPREC *v3, BC_CPREC sf,
+		       BC_CPREC mu, BC_CPREC ff,
+		       const BC_CPREC *a6, BC_CPREC *inst)
+{
+  BC_CPREC ss, cs, sd, cd, nx, ny, nz, p1, p2, p3, p1s, p2s, p3s, tn, ts, tmp;
+  int p, off;
+  for (p = 0; p < 2; p++) {            /* p=0 -> plane 1, p=1 -> plane 2 */
+    off = p * 3;
+    sincos(a6[off],     &ss, &cs);
+    sincos(a6[off + 1], &sd, &cd);
+    /* MATLAB Cartesian fault normal (strike used directly, no +pi/2) */
+    nx = -sd * ss;
+    ny =  sd * cs;
+    nz = -cd;
+    p1 = nx * v1[0] + ny * v1[1] + nz * v1[2];
+    p2 = nx * v2[0] + ny * v2[1] + nz * v2[2];
+    p3 = nx * v3[0] + ny * v3[1] + nz * v3[2];
+    p1s = p1 * p1; p2s = p2 * p2; p3s = p3 * p3;
+    tn  = p1s + sf * p2s - p3s;                    /* normalized normal */
+    tmp = p1s + sf * sf * p2s + p3s - tn * tn;
+    ts  = (tmp > 0.0) ? sqrt(tmp) : 0.0;           /* normalized shear  */
+    inst[p] = (ts - mu * (tn - 1.0)) / ff;
+  }
+}
 
-  sf = 1.0 - 2.0 * (sigma[0] - sigma[1]) / (sigma[0] - sigma[2]);
+/*
+  pick, for each event, the more unstable of its two original nodal
+  planes under stress tensor "stress" and friction "mu", writing the
+  selected planes (selected plane first in each 6-block) into sel.
+  returns the mean of the per-event chosen instabilities in *mean_inst.
+*/
+void mstyle_select_planes(int n, BC_CPREC *angles, BC_CPREC mu,
+			  BC_CPREC *stress, BC_CPREC *sel,
+			  BC_CPREC *mean_inst)
+{
+  BC_CPREC v1[3], v2[3], v3[3], sf, ff, inst[2], acc = 0.0;
+  int j, j6;
+
+  mstyle_eigen(stress, v1, v2, v3, &sf);
   ff = mu + sqrt(1.0 + mu * mu);
 
   for (j = j6 = 0; j < n; j++, j6 += 6) {
-    for (p = 0; p < 2; p++) {          /* p=0 -> plane 1, p=1 -> plane 2 */
-      off = j6 + p * 3;
-      sincos(angles[off],     &ss, &cs);
-      sincos(angles[off + 1], &sd, &cd);
-      /* MATLAB Cartesian fault normal (strike used directly, no +pi/2) */
-      nx = -sd * ss;
-      ny =  sd * cs;
-      nz = -cd;
-      p1 = nx * v1[0] + ny * v1[1] + nz * v1[2];
-      p2 = nx * v2[0] + ny * v2[1] + nz * v2[2];
-      p3 = nx * v3[0] + ny * v3[1] + nz * v3[2];
-      p1s = p1 * p1; p2s = p2 * p2; p3s = p3 * p3;
-      tn  = p1s + sf * p2s - p3s;                    /* normalized normal */
-      tmp = p1s + sf * sf * p2s + p3s - tn * tn;
-      ts  = (tmp > 0.0) ? sqrt(tmp) : 0.0;           /* normalized shear  */
-      /* compute instability here */
-      inst[p] = (ts - mu * (tn - 1.0)) / ff;
-    }
+    mstyle_plane_inst(v1, v2, v3, sf, mu, ff, (angles + j6), inst);
     memcpy(sel + j6, angles + j6, 6 * sizeof(BC_CPREC));
     if (inst[1] > inst[0]) {           /* keep the more unstable plane first */
       swap_angles(sel + j6);
@@ -126,6 +148,35 @@ static void mstyle_select_planes(int n, BC_CPREC *angles, BC_CPREC mu,
     }
   }
   *mean_inst = acc / (BC_CPREC)n;
+}
+
+/*
+  mean Vavrycuk instability of a stress tensor over a set of events,
+  MATLAB convention, consistent with stress_inversion_mstyle (replaces
+  calc_average_instability, which used the opposite sigma convention).
+
+    ainst[0] = mean over events of the MORE unstable plane (the fault
+               the stress predicts), i.e. the meaningful quality metric
+    ainst[1] = mean over events of the LESS unstable plane
+
+  angles are the two nodal planes per event (order does not matter, the
+  max is taken). weights are accepted for API symmetry but, as in the
+  MATLAB reference, the mean is unweighted.
+*/
+void mstyle_average_instability(int n, BC_CPREC *angles, BC_CPREC *weights,
+                                BC_CPREC mu, BC_CPREC *stress, BC_CPREC *ainst)
+{
+  BC_CPREC v1[3], v2[3], v3[3], sf, ff, inst[2], hi = 0.0, lo = 0.0;
+  int j, j6;
+  mstyle_eigen(stress, v1, v2, v3, &sf);
+  ff = mu + sqrt(1.0 + mu * mu);
+  for (j = j6 = 0; j < n; j++, j6 += 6) {
+    mstyle_plane_inst(v1, v2, v3, sf, mu, ff, (angles + j6), inst);
+    if (inst[1] > inst[0]) { hi += inst[1]; lo += inst[0]; }
+    else                   { hi += inst[0]; lo += inst[1]; }
+  }
+  ainst[0] = hi / (BC_CPREC)n;
+  ainst[1] = lo / (BC_CPREC)n;
 }
 
 /*

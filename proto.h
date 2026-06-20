@@ -125,14 +125,9 @@ void slip_deviation_svec_single(double *, double *, double *, double *);
 void slip_deviation_mmat_single(double [3][3], double *, double *, double *);
 double slip_deviation_dotp(double *, double *, double [3][3]);
 /* solve_stress_one_bin.c */
-/* stability_criterion.c */
-void optimize_angles_via_instability(int, double *, double *, double, double *, double *, int *);
-void calc_average_instability(int, double *, double *, double, double *, double *);
-void stability_criterion_eig(double *, double *, double, double *, unsigned short, double *);
 /* stress_inversion.c */
 void calc_stress_tensor_for_kbins(struct cat *);
 void solve_stress_michael_random_sweep(int, double *, double *, double *, double *, long int *,int);
-void adjust_stress_for_friction(int, double *, double *, double *, double *, double *, double *, double *, double *, unsigned short, int, int *, int *,double);
 void solve_stress_michael_specified_plane(int, double *, double *, double *,unsigned short);
 void michael_solve_lsq(int, int, int, double *, double *, double *, double *);
 void my6stress2m3x3(double *, double [3][3]);
@@ -144,3 +139,4 @@ void demo2(void);
 void stress_inversion_mstyle(int , BC_CPREC *, BC_CPREC *,BC_CPREC , BC_CPREC, BC_CPREC ,
                              int , int , long int *,BC_CPREC *, BC_CPREC *,BC_CPREC *, BC_CPREC *,
                              BC_CPREC *, int);
+void mstyle_average_instability(int, BC_CPREC *, BC_CPREC *, BC_CPREC, BC_CPREC *, BC_CPREC *);
