@@ -34,8 +34,7 @@ CAT_OBJS = $(ODIR)/handle_catalog.o  $(ODIR)/fault_eq.o   \
 	$(MECA_OBJS) 
 
 # from Vavrychuk
-SINV_OBS = 	$(ODIR)/stress_inversion.o $(ODIR)/stress_inversion_mstyle.o \
-	$(ODIR)/stability_criterion.o $(ODIR)/slip_deviation.o  
+SINV_OBS = 	$(ODIR)/stress_inversion.o $(ODIR)/stress_inversion_mstyle.o $(ODIR)/slip_deviation.o  
 
 
 INCLUDES = $(GMT_INC)
