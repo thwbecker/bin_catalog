@@ -23,7 +23,7 @@ int main(int argc, char **argv)
   struct kostrov_sum *kostrov;
   
   int itmp,ic;
-  char out_filename[500],out_filename2[500],out_istring[500];
+  char out_filename[BC_CHAR_LEN],out_filename2[BC_CHAR_LEN],out_istring[BC_CHAR_LEN];
   BC_BOOLEAN use_aki = BC_TRUE;
   BC_BOOLEAN remove_trace =  BC_TRUE;	/* remove trace from summations */
   BC_BOOLEAN calc_stress =   BC_TRUE;
