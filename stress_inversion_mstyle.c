@@ -137,19 +137,32 @@ static void mstyle_select_planes(int n, BC_CPREC *angles, BC_CPREC mu,
     n_iter            iterations per friction   (MATLAB N_iterations,   6)
     n_real            realizations for init     (MATLAB N_realizations, 10)
     seed              RNG seed (ran2 convention; pass a negative long)
+    norm_type         normalization of the RETURNED tensor only:
+                      BC_STRESS_NORM_EV     -> max abs eigenvalue
+                      BC_STRESS_NORM_TENSOR -> tensor (Frobenius) norm
+                      (the iteration itself is scale invariant, so this
+                       affects the returned scale only, not R, the
+                       instability, the resolved planes, or convergence)
   outputs:
-    stress    (6) MAX|EIG|-NORMALIZED TENSOR, R,theta,phi order
+    stress    (6) tensor normalized per norm_type, R,theta,phi order
     shape_ratio   (sigma1-sigma2)/(sigma1-sigma3), ascending convention
     fopt          optimum friction
     minst         mean instability at the optimum
     sel_out   (6n) resolved planes, selected plane first (may be NULL)
+
+  note: tau is NOT normalized between iterations. mstyle_select_planes
+  and the Michael re-solve depend on tau only through scale invariant
+  quantities (eigenvector directions, shape ratio) and the selected
+  planes, so the per-iteration normalization that the MATLAB code does
+  is redundant and is skipped here to avoid an extra eigensolve per
+  step. The single normalization of the returned tensor is done once.
 */
 void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
                              BC_CPREC fmin, BC_CPREC fmax, BC_CPREC finc,
                              int n_iter, int n_real, long int *seed,
                              BC_CPREC *stress, BC_CPREC *shape_ratio,
                              BC_CPREC *fopt, BC_CPREC *minst,
-                             BC_CPREC *sel_out)
+                             BC_CPREC *sel_out, int norm_type)
 {
   BC_CPREC *sel, *rnd, raw[6], tau[6], acc[6], tnorm[6], sg[3], sv[9];
   BC_CPREC mean_inst, best_mean, fopt_l, mu;
@@ -160,7 +173,11 @@ void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
   rnd = (BC_CPREC *)malloc(asize);
   if ((!sel) || (!rnd)) BC_MEMERROR("stress_inversion_mstyle");
 
-  /* -------- initial guess: averaged randomized-plane Michael -------- */
+  /* -------- initial guess: averaged randomized-plane Michael --------
+     each realization is max|eig| normalized before averaging, matching
+     linear_stress_inversion_Michael.m. this is only n_real calls and is
+     not on the hot path; the converged result is initialization
+     independent, so the choice here does not affect the answer. */
   for (k = 0; k < 6; k++) acc[k] = 0.0;
   for (r = 0; r < n_real; r++) {
     for (j = j6 = 0; j < n; j++, j6 += 6) {
@@ -169,11 +186,11 @@ void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
         swap_angles(rnd + j6);
     }
     solve_stress_michael_specified_plane(n, rnd, weights, raw, BC_FALSE);
-    max_ev_normalize_tens6(raw, tnorm); /* match linear_stress_inversion_Michael */
+    max_ev_normalize_tens6(raw, tnorm);
     for (k = 0; k < 6; k++)
       acc[k] += tnorm[k];
   }
-  max_ev_normalize_tens6(acc, tau);     /* tau0 (scale is irrelevant to iter) */
+  memcpy(tau, acc, 6 * sizeof(BC_CPREC)); /* tau0 (scale irrelevant to iter) */
 
   /* -------- friction scan, tau carried across (as MATLAB) ----------- */
   best_mean = -1e30; fopt_l = fmin;
@@ -181,7 +198,7 @@ void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
     for (it = 0; it < n_iter; it++) {
       mstyle_select_planes(n, angles, mu, tau, sel, &mean_inst);
       solve_stress_michael_specified_plane(n, sel, weights, raw, BC_FALSE);
-      max_ev_normalize_tens6(raw, tau); /* match linear_stress_inversion */
+      memcpy(tau, raw, 6 * sizeof(BC_CPREC)); /* no norm: selection is scale invariant */
     }
     if (mean_inst > best_mean) {
       best_mean = mean_inst; fopt_l = mu;
@@ -194,11 +211,17 @@ void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
   for (it = 0; it < n_iter; it++) {
     mstyle_select_planes(n, angles, fopt_l, tau, sel, &mean_inst);
     solve_stress_michael_specified_plane(n, sel, weights, raw, BC_FALSE);
-    max_ev_normalize_tens6(raw, tau);
+    memcpy(tau, raw, 6 * sizeof(BC_CPREC));
   }
   /* resolve planes and mean instability consistent with the FINAL tensor
      (the loop above leaves mean_inst one solve behind tau) */
   mstyle_select_planes(n, angles, fopt_l, tau, sel, &mean_inst);
+
+  /* -------- normalize the returned tensor once, per request -------- */
+  if (norm_type == BC_STRESS_NORM_TENSOR)
+    normalize_tens6(tau, tau);
+  else
+    max_ev_normalize_tens6(tau, tau);    /* BC_STRESS_NORM_EV (default) */
 
   /* -------- outputs -------- */
   memcpy(stress, tau, 6 * sizeof(BC_CPREC));

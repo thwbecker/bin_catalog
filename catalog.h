@@ -89,6 +89,9 @@
 
 #define BC_VI_ITER 6
 #define BC_VI_NREAL 10
+/* normalization of the tensor returned by stress_inversion_mstyle */
+#define BC_STRESS_NORM_EV     0	/* max abs eigenvalue normalization */
+#define BC_STRESS_NORM_TENSOR 1	/* tensor (Frobenius) norm */
 /* 
 
    catalog closeness

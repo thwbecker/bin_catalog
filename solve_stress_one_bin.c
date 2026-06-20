@@ -93,17 +93,19 @@ int main(int argc, char **argv)
  */
  stress_inversion_mstyle(catalog->n, angles, weights, use_friction, use_friction, 0.1,
 			 BC_VI_ITER,  BC_VI_NREAL, &seed,
-			 dstress, &shape_ratio, &best_fric, &mean_instability, NULL);
- fprintf(stderr, "mstyle R = %.4f   friction_opt = %.3f   mean_instability = %.5f\n",
-	 shape_ratio, best_fric, mean_instability);
- fprintf(stderr,"evmax_norm:       %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\ttr: %7.4f\n",
-	 dstress[BC_RR],dstress[BC_RT],dstress[BC_RP],dstress[BC_TT],dstress[BC_TP],dstress[BC_PP],trace6(dstress));
-
- /* regular norm */
- normalize_tens6(dstress,nstress);
+			 dstress, &shape_ratio, &best_fric, &mean_instability, NULL,
+			 BC_STRESS_NORM_TENSOR);
+ fprintf(stderr, "mstyle R = %.4f   friction_opt = %.3f   mean_instability = %.5f\n",shape_ratio, best_fric, mean_instability);
  fprintf(stderr,"s norm:           %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
-	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP]);
+	 dstress[BC_RR],dstress[BC_RT],dstress[BC_RP],dstress[BC_TT],dstress[BC_TP],dstress[BC_PP]);
  
+ max_ev_normalize_tens6(dstress,nstress); 
+ fprintf(stderr,"evmax_norm:       %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\ttr: %7.4f\n",
+	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP],trace6(nstress));
+
+
+
+
 
  return 0;
 }
