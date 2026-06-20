@@ -332,22 +332,6 @@ void calc_misfits_from_single_angle_set(BC_CPREC *stress,BC_CPREC *angles, int n
 
 /* 
    
-   my stress vector format
-   angles[3]: strike dip rake in radian
-   output is in radian as well
-
- */
-
-void slip_deviation_svec_single(BC_CPREC *svec,BC_CPREC *angles,
-				BC_CPREC *slip_deviation_1,BC_CPREC *slip_deviation_2)
-{
-  BC_CPREC mmat[3][3];
-  my6stress2m3x3(svec,mmat);	/* convert my stress vector to a 3x3
-				   matrix in Michael format */
-  slip_deviation_mmat_single(mmat,angles,slip_deviation_1,slip_deviation_2);
-}
-/* 
-   
    stress tensor is [3][3] on input with all entries filled
    Michael format, ENU
    strike dip rake in radian

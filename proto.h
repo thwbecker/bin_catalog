@@ -5,6 +5,7 @@ void calc_b_value_bpos(double *, long int, double, double *);
 void calc_b_value_marzocci(double *, long int, double, double, double *, double *);
 void calc_b_value_thomas(double *, long int, double, double, double *, double *);
 void calc_b_value_ml(double *, long int, double, double *, double *);
+/* calc_aux_plane.c */
 /* calc_gr.c */
 /* calc_gr_time.c */
 void calc_gr_switch(double *, long, double, double, double *, double *, int);
@@ -13,13 +14,8 @@ void calc_eigensystem_vec6(double *, double *, double *, unsigned short, unsigne
 void calc_eigensystem_sym_3x3(double [3][3], double *, double *, unsigned short, unsigned short);
 void calc_eigensystem_sym_9(double *, double *, double *, unsigned short, unsigned short);
 void indexx(int, double *, int *);
-double det3x3(double [3][3]);
 /* eigen_3ds_simple.c */
 /* eigen_driver.c */
-double gamma_clvd(double *);
-
-int eigen_values_3dsym_vec6(double *, double *);
-double rclvd(double *);
 /* fault_eq.c */
 void stridip(double, double, double, double *, double *);
 void find_alt_plane(double, double, double, double *, double *, double *);
@@ -84,6 +80,10 @@ void axe2dc(struct AXIS, struct AXIS, struct nodal_plane *, struct nodal_plane *
 double computed_rake2(double, double, double, double, double);
 int GMT_jacobi(double *, int *, int *, double *, double *, double *, double *, int *);
 /* linalg_misc_geo.c */
+double gamma_clvd(double *);
+double rclvd(double *);
+int eigen_values_3dsym_vec6(double *, double *);
+double det3x3(double [3][3]);
 void ranger(double *);
 double max_x_from_int_vector(double *, int *, int);
 void rotate_vec6(double *, double *, double, double, double);
@@ -91,15 +91,15 @@ void sixsymtomat(double *, double [3][3]);
 void mattosixsym(double [3][3], double *);
 void get_gen_rot(double [3][3], double, double, double);
 void rotate_mat(double [3][3], double [3][3], double [3][3]);
-void remove_trace(double *);
 double trace6(double *);
+void remove_trace(double *);
 double distance_cart(double, double, double, double);
 double distance_geo(double, double, double, double, double, double);
 double distance(struct cat *, struct cat *, int, int);
 void get_index_vector(int **, int, int, long *);
-void normalize_tens6(double *,double *);
-void max_normalize_tens6(double *,double *);
-void max_ev_normalize_tens6(double *,double *);
+void normalize_tens6(double *, double *);
+void max_normalize_tens6(double *, double *);
+void max_ev_normalize_tens6(double *, double *);
 double tensor6_norm(double *);
 void tens6to3by3(double *, double [3][3]);
 double std_quick(int, double, double);
@@ -118,23 +118,25 @@ double dabs(double);
 void michael_atransa(double *, int, int, double *);
 void michael_atransb(double *, int, int, double *, double *);
 void michael_sigsq(double *, int, int, double *, double *, double *);
-void calc_misfits_from_single_angle_set(double *, double *, int, double *);
-void slip_dotp_svec_single(double *, double *, double *, double *);
-void slip_dotp_mmat_single(double [3][3], double *, double *, double *);
-double slip_dev_dotp(double *, double *, double [3][3]);
+/* nsample_catalog.c */
 /* solve_stress_one_bin.c */
 /* stress_inversion.c */
 void calc_stress_tensor_for_kbins(struct cat *);
-void solve_stress_michael_random_sweep(int, double *, double *, double *, double *, long int *,int);
-void solve_stress_michael_specified_plane(int, double *, double *, double *,unsigned short);
+/* stress_inversion_michael.c */
+void solve_stress_michael_random_sweep(int, double *, double *, double *, double *, long int *, int);
+void solve_stress_michael_specified_plane(int, double *, double *, double *, unsigned short);
 void michael_solve_lsq(int, int, int, double *, double *, double *, double *);
 void my6stress2m3x3(double *, double [3][3]);
 void michael_assign_to_matrix(double *, int *, double **, double **);
+/* stress_inversion_vavrycuk.c */
+void vavrycuk_eigen(const double *, double *, double *, double *, double *);
+void vavrycuk_plane_inst(const double *, const double *, const double *, double, double, double, const double *, double *);
+void vavrycuk_select_planes(int, double *, double, double *, double *, double *);
+void vavrycuk_average_instability(int, double *, double *, double, double *, double *);
+void stress_inversion_vavrycuk(int, double *, double *, double, double, double, int, int, long int *, double *, double *, double *, double *, double *, int);
+void calc_misfits_from_single_angle_set(double *, double *, int, double *);
+void slip_deviation_mmat_single(double [3][3], double *, double *, double *);
+double slip_dev_dotp(double *, double *, double [3][3]);
 /* test_eigen.c */
 /* test_kdtree.c */
 void demo2(void);
-
-void stress_inversion_vavrycuk(int , BC_CPREC *, BC_CPREC *,BC_CPREC , BC_CPREC, BC_CPREC ,
-			       int , int , long int *,BC_CPREC *, BC_CPREC *,BC_CPREC *, BC_CPREC *,
-			       BC_CPREC *, int);
-void vavrycuk_average_instability(int, BC_CPREC *, BC_CPREC *, BC_CPREC, BC_CPREC *, BC_CPREC *);
