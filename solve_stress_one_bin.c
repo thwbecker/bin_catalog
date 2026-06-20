@@ -14,6 +14,7 @@ int main(int argc, char **argv)
  struct cat *catalog;
  BC_CPREC *weights,*angles,dotp[2],use_friction,fopt,shape_ratio,
    sig_stress[6],stress[6],nstress[6],dstress[6],bstress[6],best_fric,mean_instability;
+ BC_CPREC fr_best,fr_mean,fr_std,fr_16,fr_84;
  BC_SWITCH *select;
  int i,i6,rsweep,tsweep,optimize;
  long int seed = -1;
@@ -115,9 +116,16 @@ int main(int argc, char **argv)
 	 shape_ratio, best_fric, mean_instability,dotp[0],dotp[1]);
  fprintf(stderr,"s norm:           %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
 	 dstress[BC_RR],dstress[BC_RT],dstress[BC_RP],dstress[BC_TT],dstress[BC_TP],dstress[BC_PP]);
- 
 
-
+ /*
+    bootstrap error on the best fit friction (resample events). a coarse
+    grid (0.02) and 200 resamples are plenty since the spread dominates.
+ */
+ vavrycuk_friction_error(catalog->n, angles, weights, 0.01, 0.99, 0.02,
+			 BC_VI_ITER, BC_VI_NREAL, 200, &seed,
+			 &fr_best, &fr_mean, &fr_std, &fr_16, &fr_84);
+ fprintf(stderr, "Vav fric  = %.3f   bootstrap: mean %.3f  std %.3f  16-84%% [%.3f, %.3f]\n",
+	 fr_best, fr_mean, fr_std, fr_16, fr_84);
 
  return 0;
 }

@@ -448,3 +448,98 @@ BC_CPREC slip_dev_dotp(BC_CPREC *n,BC_CPREC *u,BC_CPREC tau[3][3])
 
   return (shear_traction[0]*u[0] + shear_traction[1]*u[1] + shear_traction[2]*u[2]);
 }
+
+/* ascending comparator for BC_CPREC, used by the bootstrap below */
+static int vavrycuk_cmp_dbl(const void *a, const void *b)
+{
+  BC_CPREC da = *(const BC_CPREC *)a, db = *(const BC_CPREC *)b;
+  return (da < db) ? -1 : ((da > db) ? 1 : 0);
+}
+
+/*
+  bootstrap error estimate for the best fit friction.
+
+  the friction that maximizes mean instability is the least resolved
+  output of the inversion: the mean instability versus friction curve is
+  typically very flat near its maximum, so a single best friction can be
+  far more precise looking than the data support. to attach an
+  uncertainty, resample the n events with replacement n_boot times,
+  rerun the friction scan on each resample, and summarize the spread of
+  the resulting optima. this captures both sources of friction
+  uncertainty at once: the number of events in the bin, and the flatness
+  of the peak, which makes the argmax wander between resamples.
+
+  inputs:
+    n, angles (6 per event, radians), weights
+    fmin, fmax, finc   friction grid. a coarse finc (e.g. 0.02) is fine
+                       and recommended: the bootstrap spread dominates
+                       the grid resolution and a coarse grid keeps the
+                       cost down (each resample is a full scan).
+    n_iter, n_real     as in stress_inversion_vavrycuk
+    n_boot             number of bootstrap resamples (e.g. 200). if < 1,
+                       only the point estimate is returned with zero error.
+    seed               RNG seed (ran2 convention, pass a negative long)
+  outputs:
+    fbest    best friction from the full, unresampled data (point estimate)
+    fmean    mean of the bootstrap optima
+    fstd     standard deviation of the bootstrap optima
+    f16,f84  16th and 84th percentile bounds, a roughly 1 sigma interval
+             that does not assume the distribution is symmetric
+
+  note: the returned interval is quantized to the friction grid, and
+  individual resamples can be degenerate (events drawn repeatedly); both
+  wash out for n_boot of order 100 or more and do not bias the spread.
+*/
+void vavrycuk_friction_error(int n, BC_CPREC *angles, BC_CPREC *weights,
+                             BC_CPREC fmin, BC_CPREC fmax, BC_CPREC finc,
+                             int n_iter, int n_real, int n_boot, long int *seed,
+                             BC_CPREC *fbest, BC_CPREC *fmean, BC_CPREC *fstd,
+                             BC_CPREC *f16, BC_CPREC *f84)
+{
+  BC_CPREC *rangles, *rweights, *fb, stress[6], shape_ratio, minst, fopt, s1, s2;
+  size_t asize = 6 * sizeof(BC_CPREC) * n;
+  int b, j, j6, idx, i16, i84;
+
+  /* point estimate from the full data */
+  stress_inversion_vavrycuk(n, angles, weights, fmin, fmax, finc,
+                            n_iter, n_real, seed, stress, &shape_ratio,
+                            fbest, &minst, NULL, BC_STRESS_NORM_EV);
+
+  if (n_boot < 1) {                 /* point estimate only */
+    *fmean = *fbest; *fstd = 0.0; *f16 = *fbest; *f84 = *fbest;
+    return;
+  }
+  rangles  = (BC_CPREC *)malloc(asize);
+  rweights = (BC_CPREC *)malloc(sizeof(BC_CPREC) * n);
+  fb       = (BC_CPREC *)malloc(sizeof(BC_CPREC) * n_boot);
+  if ((!rangles) || (!rweights) || (!fb)) BC_MEMERROR("vavrycuk_friction_error");
+
+  s1 = s2 = 0.0;
+  for (b = 0; b < n_boot; b++) {
+    /* draw n events with replacement */
+    for (j = j6 = 0; j < n; j++, j6 += 6) {
+      idx = (int)(BC_RGEN(seed) * (BC_CPREC)n);
+      if (idx >= n) idx = n - 1;     /* guard the measure-zero endpoint */
+      memcpy(rangles + j6, angles + idx * 6, 6 * sizeof(BC_CPREC));
+      rweights[j] = weights[idx];
+    }
+    stress_inversion_vavrycuk(n, rangles, rweights, fmin, fmax, finc,
+                              n_iter, n_real, seed, stress, &shape_ratio,
+                              &fopt, &minst, NULL, BC_STRESS_NORM_EV);
+    fb[b] = fopt;
+    s1 += fopt;
+    s2 += fopt * fopt;
+  }
+  *fmean = s1 / (BC_CPREC)n_boot;
+  *fstd  = sqrt(fabs(s2 / (BC_CPREC)n_boot - (*fmean) * (*fmean)));
+
+  /* percentile bounds from the sorted bootstrap distribution */
+  qsort(fb, (size_t)n_boot, sizeof(BC_CPREC), vavrycuk_cmp_dbl);
+  i16 = (int)(0.16 * (BC_CPREC)n_boot);
+  i84 = (int)(0.84 * (BC_CPREC)n_boot);
+  if (i84 >= n_boot) i84 = n_boot - 1;
+  *f16 = fb[i16];
+  *f84 = fb[i84];
+
+  free(rangles); free(rweights); free(fb);
+}

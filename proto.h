@@ -134,6 +134,7 @@ void vavrycuk_plane_inst(const double *, const double *, const double *, double,
 void vavrycuk_select_planes(int, double *, double, double *, double *, double *);
 void vavrycuk_average_instability(int, double *, double *, double, double *, double *);
 void stress_inversion_vavrycuk(int, double *, double *, double, double, double, int, int, long int *, double *, double *, double *, double *, double *, int);
+void vavrycuk_friction_error(int, double *, double *, double, double, double, int, int, int, long int *, double *, double *, double *, double *, double *);
 void calc_misfits_from_single_angle_set(double *, double *, int, double *);
 void slip_deviation_mmat_single(double [3][3], double *, double *, double *);
 double slip_dev_dotp(double *, double *, double [3][3]);
