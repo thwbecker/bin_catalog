@@ -122,7 +122,7 @@ int main(int argc, char **argv)
     grid (0.02) and 200 resamples are plenty since the spread dominates.
  */
  vavrycuk_friction_error(catalog->n, angles, weights, 0.01, 0.99, 0.02,
-			 BC_VI_ITER, BC_VI_NREAL, 200, &seed,
+			 BC_VI_ITER, BC_VI_NREAL, BC_VI_MC_ERR, &seed,
 			 &fr_best, &fr_mean, &fr_std, &fr_16, &fr_84);
  fprintf(stderr, "Vav fric  = %.3f   bootstrap: mean %.3f  std %.3f  16-84%% [%.3f, %.3f]\n",
 	 fr_best, fr_mean, fr_std, fr_16, fr_84);

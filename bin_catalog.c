@@ -32,8 +32,8 @@ int main(int argc, char **argv)
 			     */
   catalog=(struct cat *)calloc(1,sizeof(struct cat));
 
-  /* 1: additional stress inversion 2: optimize friction 0...1 3: optimzie 0.2...0.8 */
-  catalog->use_friction_solve = 3;
+  /* 1: additional stress inversion, 2: optimize friction 0...1, 3: optimzie 0.2...0.8, 4: optimize 0...1 and calc uncerttainty */
+  catalog->use_friction_solve = 4;
   //catalog->use_friction_solve = 1; 
   sprintf(out_istring,"kostrov");
   

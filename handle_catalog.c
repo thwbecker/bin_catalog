@@ -1034,7 +1034,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 	  fprintf(out1,"%8.4f ",kostrov->bin[i].def_s[k]);
 	fprintf(out1,"\t%8.3f %8.3f %12i",
 		kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
-	fprintf(out1,"\t%8.4f\t%5.3f\n",kostrov->bin[i].inst[1],BC_FRIC_DEF); 
+	fprintf(out1,"\t%8.4f\t%5.3f\n",kostrov->bin[i].dotp[1],BC_FRIC_DEF); 
       }
     fclose(out1);
     fprintf(stderr,"print_stress_tensors: def. friction %.3f  stress tensors in %s, %i out of %i cells filled\n",
@@ -1050,7 +1050,8 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 	    fprintf(out1,"%8.4f ",kostrov->bin[i].best_s[k]);
 	  fprintf(out1,"\t%8.3f %8.3f %12i",
 		  kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
-	  fprintf(out1,"\t%8.4f\t%5.3f\n",kostrov->bin[i].inst[2],kostrov->bin[i].best_fric); /* instability and best friction */
+	  fprintf(out1,"\t%8.4f\t%5.3f\t%5.3f\n", /* mean dot product, best or median friction, std */
+		  kostrov->bin[i].dotp[2],kostrov->bin[i].best_fric,kostrov->bin[i].std_fric);
 	  mean_fric += kostrov->bin[i].best_fric;
 	}
       fclose(out1);

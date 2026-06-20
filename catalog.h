@@ -89,6 +89,9 @@
 
 #define BC_VI_ITER 6
 #define BC_VI_NREAL 10
+#define BC_VI_MC_ERR 200	/* error resampling */
+
+
 /* normalization of the tensor returned by stress_inversion_mstyle */
 #define BC_STRESS_NORM_EV     0	/* max abs eigenvalue normalization */
 #define BC_STRESS_NORM_TENSOR 1	/* tensor (Frobenius) norm */
@@ -163,8 +166,8 @@ struct bn{
   BC_CPREC me,mens,men;		/* mean horizontal strain */
   BC_CPREC smn[6],mnloc[6];		/* std for monte carlo, local
 					   realization */
-  BC_CPREC inst[3];		/* instability for three different inversions */
-  BC_CPREC best_fric;
+  BC_CPREC dotp[3];		/* dot product misfit for three different inversions */
+  BC_CPREC best_fric,std_fric;
   BC_CPREC def_s[6],best_s[6];		/* default friction and best friction detemined stress */
   BC_CPREC *weight;
 };
