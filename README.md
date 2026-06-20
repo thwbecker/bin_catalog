@@ -1,17 +1,18 @@
 bin_catalog
 
 Routines to read Aki, Engdahl, and Havard/Global CMT earthquake
-catalogs and perform some basic computations, including computing
-Gutenberg-Richter fits, binning, and merging catalogs.
+focal mechanism or moment tensor catalogs and perform some 
+basic computations, including computing Gutenberg-Richter fits, 
+binning, merging catalogs, and computing stress inversions. 
 
 Besides Kostrov summation (with some Monte Carlo error estimates), the
 code can also compute Michael (1984) type best-fit stress tensors, as
 well as Vavryčuk (2014) iterative inversions with fixed and best-fit
 friction values.
 
-The main Kostrov/stress inversion routines are bin_catalog for a
+The main Kostrov/stress inversion routines are `bin_catalog` for a
 simple grid where each bin is summed and inverted for stress if there
-are sufficient number of entries, as well as nsample_catalog which
+are sufficient number of entries, as well as `nsample_catalog` which
 determines the set of focal mechanisms to use based on a maximum
 distance from point plus mininum number, or number of events within
 distance criterion. See bin_catalog.c and nsample_catalog.c for the
@@ -31,6 +32,6 @@ Vavryčuk, V., 2014. Iterative joint inversion for stress and fault
 orientations from focal mechanisms, Geophysical Journal International,
 199, 69-77.
 
-(c) 2020 - 2025 by Thorsten Becker, thwbecker@post.harvard.edu
+(c) 2020 - 2026 by Thorsten Becker, thwbecker@post.harvard.edu
 
 
