@@ -62,8 +62,8 @@ int main(int argc, char **argv)
  }
  /* solve Michael style for those particular planes */
  solve_stress_michael_specified_plane(catalog->n, angles, weights,stress,BC_FALSE);
- fprintf(stderr,"single, no norm:  %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\ttr: %7.4f\n",
-	 stress[BC_RR],stress[BC_RT],stress[BC_RP],stress[BC_TT],stress[BC_TP],stress[BC_PP],trace6(stress));
+ fprintf(stderr,"single, no norm:  %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
+	 stress[BC_RR],stress[BC_RT],stress[BC_RP],stress[BC_TT],stress[BC_TP],stress[BC_PP]);
 
  /* max abs eigen value normalized */
  max_ev_normalize_tens6(stress,nstress);
@@ -83,32 +83,36 @@ int main(int argc, char **argv)
  */
  solve_stress_michael_random_sweep(catalog->n, angles,weights,stress, sig_stress,&seed,BC_MICHAEL_RSWEEP_MAX);
  calc_misfits_from_single_angle_set(stress,angles,catalog->n, sdev);
- fprintf(stderr,"srandom:          %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\tsdev: %7.5f %7.5f\n\n",
-	 stress[0],stress[1],stress[2],stress[3],stress[4],stress[5],1-sdev[0],1-sdev[1]);
+ fprintf(stderr,"srandom:          %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\t sdev: %7.5f %7.5f\n\n",
+	 stress[BC_RR],stress[BC_RT],stress[BC_RP],stress[BC_TT],stress[BC_TP],stress[BC_PP],sdev[0],sdev[1]);
  /* 
     Varychuk for default and best friction 
  */
  /* 
     default 
  */
- stress_inversion_mstyle(catalog->n, angles, weights, use_friction, use_friction, 0.1,
-			 BC_VI_ITER,  BC_VI_NREAL, &seed,
-			 dstress, &shape_ratio, &best_fric, &mean_instability, NULL,
-			 BC_STRESS_NORM_TENSOR);
- fprintf(stderr, "Vav fixed R = %.4f   friction_opt = %.3f   mean_instability = %.5f\n",shape_ratio, best_fric, mean_instability);
+ stress_inversion_vavrycuk(catalog->n, angles, weights, use_friction, use_friction, 0.1,
+			   BC_VI_ITER,  BC_VI_NREAL, &seed,
+			   dstress, &shape_ratio, &best_fric, &mean_instability, NULL,
+			   BC_STRESS_NORM_TENSOR);
+ calc_misfits_from_single_angle_set(dstress,angles,catalog->n, sdev);
+ fprintf(stderr, "Vav fixed R = %.4f   friction_opt = %.3f   mean_instability = %.5f sdev: %7.5f %7.5f\n",
+	 shape_ratio, best_fric, mean_instability,sdev[0],sdev[1]);
  fprintf(stderr,"s norm:           %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
 	 dstress[BC_RR],dstress[BC_RT],dstress[BC_RP],dstress[BC_TT],dstress[BC_TP],dstress[BC_PP]);
  
  max_ev_normalize_tens6(dstress,nstress); 
- fprintf(stderr,"evmax_norm:       %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\ttr: %7.4f\n",
-	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP],trace6(nstress));
+ fprintf(stderr,"evmax_norm:       %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
+	 nstress[BC_RR],nstress[BC_RT],nstress[BC_RP],nstress[BC_TT],nstress[BC_TP],nstress[BC_PP]);
  /* 
     sweep
  */
- stress_inversion_mstyle(catalog->n, angles, weights, 0.01, 0.99, 0.001,BC_VI_ITER,  BC_VI_NREAL, &seed,
-			 dstress, &shape_ratio, &best_fric, &mean_instability, NULL,
+ stress_inversion_vavrycuk(catalog->n, angles, weights, 0.01, 0.99, 0.001,BC_VI_ITER,  BC_VI_NREAL, &seed,
+			   dstress, &shape_ratio, &best_fric, &mean_instability, NULL,
 			 BC_STRESS_NORM_TENSOR);
- fprintf(stderr, "Vav sweep R = %.4f   friction_opt = %.3f   mean_instability = %.5f\n",shape_ratio, best_fric, mean_instability);
+ calc_misfits_from_single_angle_set(dstress,angles,catalog->n, sdev);
+ fprintf(stderr, "Vav sweep R = %.4f   friction_opt = %.3f   mean_instability = %.5f sdev: %7.5f %7.5f\n",
+	 shape_ratio, best_fric, mean_instability,sdev[0],sdev[1]);
  fprintf(stderr,"s norm:           %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n",
 	 dstress[BC_RR],dstress[BC_RT],dstress[BC_RP],dstress[BC_TT],dstress[BC_TP],dstress[BC_PP]);
  

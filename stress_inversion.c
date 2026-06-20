@@ -72,21 +72,20 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
       /* randomized Michael: point estimate s and Monte Carlo uncertainty ds */
       solve_stress_michael_random_sweep(kostrov->bin[i].n,angles,weights,kostrov->bin[i].s,
 					kostrov->bin[i].ds,&catalog->seed,BC_MICHAEL_RSWEEP_MAX);
-      /* instability of the Michael stress, MATLAB/Vavrycuk convention,
-	 consistent with stress_inversion_mstyle */
-      mstyle_average_instability(kostrov->bin[i].n,angles,weights,BC_FRIC_DEF,kostrov->bin[i].s,ainst);
+      /* instability of the Michael stress, MATLAB/Vavrycuk convention  */
+      vavrycuk_average_instability(kostrov->bin[i].n,angles,weights,BC_FRIC_DEF,kostrov->bin[i].s,ainst);
       kostrov->bin[i].inst[0] = ainst[0];
       
 #ifdef DEBUG
       calc_misfits_from_single_angle_set(kostrov->bin[i].s,angles,kostrov->bin[i].n, sdev);
-      fprintf(stderr,"srandom:          %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev: %7.5f %7.5f\tinst: %7.5f %7.5f\n",
+      fprintf(stderr,"srandom:          %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\tsdev: %7.5f a%7.5f\tinst: %7.5f %7.5f\n",
 	      kostrov->bin[i].s[0],kostrov->bin[i].s[1],kostrov->bin[i].s[2],kostrov->bin[i].s[3],
 	      kostrov->bin[i].s[4],kostrov->bin[i].s[5],
-	      1-sdev[0],1-sdev[1],ainst[0],ainst[1]);
+	      sdev[0],sdev[1],ainst[0],ainst[1]);
 #endif
       if(catalog->use_friction_solve){
-	/* Vavrycuk (mstyle), default fixed friction -> def_s, inst[1] */
-	stress_inversion_mstyle(kostrov->bin[i].n,angles,weights,BC_FRIC_DEF,BC_FRIC_DEF,1.0,
+	/* Vavrycuk , default fixed friction -> def_s, inst[1] */
+	stress_inversion_vavrycuk(kostrov->bin[i].n,angles,weights,BC_FRIC_DEF,BC_FRIC_DEF,1.0,
 				BC_VI_ITER,BC_VI_NREAL,&catalog->seed,
 				kostrov->bin[i].def_s,&shape_ratio,&fopt,&minst,NULL,
 				BC_STRESS_NORM_TENSOR);
@@ -100,10 +99,10 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
 	}else{
 	  fmin = 0.2; fmax = 0.8; finc = BC_FRIC_SCAN_INC2;
 	}
-	stress_inversion_mstyle(kostrov->bin[i].n,angles,weights,fmin,fmax,finc,
-				BC_VI_ITER,BC_VI_NREAL,&catalog->seed,
-				kostrov->bin[i].best_s,&shape_ratio,&(kostrov->bin[i].best_fric),
-				&minst,NULL,BC_STRESS_NORM_TENSOR);
+	stress_inversion_vavrycuk(kostrov->bin[i].n,angles,weights,fmin,fmax,finc,
+				  BC_VI_ITER,BC_VI_NREAL,&catalog->seed,
+				  kostrov->bin[i].best_s,&shape_ratio,&(kostrov->bin[i].best_fric),
+				  &minst,NULL,BC_STRESS_NORM_TENSOR);
 	kostrov->bin[i].inst[2] = minst;
       }
     }

@@ -136,7 +136,7 @@ void michael_assign_to_matrix(double *, int *, double **, double **);
 /* test_kdtree.c */
 void demo2(void);
 
-void stress_inversion_mstyle(int , BC_CPREC *, BC_CPREC *,BC_CPREC , BC_CPREC, BC_CPREC ,
-                             int , int , long int *,BC_CPREC *, BC_CPREC *,BC_CPREC *, BC_CPREC *,
-                             BC_CPREC *, int);
-void mstyle_average_instability(int, BC_CPREC *, BC_CPREC *, BC_CPREC, BC_CPREC *, BC_CPREC *);
+void stress_inversion_vavrycuk(int , BC_CPREC *, BC_CPREC *,BC_CPREC , BC_CPREC, BC_CPREC ,
+			       int , int , long int *,BC_CPREC *, BC_CPREC *,BC_CPREC *, BC_CPREC *,
+			       BC_CPREC *, int);
+void vavrycuk_average_instability(int, BC_CPREC *, BC_CPREC *, BC_CPREC, BC_CPREC *, BC_CPREC *);

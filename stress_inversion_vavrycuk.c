@@ -1,7 +1,7 @@
 #include "catalog.h"
 /*
 
-  stress_inversion_mstyle.c
+  stress_inversion_vavrycuk.c
 
   Alternative Vavrycuk-type iterative stress inversion that follows the
   *exact* strategy of the MATLAB STRESSINVERSE package (Vavrycuk, 2014,
@@ -58,7 +58,7 @@
 /*
   shared instability kernel, MATLAB (Vavrycuk reference) convention.
 
-  mstyle_eigen: convert the Michael tensor from the spherical storage
+  vavrycuk_eigen: convert the Michael tensor from the spherical storage
   used here (RR,RT,RP,TT,TP,PP) to the MATLAB Cartesian 3x3
   [[xx,xy,xz],[xy,yy,yz],[xz,yz,zz]], packed for calc_eigensystem_vec6
   as [xx,xy,xz,yy,yz,zz] (verified relation: xx=TT, yy=PP, zz=RR,
@@ -71,7 +71,7 @@
   instability used by both the iterative solver and the averaging
   routine, so the two never drift apart.
 */
-void mstyle_eigen(const BC_CPREC *stress,
+void vavrycuk_eigen(const BC_CPREC *stress,
 		  BC_CPREC *v1, BC_CPREC *v2, BC_CPREC *v3,
 		  BC_CPREC *sf)
 {
@@ -91,11 +91,11 @@ void mstyle_eigen(const BC_CPREC *stress,
 
 /*
   Vavrycuk instability of the two nodal planes of one event (6 angles,
-  radians), given the eigensystem from mstyle_eigen, sf = 1-2R, friction
+  radians), given the eigensystem from vavrycuk_eigen, sf = 1-2R, friction
   mu, and ff = mu + sqrt(1+mu*mu). Result in inst[0] (plane 1), inst[1]
   (plane 2). sigma1 = smallest eigenvalue, MATLAB Cartesian normal.
 */
-void mstyle_plane_inst(const BC_CPREC *v1, const BC_CPREC *v2,
+void vavrycuk_plane_inst(const BC_CPREC *v1, const BC_CPREC *v2,
 		       const BC_CPREC *v3, BC_CPREC sf,
 		       BC_CPREC mu, BC_CPREC ff,
 		       const BC_CPREC *a6, BC_CPREC *inst)
@@ -127,18 +127,18 @@ void mstyle_plane_inst(const BC_CPREC *v1, const BC_CPREC *v2,
   selected planes (selected plane first in each 6-block) into sel.
   returns the mean of the per-event chosen instabilities in *mean_inst.
 */
-void mstyle_select_planes(int n, BC_CPREC *angles, BC_CPREC mu,
+void vavrycuk_select_planes(int n, BC_CPREC *angles, BC_CPREC mu,
 			  BC_CPREC *stress, BC_CPREC *sel,
 			  BC_CPREC *mean_inst)
 {
   BC_CPREC v1[3], v2[3], v3[3], sf, ff, inst[2], acc = 0.0;
   int j, j6;
 
-  mstyle_eigen(stress, v1, v2, v3, &sf);
+  vavrycuk_eigen(stress, v1, v2, v3, &sf);
   ff = mu + sqrt(1.0 + mu * mu);
 
   for (j = j6 = 0; j < n; j++, j6 += 6) {
-    mstyle_plane_inst(v1, v2, v3, sf, mu, ff, (angles + j6), inst);
+    vavrycuk_plane_inst(v1, v2, v3, sf, mu, ff, (angles + j6), inst);
     memcpy(sel + j6, angles + j6, 6 * sizeof(BC_CPREC));
     if (inst[1] > inst[0]) {           /* keep the more unstable plane first */
       swap_angles(sel + j6);
@@ -152,7 +152,7 @@ void mstyle_select_planes(int n, BC_CPREC *angles, BC_CPREC mu,
 
 /*
   mean Vavrycuk instability of a stress tensor over a set of events,
-  MATLAB convention, consistent with stress_inversion_mstyle (replaces
+  MATLAB convention, consistent with stress_inversion_vavrycuk (replaces
   calc_average_instability, which used the opposite sigma convention).
 
     ainst[0] = mean over events of the MORE unstable plane (the fault
@@ -163,15 +163,15 @@ void mstyle_select_planes(int n, BC_CPREC *angles, BC_CPREC mu,
   max is taken). weights are accepted for API symmetry but, as in the
   MATLAB reference, the mean is unweighted.
 */
-void mstyle_average_instability(int n, BC_CPREC *angles, BC_CPREC *weights,
+void vavrycuk_average_instability(int n, BC_CPREC *angles, BC_CPREC *weights,
                                 BC_CPREC mu, BC_CPREC *stress, BC_CPREC *ainst)
 {
   BC_CPREC v1[3], v2[3], v3[3], sf, ff, inst[2], hi = 0.0, lo = 0.0;
   int j, j6;
-  mstyle_eigen(stress, v1, v2, v3, &sf);
+  vavrycuk_eigen(stress, v1, v2, v3, &sf);
   ff = mu + sqrt(1.0 + mu * mu);
   for (j = j6 = 0; j < n; j++, j6 += 6) {
-    mstyle_plane_inst(v1, v2, v3, sf, mu, ff, (angles + j6), inst);
+    vavrycuk_plane_inst(v1, v2, v3, sf, mu, ff, (angles + j6), inst);
     if (inst[1] > inst[0]) { hi += inst[1]; lo += inst[0]; }
     else                   { hi += inst[0]; lo += inst[1]; }
   }
@@ -201,14 +201,14 @@ void mstyle_average_instability(int n, BC_CPREC *angles, BC_CPREC *weights,
     minst         mean instability at the optimum
     sel_out   (6n) resolved planes, selected plane first (may be NULL)
 
-  note: tau is NOT normalized between iterations. mstyle_select_planes
+  note: tau is NOT normalized between iterations. vavrycuk_select_planes
   and the Michael re-solve depend on tau only through scale invariant
   quantities (eigenvector directions, shape ratio) and the selected
   planes, so the per-iteration normalization that the MATLAB code does
   is redundant and is skipped here to avoid an extra eigensolve per
   step. The single normalization of the returned tensor is done once.
 */
-void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
+void stress_inversion_vavrycuk(int n, BC_CPREC *angles, BC_CPREC *weights,
                              BC_CPREC fmin, BC_CPREC fmax, BC_CPREC finc,
                              int n_iter, int n_real, long int *seed,
                              BC_CPREC *stress, BC_CPREC *shape_ratio,
@@ -222,7 +222,7 @@ void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
 
   sel = (BC_CPREC *)malloc(asize);
   rnd = (BC_CPREC *)malloc(asize);
-  if ((!sel) || (!rnd)) BC_MEMERROR("stress_inversion_mstyle");
+  if ((!sel) || (!rnd)) BC_MEMERROR("stress_inversion_vavrycuk");
 
   /* -------- initial guess: averaged randomized-plane Michael --------
      each realization is max|eig| normalized before averaging, matching
@@ -247,7 +247,7 @@ void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
   best_mean = -1e30; fopt_l = fmin;
   for (mu = fmin; mu <= fmax + 1e-9; mu += finc) {
     for (it = 0; it < n_iter; it++) {
-      mstyle_select_planes(n, angles, mu, tau, sel, &mean_inst);
+      vavrycuk_select_planes(n, angles, mu, tau, sel, &mean_inst);
       solve_stress_michael_specified_plane(n, sel, weights, raw, BC_FALSE);
       memcpy(tau, raw, 6 * sizeof(BC_CPREC)); /* no norm: selection is scale invariant */
     }
@@ -260,13 +260,13 @@ void stress_inversion_mstyle(int n, BC_CPREC *angles, BC_CPREC *weights,
 
   /* -------- final pass at optimum friction (tau carries over) -------- */
   for (it = 0; it < n_iter; it++) {
-    mstyle_select_planes(n, angles, fopt_l, tau, sel, &mean_inst);
+    vavrycuk_select_planes(n, angles, fopt_l, tau, sel, &mean_inst);
     solve_stress_michael_specified_plane(n, sel, weights, raw, BC_FALSE);
     memcpy(tau, raw, 6 * sizeof(BC_CPREC));
   }
   /* resolve planes and mean instability consistent with the FINAL tensor
      (the loop above leaves mean_inst one solve behind tau) */
-  mstyle_select_planes(n, angles, fopt_l, tau, sel, &mean_inst);
+  vavrycuk_select_planes(n, angles, fopt_l, tau, sel, &mean_inst);
 
   /* -------- normalize the returned tensor once, per request -------- */
   if (norm_type == BC_STRESS_NORM_TENSOR)
