@@ -121,7 +121,7 @@ void michael_sigsq(double *, int, int, double *, double *, double *);
 void calc_misfits_from_single_angle_set(double *, double *, int, double *);
 void slip_dotp_svec_single(double *, double *, double *, double *);
 void slip_dotp_mmat_single(double [3][3], double *, double *, double *);
-double slip_dotp_dotp(double *, double *, double [3][3]);
+double slip_dev_dotp(double *, double *, double [3][3]);
 /* solve_stress_one_bin.c */
 /* stress_inversion.c */
 void calc_stress_tensor_for_kbins(struct cat *);

@@ -386,7 +386,7 @@ void slip_deviation_mmat_single(BC_CPREC tau[3][3],BC_CPREC *angles,
   n[0] = n0[0]; n[1] = n0[1]; n[2] = n0[2];
   u[0] = u0[0]; u[1] = u0[1]; u[2] = u0[2];
   /* first plane */
-  *slip_dotp_1 = slip_dotp_dotp(n,u,tau);
+  *slip_dotp_1 = slip_dev_dotp(n,u,tau);
   
   //--------------------------------------------------------------------------
   // calculation of slip_dotp_2
@@ -398,7 +398,7 @@ void slip_deviation_mmat_single(BC_CPREC tau[3][3],BC_CPREC *angles,
     n[0] = -n[0];
     u[0] = -u[0];
   }; // vertical component is always negative!
-  *slip_dotp_2 = slip_dotp_dotp(n,u,tau);
+  *slip_dotp_2 = slip_dev_dotp(n,u,tau);
 
 }
 /* 
@@ -407,7 +407,7 @@ void slip_deviation_mmat_single(BC_CPREC tau[3][3],BC_CPREC *angles,
    
 */
 
-BC_CPREC slip_dotp_dotp(BC_CPREC *n,BC_CPREC *u,BC_CPREC tau[3][3])
+BC_CPREC slip_dev_dotp(BC_CPREC *n,BC_CPREC *u,BC_CPREC tau[3][3])
 {
   BC_CPREC tau_normal,tau_normal_square,tau_shear_square,
     tau_shear,tau_total,tau_total_square;
