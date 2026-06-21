@@ -11,10 +11,11 @@ if [ ! -s $kfile ];then
 fi
 tmpn=`mktemp`
 trap "rm -f $tmpn*" EXIT
+ADIR=./awk/			# local awk dir
 #
 # compute norm
 #
-gawk '{print($1,$2,$3,$4,$5,$6)}' $kfile | gawk -f tensornorm.awk  > $tmpn.norm
+gawk '{print($1,$2,$3,$4,$5,$6)}' $kfile | gawk -f $ADIR/tensornorm.awk  > $tmpn.norm
 #
 # psmeca wants:       lon lat depth     mrr mtt mff mrt mrf mtf exp [newX newY] [event_title]
 # conversion to psmca: my tensor elements: 1,   4,  6, 2,   3,  5
@@ -30,6 +31,6 @@ paste $kfile $tmpn.norm | sort -n +$nf | \
 #
 # compute horizontal system
 #
-gawk '{print($6,-$9,$5)}' $tmpn.dat | gawk -f calcms.awk > $tmpn.s1s2azi
+gawk '{print($6,-$9,$5)}' $tmpn.dat | gawk -f $ADIR/calcms.awk > $tmpn.s1s2azi
 gawk '{print($1,$2)}' $tmpn.dat > $tmpn.lonlat
 paste $tmpn.lonlat $tmpn.s1s2azi  | gawk '{a=$5+90;if(a>360)a-=360;print($1,$2,a)}'
