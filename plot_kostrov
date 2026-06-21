@@ -52,6 +52,14 @@ SDIR=./scripts/			# local script dir
 BDIR=./bin/			# bindaries
 datadir=$HOME/data/		# the script looks for some additional data, like plate boundaries and topo here.
 #
+# region helpers, inlined from awk/reg2*.awk so no external awk files are
+# needed. each takes a GMT region string -Rw/e/s/n; the lat helper takes
+# an optional fraction (default 0.5, i.e. the midpoint).
+#
+reg2midlon(){ echo "$1" | awk -v f="$2" '{if(f=="")f=0.5; split($1,a,"/"); print substr(a[1],3)+(a[2]-substr(a[1],3))*f}'; }
+reg2midlat(){ echo "$1" | awk -v f="$2" '{if(f=="")f=0.5; split($1,a,"/"); print a[3]+(a[4]-a[3])*f}'; }
+reg2aspect(){ echo "$1" | awk '{split($1,a,"/"); mlat=(a[3]+a[4])*0.5; printf "-A%g",cos(mlat/57.295779513)}'; }
+#
 # colormaps for slabs
 #
 slab_cmp=lajolla
@@ -244,7 +252,7 @@ elif [ $rcode = 111 ];then	# allcal
     rframe=31
     vinc=-I2
 elif [ $rcode -eq 44 ];then
-	proj=-JB`echo $reg | awk -f $ADIR/reg2midlon.awk`/`echo $reg | awk -f $ADIR/reg2midlat.awk`/`echo $reg | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $reg | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/13
+	proj=-JB`reg2midlon "$reg"`/`reg2midlat "$reg"`/`reg2midlat "$reg" 0.33`/`reg2midlat "$reg" 0.66`/13
 	kinc=3;	cmt_size=0.25
 	ann=-Bg60
 	vinc=-I15
@@ -252,8 +260,8 @@ elif [ $rcode -eq 44 ];then
 	vel_label_loc="-105 -55"
 elif [ $rcode = 97 ];then
     
-    #proj=-JH`echo $reg | awk -f $ADIR/reg2midlon.awk`/13
-    proj=-JB`echo $reg | awk -f $ADIR/reg2midlon.awk`/`echo $reg | awk -f $ADIR/reg2midlat.awk`/`echo $reg | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $reg | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/13
+    #proj=-JH`reg2midlon "$reg"`/13
+    proj=-JB`reg2midlon "$reg"`/`reg2midlat "$reg"`/`reg2midlat "$reg" 0.33`/`reg2midlat "$reg" 0.66`/13
     #kinc=1
     kinc=1
     ann=-Ba10f1WesN
@@ -262,7 +270,7 @@ elif [ $rcode = 97 ];then
     vinc=-I9
 elif [ $rcode = "97book" ];then
     preg=-R277/300/-50/14
-    proj=-JB`echo $reg | awk -f $ADIR/reg2midlon.awk`/`echo $reg | awk -f $ADIR/reg2midlat.awk`/`echo $reg | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $reg | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/7
+    proj=-JB`reg2midlon "$reg"`/`reg2midlat "$reg"`/`reg2midlat "$reg" 0.33`/`reg2midlat "$reg" 0.66`/7
     #kinc=1
     kinc=1
     slab_cont_type=-W3
@@ -305,31 +313,31 @@ elif [[ $rcode = "97o" || $rcode = "97o2" ]];then	# Andes Oblieuqe Merc, or with
     w=-95;e=-40;s=-60;n=50
     greg=-R$w/$e/$s/$n
 elif [ $rcode = 6 ];then
-    proj=-JB`echo $preg | awk -f $ADIR/reg2midlon.awk`/`echo $preg | awk -f $ADIR/reg2midlat.awk`/`echo $preg | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $preg | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/13
-    #proj=-JH`echo $preg | awk -f $ADIR/reg2midlon.awk`/13
+    proj=-JB`reg2midlon "$preg"`/`reg2midlat "$preg"`/`reg2midlat "$preg" 0.33`/`reg2midlat "$preg" 0.66`/13
+    #proj=-JH`reg2midlon "$preg"`/13
     kinc=0.5
     ann=-Ba5f.5WesN
     cmt_size=0.2
 elif [ $rcode = 19 ];then
-    #proj=-JB`echo $preg | awk -f $ADIR/reg2midlon.awk`/`echo $preg | awk -f $ADIR/reg2midlat.awk`/`echo $preg | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $preg | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/13
+    #proj=-JB`reg2midlon "$preg"`/`reg2midlat "$preg"`/`reg2midlat "$preg" 0.33`/`reg2midlat "$preg" 0.66`/13
     proj=-JM13
     kinc=1
     ann=-Ba5f.5WesN
     cmt_size=0.2
 elif [ $rcode = 57 ];then
-    proj=-JB`echo $preg | awk -f $ADIR/reg2midlon.awk`/`echo $preg | awk -f $ADIR/reg2midlat.awk`/`echo $preg | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $preg | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/13
+    proj=-JB`reg2midlon "$preg"`/`reg2midlat "$preg"`/`reg2midlat "$preg" 0.33`/`reg2midlat "$preg" 0.66`/13
     kinc=1
     ann=-Ba5f.5WesN
     pscl=-D12.5/6/3/.15
     cmt_size=0.225
 elif [ $rcode = 59 ];then
-    proj=-JB`echo $preg | awk -f $ADIR/reg2midlon.awk`/`echo $preg | awk -f $ADIR/reg2midlat.awk`/`echo $preg | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $preg | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/13
+    proj=-JB`reg2midlon "$preg"`/`reg2midlat "$preg"`/`reg2midlat "$preg" 0.33`/`reg2midlat "$preg" 0.66`/13
     kinc=0.5
     ann=-Ba2f.2WesN
     cmt_size=0.2
     add_faults=$datadir/faults/medfaults_new.gmt
 elif [ $rcode = 52 ];then
-    proj=-JB`echo $preg | awk -f $ADIR/reg2midlon.awk`/`echo $preg | awk -f $ADIR/reg2midlat.awk`/`echo $preg | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $preg | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/13
+    proj=-JB`reg2midlon "$preg"`/`reg2midlat "$preg"`/`reg2midlat "$preg" 0.33`/`reg2midlat "$preg" 0.66`/13
     kinc=0.25
     ann=-Ba2f.2WesN
     cmt_size=0.2
@@ -339,13 +347,13 @@ elif [ $rcode = 98 ];then
     ann=-Ba10f1WesN
     cmt_size=0.2
 elif [ $rcode = 99 ];then
-    proj=-JS`echo $preg | awk -f $ADIR/reg2midlon.awk`/90/90/7
+    proj=-JS`reg2midlon "$preg"`/90/90/7
     kinc=1
     ann=-Ba10f1g1WesN
     cmt_size=0.2
 elif [ $rcode = 100 ];then	# northern Cali
     proj=-JM13
-    #proj=-JH`echo $preg | awk -f $ADIR/reg2midlon.awk`/13
+    #proj=-JH`reg2midlon "$preg"`/13
     preg=-R-126/-120/39/42
     kinc=0.25
     ann=-Ba1f.1WesN
@@ -499,7 +507,7 @@ fi
 spc=0.25
 if [ $use_simpson -eq 1 ];then
     #makecpt -D -T0/3/0.5 -Z -Croma -I > tmp1
-    makecpt -D -T0/3/0.25  -Croma -I > tmp1
+    gmt makecpt -D -T0/3/0.25  -Croma -I > tmp1
     #makecpt -D -T0/3/0.5  -Cseis -I > tmp1
     cmp=simpson.cpt
     cat <<EOF > tmp2
@@ -522,7 +530,7 @@ else
     #makecpt -D -T-.4/.4/0.04 -Cseis > def.cpt
     #makecpt -D -T-.5/.5/0.05 -I -Crainbow > def.cpt
     #makecpt -D -T-.4/.4/0.04 -I -Ctemperature > def.cpt
-    makecpt -D -T-.4/.4/0.04  -Croma > def.cpt
+    gmt makecpt -D -T-.4/.4/0.04  -Croma > def.cpt
     #makecpt -T-.4/.4/0.04 -Chaxby > def.cpt
     cmp=def.cpt
 
@@ -552,19 +560,19 @@ if [ -s $tfile ];then
     
     if [ $rcode = 0 ];then
 	#makecpt -T-7000/2000/500 -Cgray > $tmpn.cpt
-	makecpt -T-7000/7000/500 -Coleron > $tmpn.cpt
+	gmt makecpt -T-7000/7000/500 -Coleron > $tmpn.cpt
 	topo_grid=$tfile
     else
 	if [ $use_tgradient -ne -1 ];then
 	    echo $0: using $tfile
 	    echo $greg
-	    grdcut -fg $greg $tfile -G$tmpn.topo.grd
+	    gmt grdcut -fg $greg $tfile -G$tmpn.topo.grd
 	    topo_grid=$tmpn.topo.grd
 	    if [ $use_grayscale -eq 1 ];then
-		grd2cpt   -CgrayC  $topo_grid > $tmpn.cpt
+		gmt grd2cpt   -CgrayC  $topo_grid > $tmpn.cpt
 		#grd2cpt  -E51 -Coleron+h0 $topo_grid > $tmpn.cpt
 	    else
-		makecpt -T-7000/7000/500 -Coleron > $tmpn.cpt
+		gmt makecpt -T-7000/7000/500 -Coleron > $tmpn.cpt
 	    fi
 	fi
     fi
@@ -580,29 +588,29 @@ fi
 
 if [ $have_topo -eq 1 ];then
     if [ $use_tgradient -eq 1 ];then
-	grdgradient -Nt -A30 $topo_grid -G$tmpn.grd
-	grdimage -fg $preg $proj  $topo_grid -C$tmpn.cpt -I$tmpn.grd  -P -K > $ofile_ps
+	gmt grdgradient -Nt -A30 $topo_grid -G$tmpn.grd
+	gmt grdimage -fg $preg $proj  $topo_grid -C$tmpn.cpt -I$tmpn.grd  -P -K > $ofile_ps
     elif [ $use_tgradient -eq 0 ];then
-	grdimage -fg $preg $proj  $topo_grid -C$tmpn.cpt  -P -K > $ofile_ps
+	gmt grdimage -fg $preg $proj  $topo_grid -C$tmpn.cpt  -P -K > $ofile_ps
     else
-	pscoast  $preg $proj -Di -A5000 -S120 -G150 -W0.25  -P -K > $ofile_ps
+	gmt pscoast  $preg $proj -Di -A5000 -S120 -G150 -W0.25  -P -K > $ofile_ps
     fi
 else
-    pscoast $preg $proj -Dh -A5000 -S200 -G220 -W0.25  -P -K > $ofile_ps
+    gmt pscoast $preg $proj -Dh -A5000 -S200 -G220 -W0.25  -P -K > $ofile_ps
 fi
 if [ $add_fa = 1 ];then
-    grdcontour $datadir/dyn_topo/gfreeairtopo.grd -fg $preg $proj -C0.1  -O -K >> $ofile_ps
+    gmt grdcontour $datadir/dyn_topo/gfreeairtopo.grd -fg $preg $proj -C0.1  -O -K >> $ofile_ps
 fi
 #if [[ $rcode = 19 || $rcode = 6 || $rcode = 9 ]];then
-pscoast $preg $proj -Df -A5000  -W.25  -O -K >> $ofile_ps
+gmt pscoast $preg $proj -Df -A5000  -W.25  -O -K >> $ofile_ps
 if [ $add_pm -eq  1 ];then
     pmodel=$datadir/plates/morvel;pm_inc=0.25
     if [ -s $pmodel.vx.$pm_inc.$rframe.grd  ];then
-	grdvector $pmodel.vx.$pm_inc.$rframe.grd  \
+	gmt grdvector $pmodel.vx.$pm_inc.$rframe.grd  \
 		  $pmodel.vy.$pm_inc.$rframe.grd  $preg $proj -T -O -K \
 		  -S$pv_vec_scale -fg  $vinc "-Q"$pv_vec_size"n.25" -Ggray >> $ofile_ps
 	echo $vel_label_loc  0 5 0 0 0 "5 cm/yr" | \
-	    psvelo $preg $proj -Se`echo $pv_vec_scale | gawk '{print(1/$1)}'`/0/20 -O -K -A$pv_vec_size -Gblack  -N  >> $ofile_ps
+	    gmt psvelo $preg $proj -Se`echo $pv_vec_scale | gawk '{print(1/$1)}'`/0/20 -O -K -A$pv_vec_size -Gblack  -N  >> $ofile_ps
     else
 	echo $0: $pmodel.vx.$pm_inc.$rframe.grd not found
     fi
@@ -615,14 +623,14 @@ if [ $add_slab_cont -eq 1 ];then
     if [ $zslab_max = 700 ];then
 	slab_col_ends=""
 	zslspc=200
-	makecpt -T0/$zslab_max/100 -C$slab_cmp  > $tmpn.z.cpt
+	gmt makecpt -T0/$zslab_max/100 -C$slab_cmp  > $tmpn.z.cpt
     else
 	slab_col_ends="-Ef"
 	zslspc=100
-	makecpt -T0/$zslab_max/20 -C$slab_cmp  > $tmpn.z.cpt
+	gmt makecpt -T0/$zslab_max/20 -C$slab_cmp  > $tmpn.z.cpt
     fi
     if [ -s $datadir/slab_contours/slab2/all.40spaced.dcont ];then
-	psxy $preg $proj -fg -m $datadir/slab_contours/slab2/all.40spaced.dcont $slab_cont_type  \
+	gmt psxy $preg $proj -fg -m $datadir/slab_contours/slab2/all.40spaced.dcont $slab_cont_type  \
 	     -C$tmpn.z.cpt -O -K -t40 >> $ofile_ps
     else
 	echo $0: $datadir/slab_contours/slab2/all.40spaced.dcont not found
@@ -634,10 +642,10 @@ if [ $add_slab_cont -eq 1 ];then
 
     
     if [ $use_simpson -eq 1 ];then
-	psscale -Dx$pscl_slab1 $slab_col_ends $slab_col_add \
+	gmt psscale -Dx$pscl_slab1 $slab_col_ends $slab_col_add \
 		-C$tmpn.z.cpt  -B$zslspc/:"z@-slab@- [km]":  -O -K  >> $ofile_ps
     else
-	psscale -Dx$pscl_slab2 $slab_col_ends $slab_col_add  \
+	gmt psscale -Dx$pscl_slab2 $slab_col_ends $slab_col_add  \
 		-C$tmpn.z.cpt  -B$zslspc/:"z@-slab@- [km]":  -O -K  >> $ofile_ps
 
     fi
@@ -656,22 +664,22 @@ if [ $add_wsm = 1 ];then
 	# undetermined
 	awk -f $ADIR/sortwsm.awk pregime=4 pquality=$pquality  $type_string  $wsm_data | \
 	    gawk '{printf("%g %g %g %g\n",$1,$2,$5,f);}' f=$sfac  | \
-	    psxy  $preg $proj $wsm_vec  -Gwhite -O -K >> $ofile_ps
+	    gmt psxy  $preg $proj $wsm_vec  -Gwhite -O -K >> $ofile_ps
 
 	# extensional (maybe with some strike slip component)
 	awk -f $ADIR/sortwsm.awk pregime=1 pquality=$pquality  $type_string  $wsm_data | \
 	    gawk '{printf("%g %g %g %g\n",$1,$2,$5,f);}' f=$sfac | \
-	    psxy  $preg $proj $wsm_vec  -Gblue -O -K >> $ofile_ps
+	    gmt psxy  $preg $proj $wsm_vec  -Gblue -O -K >> $ofile_ps
 	
 	# strike slip
 	awk -f $ADIR/sortwsm.awk pregime=2 pquality=$pquality  $type_string  $wsm_data | \
 	    gawk '{printf("%g %g %g %g\n",$1,$2,$5,f);}' f=$sfac | \
-	    psxy  $preg $proj $wsm_vec  -Glightgreen -O -K >> $ofile_ps
+	    gmt psxy  $preg $proj $wsm_vec  -Glightgreen -O -K >> $ofile_ps
 	
 	# compressional (with strike-slip)
 	awk -f $ADIR/sortwsm.awk pregime=3 pquality=$pquality  $type_string  $wsm_data | \
 	    gawk '{printf("%g %g %g %g\n",$1,$2,$5,f);}' f=$sfac | \
-	    psxy  $preg $proj $wsm_vec  -Gred -O -K >> $ofile_ps
+	    gmt psxy  $preg $proj $wsm_vec  -Gred -O -K >> $ofile_ps
     else
 	echo $0: $wsm_data not found
     fi
@@ -682,32 +690,32 @@ if [ -s $gps_file ];then
     #gpsscale=.02
     gpsscale=.02
     gps_vec="-L0.25  -A0.04/0.1/0.05"
-    psvelo $preg $proj $gps_file -O -K -Se$gpsscale/-1/0   \
+    gmt psvelo $preg $proj $gps_file -O -K -Se$gpsscale/-1/0   \
 	   $gps_vec -Gblack -W0.25,gray >> $ofile_ps
 	    #    echo 70 17 50 0 0 0 0 "5 cm/yr" | \
 		echo 116.5 40 0 50 0 0 0 "5 cm/yr" | \
-		    psvelo $preg $proj -N -O -K -Se$gpsscale/-1/20   \
+		    gmt psvelo $preg $proj -N -O -K -Se$gpsscale/-1/20   \
 			   $gps_vec  >> $ofile_ps
 		
 fi
 if [ -s $add_profile.dat ];then
     read plon plat pazi pl1 pl2  < $add_profile.dat
-    project -C$plon/$plat -A$pazi -L$pl1/$pl2 -G1 -Q  | \
-	psxy -fg $preg $proj -W3,orange -O -K >> $ofile_ps
+    gmt project -C$plon/$plat -A$pazi -L$pl1/$pl2 -G1 -Q  | \
+	gmt psxy -fg $preg $proj -W3,orange -O -K >> $ofile_ps
     if [ -s $gps_file ];then
 	gawk '{print($1,$2,$3,$4)}' $gps_file | \
-	    project -C$plon/$plat -A$pazi -L$pl1/$pl2  -W-100/100 -Q | \
+	    gmt project -C$plon/$plat -A$pazi -L$pl1/$pl2  -W-100/100 -Q | \
 	    # lon lat vx vy L
 	    gawk '{print($1,$2,$3,$4,$5)}' | sort -g +4 > $add_profile.vel.dat
 
-	gawk '{print($1,$2,$3,1/$5)}' $gps_file | blockmean $preg -Wi -I0.5 -fg > $tmpn.1
-	gawk '{print($1,$2,$4,1/$6)}' $gps_file | blockmean $preg -Wi -I0.5 -fg > $tmpn.2
+	gawk '{print($1,$2,$3,1/$5)}' $gps_file | gmt blockmean $preg -Wi -I0.5 -fg > $tmpn.1
+	gawk '{print($1,$2,$4,1/$6)}' $gps_file | gmt blockmean $preg -Wi -I0.5 -fg > $tmpn.2
 	for i in 1 2;do
-	    surface $tmpn.$i $preg -I0.1 \
-		    `echo $preg | awk -f $ADIR/reg2aspect.awk` \
+	    gmt surface $tmpn.$i $preg -I0.1 \
+		    `reg2aspect "$preg"` \
 		    -T0 -fg -G$tmpn.$i.grd
 	    # lon lat L vel
-	    project -C$plon/$plat -A$pazi -L$pl1/$pl2 -G1 -Q  | grdtrack -fg -G$tmpn.$i.grd > $tmpn.$i.e
+	    gmt project -C$plon/$plat -A$pazi -L$pl1/$pl2 -G1 -Q  | gmt grdtrack -fg -G$tmpn.$i.grd > $tmpn.$i.e
 	done
 	paste $tmpn.1.e $tmpn.2.e | head
 	paste $tmpn.1.e $tmpn.2.e | gawk '{print($1,$2,$4,$8,$3)}' > $add_profile.svel.dat
@@ -760,31 +768,31 @@ else
     # volcanoes
     gawk  'BEGIN{FS=";"}{if(NR>2 && NF>=9)print($9,$8)}' \
 	  $datadir/volcanoes/GVP_Volcano_List.csv  | \
-	psxy  $proj $preg -Gyellow -St0.25 -W0.5 -O -K -t20 >> $ofile_ps
+	gmt psxy  $proj $preg -Gyellow -St0.25 -W0.5 -O -K -t20 >> $ofile_ps
     # flat slab
     fscol=cyan
-    cat <<EOF | psxy $proj $preg -W12,$fscol -K -O -t50 >> $ofile_ps
+    cat <<EOF | gmt psxy $proj $preg -W12,$fscol -K -O -t50 >> $ofile_ps
 -79 -3.5
 -74.5 -13.5
 EOF
-    echo -65 -10 30 0 31 CM "flat slab" | pstext -F+f$fscol   -O -K $preg $proj >> $ofile_ps
-    cat <<EOF | psxy -SV0.05/0.1/0.1 $preg $proj -G$fscol -O -K -N -t30 >> $ofile_ps
+    echo -65 -10 30 0 31 CM "flat slab" | gmt pstext -F+f$fscol   -O -K $preg $proj >> $ofile_ps
+    cat <<EOF | gmt psxy -SV0.05/0.1/0.1 $preg $proj -G$fscol -O -K -N -t30 >> $ofile_ps
 -68 -9.5  342 4.2
 -68 -10  280 2
 -68 -10.5  180 5
 EOF
-    echo -73 7 | psxy $proj $preg -Sc0.75 -G$fscol -O -K -t50 >> $ofile_ps
-    echo  -68 -30.5 | psxy $proj $preg -Sc0.9 -G$fscol -O -K -t50 >> $ofile_ps    
+    echo -73 7 | gmt psxy $proj $preg -Sc0.75 -G$fscol -O -K -t50 >> $ofile_ps
+    echo  -68 -30.5 | gmt psxy $proj $preg -Sc0.9 -G$fscol -O -K -t50 >> $ofile_ps    
 fi
 if [ $add_boundary -eq 1 ];then    
-    psxy $datadir/plate_boundaries/bird_PB2002/PB2002_tdiddy.gmt  -m  \
+    gmt psxy $datadir/plate_boundaries/bird_PB2002/PB2002_tdiddy.gmt  -m  \
 	 $preg  $proj  -O -K   -W$pb_w,$pb_col  >> $ofile_ps
 elif [ $add_boundary -eq 2 ];then    
-    psxy  ~/data/plate_boundaries/nuvel_without_greenwich_crossing.yx  -m  -:  \
+    gmt psxy  ~/data/plate_boundaries/nuvel_without_greenwich_crossing.yx  -m  -:  \
 	 $preg  $proj  -O -K   -W$pb_w,$pb_col  >> $ofile_ps
 fi
 if [ $add_pm -eq  1 ];then
-    makecpt -T-3/3/.3 -I -Cvik > tmp.vn.cpt 
+    gmt makecpt -T-3/3/.3 -I -Cvik > tmp.vn.cpt 
     awk -f $datadir/plates/associate_euler_pole_morvel.awk \
 	$datadir/plates/morvel.rotvec.dat $datadir/plate_boundaries/bird_PB2002/PB2002_boundaries.dig.txt  > tmp.dat
     #minmax tmp.dat;exit
@@ -792,7 +800,7 @@ if [ $add_pm -eq  1 ];then
     rm tmp.dat tmp.vn.cpt
 fi
 if [ -s $add_faults ];then
-    psxy $preg $proj $add_faults -m -O -K -W0.5,darkorange >> $ofile_ps
+    gmt psxy $preg $proj $add_faults -m -O -K -W0.5,darkorange >> $ofile_ps
 
 fi
 if [ $use_simpson -eq 1 ];then
@@ -827,24 +835,24 @@ if [ $plot_stress -ne 999 ];then
 fi
 
 if [ $plot_stress -eq 2 ];then	# all CMTs
-    gmtselect $reg -fg all.mdat_mwdt | \
+    gmt gmtselect $reg -fg all.mdat_mwdt | \
 	gawk -v d=$dmax '{if($3<=d)print($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,substr($13,1,3))}' > $tmpn.dat
     if [ $use_simpson -eq 1 ];then
 	paste $tmpn.dat $tmpn.simpson | sort -gr +12 | \
 	    gawk '{print($1,$2,$14,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)}' > $tmpn.plot
-	psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Csimpson.cpt  \
+	gmt psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Csimpson.cpt  \
 	       -Sm`echo $cmt_size`/-1  -O -K  >> $ofile_ps
 	rm $tmpn.norm
     else
 	gawk '{print($4,$7,$8,$5,$9,$6)}' $tmpn.dat | awk -f $ADIR/tensornorm.awk > $tmpn.norm
 	paste $tmpn.dat $tmpn.norm | sort -gr +12 | \
 	    gawk '{print($1,$2,($5+$6)/2/$14,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)}' > $tmpn.plot
-	psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cpt  \
+	gmt psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cpt  \
 	       -Sm`echo $cmt_size`/-1  -O -K  >> $ofile_ps
 	rm $tmpn.norm
     fi
     if [ $overlay_double_couple -eq 1 ];then
-	psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
+	gmt psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
 	       -t30 -Sd`echo $cmt_size`/-1  -O -K -T0 >> $ofile_ps
     fi
     rm $tmpn.dat 
@@ -878,13 +886,13 @@ elif [[ $plot_stress -eq 1 || $plot_stress = 4 ]];then
 	gawk '{print($1,$2)}' $tmpn.dat > $tmpn.lonlat
 	paste $tmpn.lonlat $tmpn.s1s2azi | gawk '{print($1,$2,$3,$4,$5+90)}' > \
 						$sname.$kincx.$kincy.$name.sh.stress.dat
-	psvelo $sname.$kincx.$kincy.$name.sh.stress.dat -A0.05/0.15/0.15 \
+	gmt psvelo $sname.$kincx.$kincy.$name.sh.stress.dat -A0.05/0.15/0.15 \
 	       $preg $proj  -Sx$cmt_size -O -K  -W1,$strain_cross_col >> $ofile_ps
     else			# stress tensor as CMT symbol
-	psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp \
+	gmt psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp \
 	       -Sm`echo $cmt_size`+f0+l+s10  -O -K  >> $ofile_ps
 	if [ $overlay_double_couple -eq 1 ];then
-	    psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
+	    gmt psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
 		   -t30 -Sd`echo $cmt_size`+f0+l+s10  -O -K -T0 >> $ofile_ps
 	fi
     fi
@@ -923,17 +931,17 @@ elif [ $plot_stress -ne 999 ];then
 	echo 
 	echo  $sname.$kincx.$kincy.$name.eh.dat
 	echo 
-	psvelo $sname.$kincx.$kincy.$name.eh.dat -A0.05/0.1/0.1    $preg $proj  -Sx$cmt_size -O -K  -W1,$strain_cross_col >> $ofile_ps
+	gmt psvelo $sname.$kincx.$kincy.$name.eh.dat -A0.05/0.1/0.1    $preg $proj  -Sx$cmt_size -O -K  -W1,$strain_cross_col >> $ofile_ps
 	#gawk '{azi=$5;if(azi>180)azi-=180;printf("%g %g 8 0 29 CM %.1f\n",$1,$2,azi)}' $sname.$kincx.$kincy.$name.eh.dat | \
 	    #pstext $preg $proj -O -K -Gwhite >> $ofile_ps
     else
 	minmax $tmpn.dat
 	# 	m: Seismic (full) moment tensor:
 	#           X Y depth mrr mtt mff mrt mrf mtf exp [newX newY] [event_title].
-	psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp \
+	gmt psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp \
 	       -Sm`echo $cmt_size`/-1  -O -K  >> $ofile_ps
 	if [ $overlay_double_couple -eq 1 ];then
-	    psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
+	    gmt psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5   \
 		   -t30 -Sd`echo $cmt_size`/-1  -O -K -T0 >> $ofile_ps
 	fi
     fi
@@ -944,30 +952,30 @@ fi
     #     $preg  $proj  -O -K   -W2,$pb_col  >> $ofile_ps
 
 if [ $add_jap_le -eq 1 ];then
-    gmtselect $preg -fg all.mdat_mwdt | \
+    gmt gmtselect $preg -fg all.mdat_mwdt | \
 	gawk '{split($13,l,"-");mw=l[1];year=l[2];if((mw>6.5)&&(year>1994)&&($3<50)){label=sprintf("%i-M@-w@-%.1f",year,mw);print($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,label)}}' |  sort -gr +1 | \
 	gawk '{if($1>132){i++;xl=138-i*1.2;yl=36.5;}else{j++;xl=125.5;yl=37-j/1.25};print($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,xl,yl,$13)}' | \
-	psmeca  $preg $proj  -L0.25 -W0.25 -D-1e5/1e5 -Sm`echo $cmt_size`/14  -A+p2 -O -K  >> $ofile_ps
+	gmt psmeca  $preg $proj  -L0.25 -W0.25 -D-1e5/1e5 -Sm`echo $cmt_size`/14  -A+p2 -O -K  >> $ofile_ps
 fi
 if [ $plot_stress -ne 4 ];then	# stress style color scales
     if [ $use_simpson -eq 1 ];then
 	#psscale  $pscl  -C$cmp  -Ba.5/:"$label":  -O -K  >> $ofile_ps
-	psscale  $pscl_simpson   -C$cmp  -L -O -K  >> $ofile_ps
+	gmt psscale  $pscl_simpson   -C$cmp  -L -O -K  >> $ofile_ps
     else
-	psscale  $pscl -E -C$cmp  -Ba0.25/:"$label":  -O -K  >> $ofile_ps
+	gmt psscale  $pscl -E -C$cmp  -Ba0.25/:"$label":  -O -K  >> $ofile_ps
     fi
 fi
 if [ $add_rlabel -eq 1 ];then
-    psbasemap $preg $proj $ann \
+    gmt psbasemap $preg $proj $ann \
 	      -U"$cat_string, z < $dmax km, M > $min_mag, $kincx@+o@+ by $kincy@+o@+ $lname"+o0/-0.2 -O >> $ofile_ps
 else
-    psbasemap $preg $proj $ann -O >> $ofile_ps
+    gmt psbasemap $preg $proj $ann -O >> $ofile_ps
 
 fi
 #modifybb $ofile_ps 0
 #psconvert -TG -A+m0.1 $ofile_ps 	# transp PNG
-psconvert -Tg -A+m0.1 $ofile_ps 	# PNG
-psconvert -Tf -A+m0.1 $ofile_ps 	# PDF
+gmt psconvert -Tg -A+m0.1 $ofile_ps 	# PNG
+gmt psconvert -Tf -A+m0.1 $ofile_ps 	# PDF
 echo $0: output in $ofile_png and $ofile_ps
 #/usr/bin/convert -density 150 -background white -flatten -trim +repage $ofile_ps_start.ps $ofile_ps_start.png
 #psconvert -Tf $ofile_ps
