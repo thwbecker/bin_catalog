@@ -1,6 +1,7 @@
 #!/bin/bash
 #
 # plot Kostrov summation or stress inversion using bin_catalog
+#
 # thwbecker@post.harvard.edu
 #
 # this uses GMT6 syntax but assumes psxy --> gmt psxy type links have been set (see GMT documentation)
@@ -36,10 +37,16 @@ trap "rm -f $tmpn*" EXIT
 slab_cmp=lajolla
 slab_col_add=""
 slab_cont_type=-W1
-pv_vec_size=0.1/0.18/0.1
 
-pv_vec_scale=5
-vel_label_loc="-55 -45"
+is_xy_flag=""
+if [ $is_aki -eq 1 ];then
+    is_aki_flag=""
+else
+    is_aki_flag=-cmt
+fi
+
+
+hypo_scale=200
 #
 # make a  Kostrov summation
 #
@@ -95,7 +102,8 @@ ann=`region_parameters $rcode_code 6`
 name=`region_parameters $rcode_code 7`
 
 add_faults=xxx
-zslab_max=700
+#zslab_max=700
+zslab_max=200
 add_jap_le=0			# large, recent events for japan
 if [ $add_rlabel -eq 1 ];then
     pscl=-Dx7.5/-0.1/3/.15h
@@ -108,9 +116,12 @@ pscl_slab1=0.5/-0.1/2.5/.15h
 pscl_slab2=3.5/1/2.5/.15h
 
 # ref frame for plate motions, if used
-rframe=sa
-#rframe=7
+rframe=sa			# 
 vinc=-I2.5
+pv_vec_scale=5			# velocity scale
+vel_label_loc="-55 -45"
+pv_vec_size=0.1/0.18/0.1
+
 
 if [ $rcode = 0 ];then
     if [ $wcut -eq 2 ];then	# make it look like the GSRM plots
@@ -149,6 +160,28 @@ if [ $rcode = 0 ];then
 	ann=-Bg90
 	cmt_size=0.08
     fi
+elif [ $rcode = 8 ];then	# Caribbe
+    kinc=0.5
+    pscl=-Dx3.5/-0.1/3/.15h
+    pscl_slab2=7.25/3.5/3/.15
+    #rframe=44			# SAM
+    rframe=34			# North Andes
+    pv_vec_scale=7
+    vinc=-I5
+    vel_label_loc="-63 -3"
+
+elif [ $rcode = 65 ];then	# Colom
+    proj=-JM7
+    kinc=0.5
+    pscl=-Dx3.5/-0.1/3/.15h
+    pscl_slab2=6.5/3.5/3/.15
+    #rframe=44			# SAM
+    rframe=34			# North Andes
+    pv_vec_scale=7
+    vinc=-I5
+    cmt_size=0.25
+    vel_label_loc="-70 0"
+    hypo_scale=60
 elif [ $rcode = 27 ];then
     ann=-Ba5f.5WesN
     proj=-JM13
@@ -386,10 +419,15 @@ if [ ! -s $sname.$kincx.$kincy.$name.0.norm.dat ];then
 	#dy_km2=`echo $dy_km | gawk '{print($1*2)}'`
 	dweight=1
 	dist_max=$dy_km
-	nsample_catalog  $mom_file $kincx $min_mag $max_mag \
-			 $w $e $s $n $dmax $is_aki $dweight $nmin_for_stress $dist_max $dmin 0 $sname $kincy
+	nsample_catalog  $mom_file $kincx $min_mag $max_mag --monte-carlo 0 \
+			 --min-lon $w --max-lon $e --min-lat $s --max-lat $n \
+			 --max-depth $dmax $is_aki --weighting $dweight --min-event $nmin_for_stress \
+			 --$dist_max $dmin 0 $sname $kincy
     else			# default, by bin
-	bin_catalog $mom_file $kincx $min_mag $max_mag 0 $w $e $s $n $dmax $is_aki 0 $dmin 0 $sname $kincy $nmin_for_stress
+	bin_catalog --dx $kincx --dy $kincy --min-mag $min_mag --max-mag $max_mag $is_aki_flag $is_xy_flag \
+		    --min-lon  $w --max-lon $e --min-lat $s --max-lat $n \
+		    --min-depth $dmin --max-depth $dmax ---out-prefix $sname \
+		    --min-events $nmin_for_stress $mom_file 
     fi
     #
     for t in norm scaled;do	# Kostrov summations
@@ -531,7 +569,6 @@ fi
 #if [[ $rcode = 19 || $rcode = 6 || $rcode = 9 ]];then
 pscoast $preg $proj -Df -A5000  -W.25  -O -K >> $ofile
 if [ $add_pm -eq  1 ];then
-
     pmodel=$datadir/plates/morvel;pm_inc=0.25
     grdvector $pmodel.vx.$pm_inc.$rframe.grd  \
 	      $pmodel.vy.$pm_inc.$rframe.grd  $preg $proj -T -O -K \
@@ -555,6 +592,12 @@ if [ $add_slab_cont -eq 1 ];then
     fi
     psxy $preg $proj -fg -m $datadir/slab_contours/slab2/all.40spaced.dcont $slab_cont_type  \
 	 -C$tmpn.z.cpt -O -K -t40 >> $ofile
+    
+    gawk -v h=$hypo_scale '{print($3,$2,$4,$5/h)}'  \
+	 $datadir/quakes/colombia/hypo_catalog_v02.reloc | sort -g +3 | \
+	 psxy $preg $proj -fg -m -Sc  -C$tmpn.z.cpt -O -K  >> $ofile
+
+    
     if [ $use_simpson -eq 1 ];then
 	psscale -Dx$pscl_slab1 $slab_col_ends $slab_col_add \
 		-C$tmpn.z.cpt  -B$zslspc/:"z@-slab@- [km]":  -O -K  >> $ofile
@@ -634,7 +677,9 @@ if [ -s $add_profile.dat ];then
 
 fi
 if [ $plot_stress -ne 999 ];then
-    
+    #
+    # prepare labels and files
+    # 
     if [[ $plot_stress -eq 1 || $plot_stress -eq 4 ]];then
 	kfile=$sname.$kincx.$kincy.$name.s.dat
 	label="@~s@~@-h@-"
@@ -694,6 +739,13 @@ if [ $add_boundary -eq 1 ];then
 elif [ $add_boundary -eq 2 ];then    
     psxy  ~/data/plate_boundaries/nuvel_without_greenwich_crossing.yx  -m  -:  \
 	 $preg  $proj  -O -K   -W$pb_w,$pb_col  >> $ofile
+fi
+if [ $add_pm -eq  1 ];then
+    makecpt -T-3/3/.3 -I -Cvik > tmp.vn.cpt 
+    gawk -f $datadir/plates/associate_euler_pole_morvel.awk $datadir/plates/morvel.rotvec.dat $datadir/plate_boundaries/bird_PB2002/PB2002_boundaries.dig.txt  > tmp.dat
+    #minmax tmp.dat;exit
+    #psxy -fg $preg $proj -Ctmp.vn.cpt -Sc.05 -W0.5  -O -K tmp.dat >> $ofile
+    rm tmp.dat tmp.vn.cpt
 fi
 if [ -s $add_faults ];then
     psxy $preg $proj $add_faults -m -O -K -W0.5,darkorange >> $ofile
