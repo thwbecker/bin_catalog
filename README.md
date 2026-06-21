@@ -15,8 +15,10 @@ simple grid where each bin is summed and inverted for stress if there
 are sufficient number of entries, as well as `nsample_catalog` which
 determines the set of focal mechanisms to use based on a maximum
 distance from point plus mininum number, or number of events within
-distance criterion. See bin_catalog.c and nsample_catalog.c for the
-options, plot_kostrov for some illustration as to how to use. 
+distance criterion.
+
+See `bin_catalog.c` and `nsample_catalog.c` for the options, `plot_kostrov`
+for some illustration as to how to use and plot the output.
 
 Contains some versions of Andy Michael's code, as well as Vavryčuk
 subroutines, converted to C, and GMT4.5.18 code - see their respective
