@@ -96,11 +96,11 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
 	   scan range mirrors the old optimize flag (use_friction_solve-1):
 	   1 -> 0..1, else -> 0.2..0.8 */
 	opt = catalog->use_friction_solve - 1;
-	if(opt == 1){
+	if(opt == 1){		/* use_friction == 2 */
 	  fmin = 0.0; fmax = 1.0; finc = BC_FRIC_SCAN_INC;calc_fric_uncertainty = BC_FALSE;
-	}else if(opt == 2){
+	}else if(opt == 2){	/* use_friction == 3 */
 	  fmin = 0.2; fmax = 0.8; finc = BC_FRIC_SCAN_INC2;;calc_fric_uncertainty = BC_FALSE;
-	}else if(opt == 3){
+	}else if(opt == 3){	/* use_friction == 3 */
 	  fmin = 0.0; fmax = 1.0; finc = BC_FRIC_SCAN_INC;calc_fric_uncertainty = BC_TRUE;
 	}
 	stress_inversion_vavrycuk(kostrov->bin[i].n,angles,weights,fmin,fmax,finc,
