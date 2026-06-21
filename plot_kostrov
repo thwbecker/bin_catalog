@@ -416,17 +416,15 @@ if [ ! -s $sname.$kincx.$kincy.$name.0.norm.dat ];then
     nmin_for_stress=5
     if [ $dist_based -eq 1 ];then # optional, by distance
 	dy_km=`echo $kincy | gawk '{printf("%.1f",$1*111.19492664/1.5)}'` # distance in km sort of
-	#dy_km2=`echo $dy_km | gawk '{print($1*2)}'`
-	dweight=1
 	dist_max=$dy_km
-	nsample_catalog  $mom_file $kincx $min_mag $max_mag --monte-carlo 0 \
-			 --min-lon $w --max-lon $e --min-lat $s --max-lat $n \
-			 --max-depth $dmax $is_aki --weighting $dweight --min-event $nmin_for_stress \
-			 --$dist_max $dmin 0 $sname $kincy
-    else			# default, by bin
-	bin_catalog --dx $kincx --dy $kincy --min-mag $min_mag --max-mag $max_mag $is_aki_flag $is_xy_flag \
+	nsample_catalog --dx $kincx --dy $kincy --min-mag $min_mag --max-mag $max_mag $is_aki_flag $is_xy_flag \
 		    --min-lon  $w --max-lon $e --min-lat $s --max-lat $n \
 		    --min-depth $dmin --max-depth $dmax ---out-prefix $sname \
+		    --min-events $nmin_for_stress
+    else			# default, by bin
+	bin_catalog --dx $kincx --dy $kincy --min-mag $min_mag --max-mag $max_mag $is_aki_flag $is_xy_flag \
+		    --min-lon  $w --max-lon $e --min-lat $s --max-lat $n --friction-solve 2 \
+		    --min-depth $dmin --max-depth $dmax --out-prefix $sname \
 		    --min-events $nmin_for_stress $mom_file 
     fi
     #

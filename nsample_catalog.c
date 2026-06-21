@@ -43,8 +43,8 @@ static void usage(char *name, struct kostrov_sum *k, int use_aki,
   fprintf(stderr,"  -p, --nmin val           min events (>0) or -nmin nearest (<0)   [%i]\n",k->nmin);
   fprintf(stderr,"  -D, --dist-max val       maximum selection distance, km          [%g]\n",k->dist_max);
   fprintf(stderr,"  -w, --weighting val      weighting: 0 none, 1 by distance        [%i]\n",use_weights);
-  fprintf(stderr,"  -F, --friction-solve val 1 stress only, 2/3 optimize range,\n");
-  fprintf(stderr,"                           4 optimize and estimate uncertainty      [%i]\n",fric);
+  fprintf(stderr,"  -F, --friction-solve val 1: Vavrycuk stress only, 2/3 optimize friction range,\n");
+  fprintf(stderr,"                           4 optimize friction and esti.uncertaint. [%i]\n",fric);
   fprintf(stderr,"  -o, --out-prefix str     output filename prefix                   [%s]\n",out_istring);
   fprintf(stderr,"  -x, --xy                 treat coordinates as Cartesian x y       [%s]\n",is_xy?"on":"off");
   fprintf(stderr,"  -c, --cmt                read CMT format instead of AKI            [%s]\n",use_aki?"off":"on");
