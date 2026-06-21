@@ -243,22 +243,48 @@ void stress_inversion_vavrycuk(int n, BC_CPREC *angles, BC_CPREC *weights,
   }
   memcpy(tau, acc, 6 * sizeof(BC_CPREC)); /* tau0 (scale irrelevant to iter) */
 
-  /* -------- friction scan, tau carried across (as MATLAB) ----------- */
-  best_mean = -1e30; fopt_l = fmin;
-  for (mu = fmin; mu <= fmax + 1e-9; mu += finc) {
+  /* -------- converge one reference tensor --------------------------
+     the resolved planes, and therefore the tensor, are usually
+     insensitive to friction (each event has a clearly more unstable
+     plane whose identity does not flip with mu). so converge a single
+     reference tensor near the middle of the scan, then read the
+     friction curve off it cheaply instead of re-inverting at every
+     friction. the returned tensor is re-converged at the optimum below,
+     so it is exact for fopt regardless of this approximation. */
+  {
+    BC_CPREC mu_ref = 0.5 * (fmin + fmax);
     for (it = 0; it < n_iter; it++) {
-      vavrycuk_select_planes(n, angles, mu, tau, sel, &mean_inst);
+      vavrycuk_select_planes(n, angles, mu_ref, tau, sel, &mean_inst);
       solve_stress_michael_specified_plane(n, sel, weights, raw, BC_FALSE);
-      memcpy(tau, raw, 6 * sizeof(BC_CPREC)); /* no norm: selection is scale invariant */
+      memcpy(tau, raw, 6 * sizeof(BC_CPREC)); /* no norm: scale invariant */
     }
-    if (mean_inst > best_mean) {
-      best_mean = mean_inst; fopt_l = mu;
-    }
-    if (finc <= 0.0)
-      break;             /* guard against fmin==fmax, finc 0 */
   }
 
-  /* -------- final pass at optimum friction (tau carries over) -------- */
+  /* -------- pick the optimum friction from the cheap curve -----------
+     the eigensystem of the reference tensor is computed once; each
+     friction then costs only the instability formula per event, no
+     re-inversion. this is what makes the scan and the bootstrap fast. */
+  best_mean = -1e30; fopt_l = fmin;
+  if ((finc > 0.0) && (fmax > fmin + 1e-9)) {
+    BC_CPREC v1[3], v2[3], v3[3], sf, ff, inst[2], acc_mu;
+    int jj, jj6;
+    vavrycuk_eigen(tau, v1, v2, v3, &sf);          /* once */
+    for (mu = fmin; mu <= fmax + 1e-9; mu += finc) {
+      ff = mu + sqrt(1.0 + mu * mu);
+      acc_mu = 0.0;
+      for (jj = jj6 = 0; jj < n; jj++, jj6 += 6) {
+        vavrycuk_plane_inst(v1, v2, v3, sf, mu, ff, (angles + jj6), inst);
+        acc_mu += (inst[1] > inst[0]) ? inst[1] : inst[0];
+      }
+      acc_mu /= (BC_CPREC)n;
+      if (acc_mu > best_mean) { best_mean = acc_mu; fopt_l = mu; }
+    }
+  }
+
+  /* -------- re-converge at the optimum friction (warm start) ---------
+     starts from the reference tensor, so this settles in a couple of
+     iterations when the selection is unchanged, and corrects the tensor
+     where it is not. */
   for (it = 0; it < n_iter; it++) {
     vavrycuk_select_planes(n, angles, fopt_l, tau, sel, &mean_inst);
     solve_stress_michael_specified_plane(n, sel, weights, raw, BC_FALSE);
@@ -498,7 +524,7 @@ void vavrycuk_friction_error(int n, BC_CPREC *angles, BC_CPREC *weights,
 {
   BC_CPREC *rangles, *rweights, *fb, stress[6], shape_ratio, minst, fopt, s1, s2;
   size_t asize = 6 * sizeof(BC_CPREC) * n;
-  int b, j, j6, idx, i16, i84;
+  int b, j, j6, idx, i16, i84, n_real_boot;
 
   /* point estimate from the full data */
   stress_inversion_vavrycuk(n, angles, weights, fmin, fmax, finc,
@@ -514,6 +540,12 @@ void vavrycuk_friction_error(int n, BC_CPREC *angles, BC_CPREC *weights,
   fb       = (BC_CPREC *)malloc(sizeof(BC_CPREC) * n_boot);
   if ((!rangles) || (!rweights) || (!fb)) BC_MEMERROR("vavrycuk_friction_error");
 
+  /* the resamples use a single initialization realization instead of
+     n_real. the iteration is initialization independent, so this does
+     not change any converged result, only the discarded starting
+     tensor, and it removes most of the per-resample init cost. the
+     point estimate above keeps the full n_real. */
+  n_real_boot = 1;
   s1 = s2 = 0.0;
   for (b = 0; b < n_boot; b++) {
     /* draw n events with replacement */
@@ -524,7 +556,7 @@ void vavrycuk_friction_error(int n, BC_CPREC *angles, BC_CPREC *weights,
       rweights[j] = weights[idx];
     }
     stress_inversion_vavrycuk(n, rangles, rweights, fmin, fmax, finc,
-                              n_iter, n_real, seed, stress, &shape_ratio,
+                              n_iter, n_real_boot, seed, stress, &shape_ratio,
                               &fopt, &minst, NULL, BC_STRESS_NORM_EV);
     fb[b] = fopt;
     s1 += fopt;
