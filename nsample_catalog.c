@@ -32,22 +32,22 @@ static void usage(char *name, struct kostrov_sum *k, int use_aki,
   fprintf(stderr,"options (defaults in brackets):\n");
   fprintf(stderr,"  -d, --dx val             sample spacing dx, deg (or km with -x)   [%g]\n",k->dx);
   fprintf(stderr,"  -y, --dy val             sample spacing dy, if different from dx  [dx]\n");
-  fprintf(stderr,"  -m, --min-mag val        minimum magnitude                       [%g]\n",k->minmag);
-  fprintf(stderr,"  -M, --max-mag val        maximum magnitude                       [%g]\n",k->maxmag);
-  fprintf(stderr,"  -l, --min-lon val        minimum longitude                       [%g]\n",k->dlonmin);
-  fprintf(stderr,"  -r, --max-lon val        maximum longitude                       [%g]\n",k->dlonmax);
-  fprintf(stderr,"  -b, --min-lat val        minimum latitude                        [%g]\n",k->dlatmin);
-  fprintf(stderr,"  -t, --max-lat val        maximum latitude                        [%g]\n",k->dlatmax);
-  fprintf(stderr,"  -z, --max-depth val      maximum depth                           [%g]\n",k->maxdepth);
-  fprintf(stderr,"  -Z, --min-depth val      minimum depth                           [%g]\n",k->mindepth);
-  fprintf(stderr,"  -p, --nmin val           min events (>0) or -nmin nearest (<0)   [%i]\n",k->nmin);
-  fprintf(stderr,"  -D, --dist-max val       maximum selection distance, km          [%g]\n",k->dist_max);
-  fprintf(stderr,"  -w, --weighting val      weighting: 0 none, 1 by distance        [%i]\n",use_weights);
+  fprintf(stderr,"  -m, --min-mag val        minimum magnitude                        [%g]\n",k->minmag);
+  fprintf(stderr,"  -M, --max-mag val        maximum magnitude                        [%g]\n",k->maxmag);
+  fprintf(stderr,"  -l, --min-lon val        minimum longitude                        [%g]\n",k->dlonmin);
+  fprintf(stderr,"  -r, --max-lon val        maximum longitude                        [%g]\n",k->dlonmax);
+  fprintf(stderr,"  -b, --min-lat val        minimum latitude                         [%g]\n",k->dlatmin);
+  fprintf(stderr,"  -t, --max-lat val        maximum latitude                         [%g]\n",k->dlatmax);
+  fprintf(stderr,"  -z, --max-depth val      maximum depth                            [%g]\n",k->maxdepth);
+  fprintf(stderr,"  -Z, --min-depth val      minimum depth                            [%g]\n",k->mindepth);
+  fprintf(stderr,"  -p, --nmin val           min events (>0) or -nmin nearest (<0)    [%i]\n",k->nmin);
+  fprintf(stderr,"  -D, --dist-max val       maximum selection distance, km           [%g]\n",k->dist_max);
+  fprintf(stderr,"  -w, --weighting val      weighting: 0 none, 1 by distance         [%i]\n",use_weights);
   fprintf(stderr,"  -F, --friction-solve val 1: Vavrycuk stress only, 2/3 optimize friction range,\n");
   fprintf(stderr,"                           4 optimize friction and esti.uncertaint. [%i]\n",fric);
   fprintf(stderr,"  -o, --out-prefix str     output filename prefix                   [%s]\n",out_istring);
   fprintf(stderr,"  -x, --xy                 treat coordinates as Cartesian x y       [%s]\n",is_xy?"on":"off");
-  fprintf(stderr,"  -c, --cmt                read CMT format instead of AKI            [%s]\n",use_aki?"off":"on");
+  fprintf(stderr,"  -c, --cmt                read CMT format instead of AKI           [%s]\n",use_aki?"off":"on");
   fprintf(stderr,"  -h, --help               print this help and exit\n");
 }
 
@@ -73,8 +73,9 @@ int main(int argc, char **argv)
   kostrov = catalog->sum;
   kostrov_set_defaults(kostrov); /* set binning defaults */
 
-  /* 1: additional stress inversion, 2: optimize friction 0...1, 3: 0.2...0.8, 4: 0...1 and find uncertainties */
-  catalog->use_friction_solve = 4;
+  /* 1: additional stress inversion, 2: optimize friction 0...1, 
+     3: 0.2...0.8,                   4: 0...1 and find uncertainties */
+  catalog->use_friction_solve = 2;
   snprintf(out_istring,sizeof(out_istring),"nsample");
 
   /*

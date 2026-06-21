@@ -70,8 +70,9 @@ int main(int argc, char **argv)
   if(!catalog)
     BC_MEMERROR(argv[0]);
 
-  /* 1: additional stress inversion, 2: optimize friction 0...1, 3: optimize 0.2...0.8, 4: optimize 0...1 and calc uncertainty */
-  catalog->use_friction_solve = 4;
+  /* 1: additional stress inversion, 2: optimize friction 0...1, 
+     3: 0.2...0.8,                   4: 0...1 and find uncertainties */
+  catalog->use_friction_solve = 2;
   sprintf(out_istring,"kostrov");
 
   kostrov = catalog->sum;
