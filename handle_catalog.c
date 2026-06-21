@@ -1050,8 +1050,9 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 	    fprintf(out1,"%8.4f ",kostrov->bin[i].best_s[k]);
 	  fprintf(out1,"\t%8.3f %8.3f %12i",
 		  kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
-	  fprintf(out1,"\t%8.4f\t%5.3f\t%5.3f\n", /* mean dot product, best or median friction, std */
-		  kostrov->bin[i].dotp[2],kostrov->bin[i].best_fric,kostrov->bin[i].std_fric);
+	  fprintf(out1,"\t%8.4f\t%4.2f %4.2f %4.2f\n", /* mean dot product, friction best, friction median, friction std */
+		  kostrov->bin[i].dotp[2],
+		  kostrov->bin[i].best_fric,kostrov->bin[i].mean_best_fric,kostrov->bin[i].std_best_fric);
 	  mean_fric += kostrov->bin[i].best_fric;
 	}
       fclose(out1);

@@ -166,8 +166,8 @@ struct bn{
   BC_CPREC me,mens,men;		/* mean horizontal strain */
   BC_CPREC smn[6],mnloc[6];		/* std for monte carlo, local
 					   realization */
-  BC_CPREC dotp[3];		/* dot product misfit for three different inversions */
-  BC_CPREC best_fric,std_fric;
+  float dotp[3];		/* dot product misfit for three different inversions */
+  float mean_best_fric,std_best_fric,best_fric;
   BC_CPREC def_s[6],best_s[6];		/* default friction and best friction detemined stress */
   BC_CPREC *weight;
 };

@@ -103,18 +103,21 @@ void calc_stress_tensor_for_kbins(struct cat *catalog)
 	}else if(opt == 3){	/* use_friction == 3 */
 	  fmin = 0.0; fmax = 1.0; finc = BC_FRIC_SCAN_INC;calc_fric_uncertainty = BC_TRUE;
 	}
+	/* best solution from scan */
 	stress_inversion_vavrycuk(kostrov->bin[i].n,angles,weights,fmin,fmax,finc,
 				  BC_VI_ITER,BC_VI_NREAL,&catalog->seed,
-				  kostrov->bin[i].best_s,&shape_ratio,&(kostrov->bin[i].best_fric),
+				  kostrov->bin[i].best_s,&shape_ratio,&fr_best,
 				  &mdotp,NULL,BC_STRESS_NORM_TENSOR);
+	kostrov->bin[i].best_fric = fr_best;
 	if(calc_fric_uncertainty){
 	  vavrycuk_friction_error(kostrov->bin[i].n, angles, weights,fmin,fmax,finc,
 				  BC_VI_ITER, BC_VI_NREAL, BC_VI_MC_ERR, &catalog->seed,
 				  &fr_best, &fr_mean, &fr_std, &fr_16, &fr_84);
-	  kostrov->bin[i].best_fric = fr_mean; /* replace with mean */
-	  kostrov->bin[i].std_fric = fr_std; 
+	  kostrov->bin[i].mean_best_fric = fr_mean; /* replace with mean */
+	  kostrov->bin[i].std_best_fric = fr_std; 
 	}else{
-	  kostrov->bin[i].std_fric = NAN; 
+	  kostrov->bin[i].mean_best_fric = NAN; 
+	  kostrov->bin[i].std_best_fric = NAN; 
 	}
 	kostrov->bin[i].dotp[2] = mdotp;
       }
