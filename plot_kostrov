@@ -30,7 +30,8 @@ min_mag=${19-0}			# min magnitude
 max_mag=${20-10}		# max magnitude
 add_wsm=${21-0}			# add world stress map
 force_inc=${22-"nan"}		# for increment for binning, else automatically detect
-dist_based=${23-0}		# distance based 
+dist_based=${23-0}		# distance based
+stress_inversion_mode=${24-2}	# Vavrychuk modes
 tmpn=`mktemp`
 trap "rm -f $tmpn*" EXIT
 
@@ -418,12 +419,12 @@ if [ ! -s $sname.$kincx.$kincy.$name.0.norm.dat ];then
 	dy_km=`echo $kincy | gawk '{printf("%.1f",$1*111.19492664/1.5)}'` # distance in km sort of
 	dist_max=$dy_km
 	nsample_catalog --dx $kincx --dy $kincy --min-mag $min_mag --max-mag $max_mag $is_aki_flag $is_xy_flag \
-			--min-lon  $w --max-lon $e --min-lat $s --max-lat $n \
+			--min-lon  $w --max-lon $e --min-lat $s --max-lat $n  --friction-solve $stress_inversion_mode \
 			--min-depth $dmin --max-depth $dmax --out-prefix $sname \
 			--nmin $nmin_for_stress --dist-max $dist_max $mom_file
     else			# default, by bin
 	bin_catalog --dx $kincx --dy $kincy --min-mag $min_mag --max-mag $max_mag $is_aki_flag $is_xy_flag \
-		    --min-lon  $w --max-lon $e --min-lat $s --max-lat $n --friction-solve 2 \
+		    --min-lon  $w --max-lon $e --min-lat $s --max-lat $n --friction-solve $stress_inversion_mode \
 		    --min-depth $dmin --max-depth $dmax --out-prefix $sname \
 		    --min-events $nmin_for_stress $mom_file 
     fi
