@@ -155,11 +155,11 @@ moment conversions
 */
 BC_CPREC mag2mom(BC_CPREC mag)
 {				     /* Hanks and Kanamori (1979) */
-  return pow(10.0,1.5*mag + 9.1); /* M0 in Nm */
+  return pow(10.0,1.5*mag + 9.05); /* M0 in Nm */
 }
 BC_CPREC mom2mag(BC_CPREC mom)
 {
-  return ((0.6666666666666666666666667)*(log10(mom) - 9.1)); /* in Nm */
+  return ((0.6666666666666666666666667)*(log10(mom) - 9.05)); /* in Nm */
 }
 
 BC_CPREC mag2pot(BC_CPREC mag)
