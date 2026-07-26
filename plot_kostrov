@@ -47,9 +47,11 @@ tmpn=`mktemp`
 trap "rm -f $tmpn*" EXIT
 #
 #
-ADIR=./awk/			# local awk dir
-SDIR=./scripts/			# local script dir
-BDIR=./bin/			# bindaries
+my_dir=$HOME/progs/src/bin_catalog/
+
+ADIR=$my_dir/awk/			# local awk dir
+SDIR=$my_dir/scripts/			# local script dir
+BDIR=$my_dir/bin/			# bindaries
 datadir=$HOME/data/		# the script looks for some additional data, like plate boundaries and topo here.
 #
 # region helpers, inlined from awk/reg2*.awk so no external awk files are
@@ -452,16 +454,19 @@ if [ ! -s $sname.$kincx.$kincy.$name.0.norm.dat ];then
     if [ $dist_based -eq 1 ];then # optional, by distance
 	dy_km=`echo $kincy | gawk '{printf("%.1f",$1*111.19492664/1.5)}'` # distance in km sort of
 	dist_max=$dy_km
-	$BDIR/nsample_catalog --dx $kincx --dy $kincy --min-mag $min_mag --max-mag $max_mag $is_aki_flag $is_xy_flag \
-			--min-lon  $w --max-lon $e --min-lat $s --max-lat $n  --friction-solve $stress_inversion_mode \
-			--min-depth $dmin --max-depth $dmax --out-prefix $sname \
-			--nmin $nmin_for_stress --dist-max $dist_max $mom_file
+	cat <<EOF > $tmpn.script 
+$BDIR/nsample_catalog --dx $kincx --dy $kincy --min-mag $min_mag --max-mag $max_mag $is_aki_flag $is_xy_flag --min-lon  $w --max-lon $e --min-lat $s --max-lat $n --friction-solve $stress_inversion_mode --min-depth $dmin --max-depth $dmax --out-prefix $sname --nmin $nmin_for_stress --dist-max $dist_max $mom_file
+EOF
     else			# default, by bin
-	$BDIR/bin_catalog --dx $kincx --dy $kincy --min-mag $min_mag --max-mag $max_mag $is_aki_flag $is_xy_flag \
-		    --min-lon  $w --max-lon $e --min-lat $s --max-lat $n --friction-solve $stress_inversion_mode \
-		    --min-depth $dmin --max-depth $dmax --out-prefix $sname \
-		    --min-events $nmin_for_stress $mom_file 
+	cat <<EOF > $tmpn.script
+
+	$BDIR/bin_catalog --dx $kincx --dy $kincy --min-mag $min_mag --max-mag $max_mag $is_aki_flag $is_xy_flag --min-lon  $w --max-lon $e --min-lat $s --max-lat $n --friction-solve $stress_inversion_mode  --min-depth $dmin --max-depth $dmax --out-prefix $sname --min-events $nmin_for_stress $mom_file
+EOF
     fi
+    echo $0: running the bin command as
+    cat $tmpn.script 
+    bash -x $tmpn.script
+    rm $tmpn.script
     #
     for t in norm scaled;do	# Kostrov summations
 	if [ ! -s $sname.$kincx.$kincy.0.$t.dat ];then
@@ -506,11 +511,11 @@ fi
 
 spc=0.25
 if [ $use_simpson -eq 1 ];then
-    #makecpt -D -T0/3/0.5 -Z -Croma -I > tmp1
-    gmt makecpt -D -T0/3/0.25  -Croma -I > tmp1
-    #makecpt -D -T0/3/0.5  -Cseis -I > tmp1
+    #makecpt -D -T0/3/0.5 -Z -Croma -I > $tmpn.1
+    gmt makecpt -D -T0/3/0.25  -Croma -I > $tmpn.1
+    #makecpt -D -T0/3/0.5  -Cseis -I > $tmpn.1
     cmp=simpson.cpt
-    cat <<EOF > tmp2
+    cat <<EOF > $tmpn.2
 ;radial extension
 ;
 ;normal
@@ -524,8 +529,8 @@ if [ $use_simpson -eq 1 ];then
 ;reverse
 ;;constriction
 EOF
-    paste tmp1 tmp2 > simpson.cpt
-    rm tmp1 tmp2
+    paste $tmpn.1 $tmpn.2 > simpson.cpt
+    rm $tmpn.1 $tmpn.2
 else
     #makecpt -D -T-.4/.4/0.04 -Cseis > def.cpt
     #makecpt -D -T-.5/.5/0.05 -I -Crainbow > def.cpt

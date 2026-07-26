@@ -1331,8 +1331,7 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
 	  geo_search_add_point(catalog->tree, catalog->quake[i].dlat,catalog->quake[i].dlon,i);
 	}
       }
-      
-      fprintf(stderr,"read_catalog: building searcj with %d out of %d events (using only those within bounds)",
+      fprintf(stderr,"read_catalog: building search tree with %d out of %d events (using only those within bounds)",
 	      catalog->tree->num_points,catalog->n);
     }
     
