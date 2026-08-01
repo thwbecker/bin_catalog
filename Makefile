@@ -30,7 +30,7 @@ EISLIB = -Leispack/$(ARCH)/ -lmyeis
 CAT_OBJS = $(ODIR)/handle_catalog.o  $(ODIR)/fault_eq.o   \
 	$(ODIR)/linalg_misc_geo.o  $(ODIR)/bvalue.o \
 	$(ODIR)/handle_catalog_gmt.o $(ODIR)/michael_leasq.o \
-	$(ODIR)/geo_kdtree.o  $(ODIR)/eigen.o \
+	$(ODIR)/geo_search.o  $(ODIR)/eigen.o \
 	$(MECA_OBJS) 
 
 # from Michael and Vavrychuk
@@ -52,7 +52,7 @@ EIGEN_PROGS = $(BDIR)/eigen  \
 	$(BDIR)/eigenvalues3ds 
 
 #
-TEST_PROGS = $(BDIR)/test_eigen $(BDIR)/test_kdtree
+TEST_PROGS = $(BDIR)/test_eigen 
 
 all: dirs libs progs eigen_progs test_progs
 
@@ -136,10 +136,6 @@ $(BDIR)/eigenvalues3ds: $(ODIR)/eigen.tds.ov.o $(ODIR)/eigen.o
 $(BDIR)/test_eigen: test/test_eigen.c $(CAT_OBJS)
 	$(CC) $(CFLAGS) test/test_eigen.c $(INCLUDES)  $(CAT_OBJS) \
 	-o $(BDIR)/test_eigen  $(EISLIB)   $(LDFLAGS)
-
-$(BDIR)/test_kdtree: test/test_kdtree.c $(ODIR)/geo_kdtree.o $(ODIR)/linalg_misc_geo.o $(ODIR)/eigen.o
-	$(CC) $(CFLAGS) test/test_kdtree.c $(INCLUDES) $(ODIR)/geo_kdtree.o $(ODIR)/eigen.o \
-	$(ODIR)/linalg_misc_geo.o  -o $(BDIR)/test_kdtree $(EISLIB) $(LDFLAGS)
 
 
 $(ODIR)/eigen.main.o: eigen_driver.c $(HFILES)

@@ -740,13 +740,14 @@ void print_histogram(int *nentry, BC_CPREC *xbin, int nbin, FILE *out_stream)
 }
 
 
+  
 
 /* 
 
    call after initializing lon, lat range and sum->dlon/sum->dlat ! 
 
 */
-void setup_kostrov(struct cat *catalog,int weighting_method)
+void setup_kostrov_grid(struct cat *catalog,int weighting_method)
 {
   int i,j,ind;
   double xmin,ymin,darea;
@@ -762,17 +763,17 @@ void setup_kostrov(struct cat *catalog,int weighting_method)
   kostrov->ny = (kostrov->dlatmax - kostrov->dlatmin)/kostrov->dy;
   kostrov->nxny = kostrov->nx * kostrov->ny;
   if(kostrov->nx < 1 || kostrov->ny < 1){
-    fprintf(stderr,"setup_bins: error: nx: %i ny: %i, lon: %g - %g - %g, lat: %g - %g - %g\n",
+    fprintf(stderr,"setup_kostrov_grid: error: nx: %i ny: %i, lon: %g - %g - %g, lat: %g - %g - %g\n",
 	    kostrov->nx,kostrov->ny,
 	    kostrov->dlonmin,kostrov->dx,kostrov->dlonmax,
 	    kostrov->dlatmin,kostrov->dy,kostrov->dlatmax);
     exit(-1);
   }
-  fprintf(stderr,"setup_kostrov: using magnitudes from %g to %g, depths from %g to %g\n",
+  fprintf(stderr,"setup_kostrov_grid: using magnitudes from %g to %g, depths from %g to %g\n",
 	  kostrov->minmag,kostrov->maxmag,
 	  kostrov->mindepth,kostrov->maxdepth);
   
-  fprintf(stderr,"setup_bins: setting up %i bins for -R%g/%g/%g/%g -I%g/%g nx: %i ny %i\n",
+  fprintf(stderr,"setup_kostrov_grid: setting up %i bins for -R%g/%g/%g/%g -I%g/%g nx: %i ny %i\n",
 	  kostrov->nxny,
 	  kostrov->dlonmin,
 	  kostrov->dlonmax,
@@ -783,7 +784,7 @@ void setup_kostrov(struct cat *catalog,int weighting_method)
   
   kostrov->bin = (struct bn *)realloc(kostrov->bin,kostrov->nxny * sizeof(struct bn));
   if(!kostrov->bin)
-    BC_MEMERROR("setup_bins");
+    BC_MEMERROR("setup_kostrov_grid");
   for(i=0;i < kostrov->nxny;i++){
     kostrov->bin[i].quake = (unsigned int *)malloc(sizeof(unsigned int));
     kostrov->bin[i].weight = (BC_CPREC *)malloc(sizeof(BC_CPREC));
@@ -840,10 +841,80 @@ void clear_bins(struct cat *catalog)
     for(k=0;k < 6;k++){
       kostrov->bin[i].m[k] = kostrov->bin[i].mn[k]  = kostrov->bin[i].mnloc[k] =
 	kostrov->bin[i].smn[k] = 0.0;
-      kostrov->bin[i].s[k] = kostrov->bin[i].ds[k] =NAN;
+      kostrov->bin[i].s[k] = kostrov->bin[i].ds[k] = NAN;
     }
   }
 }
+
+  
+/* 
+   lon-lat from file
+   
+*/
+void setup_kostrov_points(struct cat *catalog,int weighting_method, FILE *in)
+{
+  int ind;
+  double xmin,ymin;
+  struct kostrov_sum *kostrov; 
+  kostrov = catalog->sum;
+
+  kostrov->mtot = 0.0;		/* total moment of summation */
+  kostrov->weighting_method = weighting_method; /* different meaning
+						   for bin_catalog and
+						   distance based */
+  kostrov->dlonmin = 1e5;kostrov->dlonmax = -1e5;
+  kostrov->dlatmin = 1e5;kostrov->dlatmax = -1e5;
+  kostrov->ny = 1;
+  kostrov->dx = kostrov->dy = NAN;
+  ind = 0;
+  kostrov->bin = (struct bn *)realloc(kostrov->bin,sizeof(struct bn));
+  while(fscanf(in,"%lf %lf",&(kostrov->bin[ind].dlon),&(kostrov->bin[ind].dlat))==2){
+    if(kostrov->bin[ind].dlon < kostrov->dlonmin)
+      kostrov->dlonmin = kostrov->bin[ind].dlon;
+    if(kostrov->bin[ind].dlon > kostrov->dlonmax)
+      kostrov->dlonmax = kostrov->bin[ind].dlon;
+    if(kostrov->bin[ind].dlat < kostrov->dlatmin)
+      kostrov->dlatmin = kostrov->bin[ind].dlat;
+    if(kostrov->bin[ind].dlat > kostrov->dlatmax)
+      kostrov->dlatmax = kostrov->bin[ind].dlat;
+    ind++;
+    kostrov->bin = (struct bn *)realloc(kostrov->bin,sizeof(struct bn)*(ind+1));
+    if(!kostrov->bin)
+      BC_MEMERROR("setup_kostrov_points");
+
+  }
+
+  kostrov->nx = ind;
+  kostrov->nxny = kostrov->nx * kostrov->ny;
+  fprintf(stderr,"setup_kostrov_points: read %i sampling locations\n",kostrov->nx);
+  fprintf(stderr,"setup_kostrov_points: points are within -R%g/%g/%g/%g\n",
+	  kostrov->dlonmin,
+	  kostrov->dlonmax,
+	  kostrov->dlatmin,
+	  kostrov->dlatmax);
+  
+  fprintf(stderr,"setup_kostrov_points: using magnitudes from %g to %g, depths from %g to %g\n",
+	  kostrov->minmag,kostrov->maxmag,
+	  kostrov->mindepth,kostrov->maxdepth);
+  
+  for(ind=0;ind < kostrov->nxny;ind++){
+    kostrov->bin[ind].quake = (unsigned int *)malloc(sizeof(unsigned int));
+    kostrov->bin[ind].weight = (BC_CPREC *)malloc(sizeof(BC_CPREC));
+  }
+  /* set all to zero */
+  clear_bins(catalog);		/*  */
+  for(ind=0;ind < kostrov->nx;ind++){
+    /* in radians */
+    kostrov->bin[ind].lon =  BC_D2R(kostrov->bin[ind].dlon);
+    kostrov->bin[ind].lat =  BC_D2R(kostrov->bin[ind].dlat);
+    kostrov->bin[ind].coslat = cos((double)kostrov->bin[ind].lat);
+    kostrov->bin[ind].area =   NAN;
+  }
+  kostrov->init = BC_TRUE;
+}
+
+
+  
 
 /* 
    
@@ -1068,11 +1139,17 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 /* print coordinates in degree */
 BC_CPREC kostrov_bdlon(int i, struct kostrov_sum *kostrov)
 {
-  return kostrov->bin[i].dlon - kostrov->dx/2.;
+  if(finite(kostrov->dx))
+    return kostrov->bin[i].dlon - kostrov->dx/2.;
+  else
+    return kostrov->bin[i].dlon ;
 }
 BC_CPREC kostrov_bdlat(int i, struct kostrov_sum *kostrov)
 {
-  return kostrov->bin[i].dlat - kostrov->dy/2.;
+  if(finite(kostrov->dy))
+    return kostrov->bin[i].dlat - kostrov->dy/2.;
+  else
+    return kostrov->bin[i].dlat;
 }
 
 /* 
@@ -1331,7 +1408,7 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
 	  geo_search_add_point(catalog->tree, catalog->quake[i].dlat,catalog->quake[i].dlon,i);
 	}
       }
-      fprintf(stderr,"read_catalog: building search tree with %d out of %d events (using only those within bounds)",
+      fprintf(stderr,"read_catalog: building search tree with %d out of %d events (using only those within mag and depth bounds)\n",
 	      catalog->tree->num_points,catalog->n);
     }
     

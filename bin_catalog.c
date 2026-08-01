@@ -180,7 +180,7 @@ int main(int argc, char **argv)
      setup bins
 
   */
-  setup_kostrov(catalog,weighting_method);
+  setup_kostrov_grid(catalog,weighting_method);
 
   /*
      sum
