@@ -44,7 +44,8 @@ void assemble_bins_based_on_distance(struct cat *, unsigned short, int, unsigned
 void sum_smoothed_seismicity(struct cat *, int);
 void make_histogram(double *, int, double, double *, double *, int **, double **, int *);
 void print_histogram(int *, double *, int, FILE *);
-void setup_kostrov(struct cat *, int);
+void setup_kostrov_grid(struct cat *, int);
+void setup_kostrov_points(struct cat *, int, FILE *);
 void clear_bins(struct cat *);
 void print_kostrov_bins(struct cat *, char *, unsigned short);
 void print_stress_tensors(struct cat *, char *);
