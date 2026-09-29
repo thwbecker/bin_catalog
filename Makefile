@@ -42,7 +42,7 @@ INCLUDES = $(GMT_INC) -Iinclude/
 #
 # main programs
 PROGS = $(BDIR)/merge_catalog $(BDIR)/bin_catalog \
-	$(BDIR)/nsample_catalog $(BDIR)/solve_stress_one_bin \
+	$(BDIR)/nsample_catalog $(BDIR)/psample_catalog $(BDIR)/solve_stress_one_bin \
 	$(BDIR)/calc_aux_plane \
 	$(BDIR)/m02dcfp $(BDIR)/calc_gr $(BDIR)/calc_gr_time $(BDIR)/m02mag
 
@@ -93,6 +93,10 @@ $(BDIR)/calc_aux_plane: calc_aux_plane.c $(CAT_OBJS)  $(SINV_OBS) include/catalo
 $(BDIR)/nsample_catalog: nsample_catalog.c $(CAT_OBJS)  $(SINV_OBS)  include/catalog.h
 	$(CC) $(CFLAGS) nsample_catalog.c $(INCLUDES)  $(CAT_OBJS)  $(SINV_OBS)  \
 	-o $(BDIR)/nsample_catalog     $(EISLIB) $(LDFLAGS)
+
+$(BDIR)/psample_catalog: psample_catalog.c $(CAT_OBJS)  $(SINV_OBS)  include/catalog.h
+	$(CC) $(CFLAGS) psample_catalog.c $(INCLUDES)  $(CAT_OBJS)  $(SINV_OBS)  \
+	-o $(BDIR)/psample_catalog     $(EISLIB) $(LDFLAGS)
 
 $(BDIR)/solve_stress_one_bin: solve_stress_one_bin.c $(CAT_OBJS)  $(SINV_OBS) include/catalog.h
 	$(CC) $(CFLAGS) solve_stress_one_bin.c $(INCLUDES)  $(CAT_OBJS) $(SINV_OBS)  \

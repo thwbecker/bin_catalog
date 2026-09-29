@@ -32,6 +32,8 @@ lsystem=${3-0}			# 0: 0...360 1: -180...180
 #
 # regions, incs, and name
 #
+ADIR=awk/
+#
 if [[ $region -eq 0 || $region -eq -1 ]];then # world 
 	name=WLD
 	reg="0 360 -90 90"
@@ -561,9 +563,9 @@ elif [ $region -eq 0 ];then
     #ann=-Bg30/g30WesN
     ann=""
 elif [ $region -eq 2 ];then	# SAM
-    #proj=-JH`echo $reg1 | gawk -f reg2midlon.awk`/7
-    #    proj=-JN`echo $reg1 | gawk -f reg2midlon.awk`/7
-    proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/8
+    #proj=-JH`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/7
+    #    proj=-JN`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/7
+    proj=-JB`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/`echo $reg1 | awk -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/8
     pscr="-Di -A5000"
     ann=-Ba20f2WesN
 elif [[ $region -eq 6  ]];then # japan
@@ -571,7 +573,7 @@ elif [[ $region -eq 6  ]];then # japan
     pscr="-Di -A5000"
     ann=-Ba4f2WesN
 elif [[ $region -eq 90 ]];then # japan, big
-    #proj=-JH`echo $reg1 | gawk -f reg2midlon.awk`/7
+    #proj=-JH`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/7
     proj=-JM7
     pscr="-Df -A5000"
     ann=-Ba10f2WesN
@@ -586,7 +588,7 @@ elif [[ $region -eq 9  || $region -eq 1  ]];then
 elif [ $region -eq 8 ];then
     pscr=-Df
     #proj=-JM7
-    proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/7
+    proj=-JB`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/`echo $reg1 | awk -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/7
     ann=-Ba10f1WesN
 elif [ $region -eq 11 ];then
     pscr=-Df
@@ -606,10 +608,10 @@ elif [ $region -eq 14 ];then # Western US, 2
     ann=-Ba5f1WeSn
 elif [ $region -eq 17 ];then # larger US
     pscr="-Di -A5000"
-    #proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/7
+    #proj=-JB`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/`echo $reg1 | awk -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/7
     #proj=-JL265/42.5/28.33/51.66/7
     #proj=-JQ265/42.5/7
-    #proj=-JH`echo $reg1 | gawk -f reg2midlon.awk`/7
+    #proj=-JH`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/7
     proj=-JM7
     ann=-Ba20f2WesN
 elif [ $region -eq 12 ];then # Africa
@@ -630,7 +632,7 @@ elif [ $region -eq 18 ];then # EPR, 3
     ann=-Ba2f1WeSn
 elif [ $region -eq 19 ];then # Indonesia
     pscr=-Dh
-    proj=-JH`echo $reg1 | gawk -f reg2midlon.awk`/7
+    proj=-JH`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/7
     ann=-Ba10f2WeSn
 elif [ $region -eq 20 ];then # Central Andes
     pscr=-Df
@@ -671,8 +673,8 @@ elif [ $region -eq 29 ];then # Iceland
     proj=-JM7
 elif [ $region -eq 4 ];then	# NAM
     pscr="-Df -A5000"
-    #proj=-JH`echo $reg1 | gawk -f reg2midlon.awk`/12
-    proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/8
+    #proj=-JH`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/12
+    proj=-JB`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/`echo $reg1 | awk -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/8
     ann=-Ba10f2WesN
 elif [ $region -eq 37 ];then	# eUS
     pscr="-Df -A5000"
@@ -708,7 +710,7 @@ elif [ $region -eq 32 ];then 	# larger Western US
     
 elif [ $region -eq 34 ];then 	# EUR
     ann=-Ba20f2WeSn
-    proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/9
+    proj=-JB`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/`echo $reg1 | awk -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/9
     #proj=-JH17.5/7
     pscr="-Di -A5000" # -N1 -N2"
 elif [ $region -eq 35 ];then 	# SoCal
@@ -756,7 +758,7 @@ elif [ $region -eq 53 ];then	# Tib
 elif [ $region -eq 55 ];then	# ME2
     pscr="-Dh -A3000"
     #proj=-JM7
-    proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/7
+    proj=-JB`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/`echo $reg1 | awk -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/7
     ann=-Ba10f1/a5f1WesN
 elif [ $region -eq 56 ];then	# ME3
     pscr="-Dh -A3000"
@@ -914,12 +916,12 @@ elif [ $region -eq 98 ];then #
 elif [ $region -eq 99 ];then
     pscr="-Df -A5000"
     ann=-Ba20f2WeSn
-    #proj=-JS`echo $reg | gawk -f reg2midlon.awk`/90/90/9
+    #proj=-JS`echo $reg | awk -f $ADIR/reg2midlon.awk`/90/90/9
     proj=-JM7
 elif [ $region -eq 100 ];then
     pscr="-Df "
     ann=-Ba1f.1WesN
-    #proj=-JS`echo $reg | gawk -f reg2midlon.awk`/90/90/9
+    #proj=-JS`echo $reg | awk -f $ADIR/reg2midlon.awk`/90/90/9
     proj=-JM7
 elif [ $region -eq 101 ];then
     pscr="-Df -A5000"
@@ -935,7 +937,7 @@ elif [ $region -eq 103 ];then
     proj=-JM7
 elif [ $region -eq 105 ];then
     ann=-Ba2f.2WesN
-    proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/10
+    proj=-JB`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/`echo $reg1 | awk -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/10
     #proj=-JM10
     pscr="-Dh"
 elif [ $region -eq 106 ];then
@@ -948,7 +950,7 @@ elif [ $region -eq 107 ];then
     pscr="-Df"
 elif [ $region -eq 110 ];then 	# GIA
     ann=-Ba20f2WesN
-    proj=-JB`echo $reg1 | gawk -f reg2midlon.awk`/`echo $reg1 | gawk -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f reg2midlat.awk`/9
+    proj=-JB`echo $reg1 | awk -f $ADIR/reg2midlon.awk`/`echo $reg1 | awk -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.33 -f $ADIR/reg2midlat.awk`/`echo $reg1 | gawk -v frac=0.66 -f $ADIR/reg2midlat.awk`/9
     #proj=-JH17.5/7
     pscr="-Di -A5000" # -N1 -N2"
 elif [ $region -eq 112 ];then 	# Mojave
@@ -983,9 +985,9 @@ elif [ $outmode = 1 ];then
 elif [ $outmode = 2 ];then # mid point
     echo $reg |  gawk '{print($1,$3);print($2,$3);
                         print($2,$4);print($1,$4)}' | \
-	gawk -f lonlat2xyz.awk | \
+	awk -f $ADIR/lonlat2xyz.awk | \
 	gawk '{x+=$1;y+=$2;z+=$3;n++}END{\
-	    print(x/n,y/n,z/n)}' | gawk -f xyz2lonlat.awk |\
+	    print(x/n,y/n,z/n)}' | awk -f $ADIR/xyz2lonlat.awk |\
     gawk '{print($1,$2)}'
 elif [ $outmode = 3 ];then # region in -R format
     echo $reg1
@@ -1044,7 +1046,7 @@ elif [ $outmode = 11 ];then # overview map, PDF and EPS
     p=-JH`echo $reg | gawk '{print(($1+$2)/2)}'`/7
     #    p=-JQ180/7
     pscoast $r $p -Dc -A7000 -Gcyan -Bg30 -P -K > oviewmap.eps
-    echo $reg | gawk -f reg2box.awk | gawk '{print($1,$2)}' | \
+    echo $reg | awk -f $ADIR/reg2box.awk | gawk '{print($1,$2)}' | \
 	psxy -W5/$bmc $r $p -M -O \
 	    -Gorange -K >>  oviewmap.eps
     pscoast $r $p -Dc -A7000 -W0.5 -O -K >> oviewmap.eps
