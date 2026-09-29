@@ -27,6 +27,7 @@ add_fa=${7-0}			# add freeair
 use_grayscale=${8-0}
 add_boundary=${9-0}
 add_profile=${10-""}		# add a profile and 
+datadir=${25-$HOME/data/}		# additional data (plate boundaries, topo, ...), needed below for mom_file default
 mom_file=${11-$datadir/cmt/all.momt}		# actual data file
 #
 is_aki=${12-0}			# aki format, or cmt?
@@ -47,12 +48,11 @@ tmpn=`mktemp`
 trap "rm -f $tmpn*" EXIT
 #
 #
-my_dir=$HOME/progs/src/bin_catalog/
+my_dir=$(dirname "$(readlink -f "$0")")/	# bin_catalog directory, from the location of this script
 
 ADIR=$my_dir/awk/			# local awk dir
 SDIR=$my_dir/scripts/			# local script dir
 BDIR=$my_dir/bin/			# bindaries
-datadir=$HOME/data/		# the script looks for some additional data, like plate boundaries and topo here.
 #
 # region helpers, inlined from awk/reg2*.awk so no external awk files are
 # needed. each takes a GMT region string -Rw/e/s/n; the lat helper takes
@@ -82,7 +82,7 @@ if [ `echo $mom_file | gawk '{if(match($1,"all.momt"))print(1);else print(0)}'` 
     if [ -s $datadir/cmt/last_month_cmt.dat ];then
 	read cmt_date < $datadir/cmt/last_month_cmt.dat
     else
-	cmt_data=NAN
+	cmt_date=NAN
     fi
     is_gcmt=1			# detect gCMT format, this will only change output name
     cat_string="globalcmt.org as of $cmt_date"
@@ -468,7 +468,7 @@ EOF
     bash -x $tmpn.script
     rm $tmpn.script
     #
-    for t in norm scaled;do	# Kostrov summations
+    for t in norm scaled clvd;do	# Kostrov summations
 	if [ ! -s $sname.$kincx.$kincy.0.$t.dat ];then
 	    echo $0: bin_catalog did not produce $sname.$kincx.$kincy.0.$t.dat
 	    exit
@@ -657,7 +657,7 @@ if [ $add_slab_cont -eq 1 ];then
 fi
 if [ $add_wsm = 1 ];then
     wsm_data=$datadir/wsm/WSM_Database_2025.csv
-    if [ ! -s $wsm_data ];then
+    if [ -s $wsm_data ];then
 	# Add WSM data points
 	pquality=3			# quality
 	type_string="t1=0 t2=1 t3=1 t4=1 t5=1 t6=1 t7=0" # 
@@ -711,7 +711,7 @@ if [ -s $add_profile.dat ];then
 	gawk '{print($1,$2,$3,$4)}' $gps_file | \
 	    gmt project -C$plon/$plat -A$pazi -L$pl1/$pl2  -W-100/100 -Q | \
 	    # lon lat vx vy L
-	    gawk '{print($1,$2,$3,$4,$5)}' | sort -g +4 > $add_profile.vel.dat
+	    gawk '{print($1,$2,$3,$4,$5)}' | sort -g -k5 > $add_profile.vel.dat
 
 	gawk '{print($1,$2,$3,1/$5)}' $gps_file | gmt blockmean $preg -Wi -I0.5 -fg > $tmpn.1
 	gawk '{print($1,$2,$4,1/$6)}' $gps_file | gmt blockmean $preg -Wi -I0.5 -fg > $tmpn.2
@@ -809,50 +809,54 @@ if [ -s $add_faults ];then
 
 fi
 if [ $use_simpson -eq 1 ];then
-    # compute eigen system 
+    #
+    # Simpson (1997) A_phi for tensors in rr rt rp tt tp pp order (first six columns of $1)
+    # written to $2. eigen3ds output:
     #   1                                  5                                9 
     # eval_3 evec_3^1 evec_3^2 evec_3^3 eval_2 evec_2^1 evec_2^2 evec_2^3 eval_1 evec_1^1 evec_1^2 evec_1^3
-    #
-    gawk '{print($1,$2,$3,$4,$5,$6)}' $kfile | $BDIR/eigen3ds > $tmpn.eigen
-    # determine state
+    # with eval_1 > eval_2 > eval_3. the regime is set by the eigenvector with the largest
+    # absolute vertical (r) component; eigenvector signs from eigen3ds are arbitrary
     # n=0 normal n=1 strike slip n=2 thrust
-    gawk '{s1r=$10;s2r=$6;s3r=$2;
-          if(s1r>s2r){
-	       if(s3r>s1r)
-	          n=3;
-	        else n=1;
-	   }else{
-	    if(s3r>s2r)
-	      n=3;
-	     else 
-	      n=2;}
-	    print(3-n)}' $tmpn.eigen > $tmpn.n
-    minmax $tmpn.n
-    
-    paste $tmpn.eigen $tmpn.n | gawk '{s1=$9;s2=$5;s3=$1;n=$13;phi = (s1-s2)/(s1-s3);
-	   print((n+0.5) + (-1)**n * (phi-0.5))}'  > $tmpn.simpson
-
+    #
+    calc_simpson(){
+	gawk '{print($1,$2,$3,$4,$5,$6)}' $1 | $BDIR/eigen3ds | \
+	    gawk 'function abs(x){return (x<0)?(-x):(x)}
+	    {s1r=abs($10);s2r=abs($6);s3r=abs($2);
+	     if(s1r>s2r){
+		 if(s3r>s1r) n=3; else n=1;
+	     }else{
+		 if(s3r>s2r) n=3; else n=2;}
+	     n = 3-n;
+	     s1=$9;s2=$5;s3=$1;
+	     if(s1 > s3) phi = (s1-s2)/(s1-s3); else phi = 0.5; # isotropic, undefined
+	     print((n+0.5) + (-1)**n * (phi-0.5))}' > $2
+    }
+    if [[ $plot_stress -ne 999 && $plot_stress -ne 2 ]];then
+	calc_simpson $kfile $tmpn.simpson
+    fi
 fi
 if [ $plot_stress -ne 999 ];then
     # compute norm 
-    gawk '{print($1,$4,$6,$2,$3,$5)}' $kfile | awk -f $ADIR/normrow.awk > $tmpn.norm
-    minmax $tmpn.norm
+    gawk '{print($1,$4,$6,$2,$3,$5)}' $kfile | gawk -f $ADIR/normrow.awk > $tmpn.norm
+    gmt info $tmpn.norm
 fi
 
 if [ $plot_stress -eq 2 ];then	# all CMTs
     gmt gmtselect $reg -fg all.mdat_mwdt | \
 	gawk -v d=$dmax '{if($3<=d)print($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,substr($13,1,3))}' > $tmpn.dat
     if [ $use_simpson -eq 1 ];then
-	paste $tmpn.dat $tmpn.simpson | sort -gr +12 | \
+	gawk '{print($4,$7,$8,$5,$9,$6)}' $tmpn.dat > $tmpn.t6 # rr rt rp tt tp pp of each CMT
+	calc_simpson $tmpn.t6 $tmpn.simpson
+	paste $tmpn.dat $tmpn.simpson | sort -gr -k13 | \
 	    gawk '{print($1,$2,$14,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)}' > $tmpn.plot
 	gmt psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -Csimpson.cpt  \
 	       -Sm`echo $cmt_size`/-1  -O -K  >> $ofile_ps
 	rm $tmpn.norm
     else
-	gawk '{print($4,$7,$8,$5,$9,$6)}' $tmpn.dat | awk -f $ADIR/tensornorm.awk > $tmpn.norm
-	paste $tmpn.dat $tmpn.norm | sort -gr +12 | \
+	gawk '{print($4,$7,$8,$5,$9,$6)}' $tmpn.dat | gawk -f $ADIR/tensornorm.awk > $tmpn.norm
+	paste $tmpn.dat $tmpn.norm | sort -gr -k13 | \
 	    gawk '{print($1,$2,($5+$6)/2/$14,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)}' > $tmpn.plot
-	gmt psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cpt  \
+	gmt psmeca $tmpn.plot $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp  \
 	       -Sm`echo $cmt_size`/-1  -O -K  >> $ofile_ps
 	rm $tmpn.norm
     fi
@@ -864,11 +868,11 @@ if [ $plot_stress -eq 2 ];then	# all CMTs
     
 elif [[ $plot_stress -eq 1 || $plot_stress = 4 ]];then
     if [ $use_simpson -eq 1 ];then
-	paste $kfile $tmpn.simpson | sort -n +15 | \
+	paste $kfile $tmpn.simpson | sort -n -k16 | \
 	    gawk '{s=sqrt(0.2/(1e-3+$16));print($7,$8,$17,$1*s,$4*s,$6*s,$2*s,$3*s,$5*s,1,$7,$8)}' > $tmpn.dat
 
     else
-	gawk '{print($1,$2,$3,$4,$5,$6)}' $kfile | awk -f $ADIR/tensornorm.awk  > $tmpn.norm # almost unity/not necessary
+	gawk '{print($1,$2,$3,$4,$5,$6)}' $kfile | gawk -f $ADIR/tensornorm.awk  > $tmpn.norm # almost unity/not necessary
 	#
 	# scale stress by 1/uncertainty
 	#
@@ -880,7 +884,7 @@ elif [[ $plot_stress -eq 1 || $plot_stress = 4 ]];then
 	# this would be: mzz, -myz, mxz, myy, -mxy, mxx
 	#                muu, -mnu, meu, mnn, -men, mee
 	#
-	paste $kfile $tmpn.norm | sort -n +15 | \
+	paste $kfile $tmpn.norm | sort -n -k16 | \
 	    gawk '{s=sqrt(0.2/(1e-3+$16));print($7,$8,($4+$6)/2/$17,$1*s,$4*s,$6*s,$2*s,$3*s,$5*s,1,$7,$8)}' > $tmpn.dat
     fi
     if [ $plot_stress = 4 ];then # horizontal stress tensor only
@@ -914,12 +918,12 @@ elif [ $plot_stress -ne 999 ];then
     else
 	#echo ok1
 	if [ $ktype = scaled ];then
-	    paste $kfile $tmpn.norm | gawk '{print(($4+$6)/2/$11)}' | minmax
+	    paste $kfile $tmpn.norm | gawk '{print(($4+$6)/2/$11)}' | gmt info
 	    paste $kfile $tmpn.norm | \
 		gawk '{print($7,$8,($4+$6)/2/$11,  $1,$4,$6,$2,$3,$5,   22,$7,$8)}'  > $tmpn.dat
 	else
 	    paste $kfile $tmpn.norm | \
-		gawk '{print(($4+$6)/2/$12)}' | minmax
+		gawk '{print(($4+$6)/2/$12)}' | gmt info
 	    paste $kfile $tmpn.norm | \
 		gawk '{print($7,$8,($4+$6)/2/$12,  $1,$4,$6,$2,$3,$5,   22,$7,$8)}'  > $tmpn.dat
 	fi
@@ -940,7 +944,7 @@ elif [ $plot_stress -ne 999 ];then
 	#gawk '{azi=$5;if(azi>180)azi-=180;printf("%g %g 8 0 29 CM %.1f\n",$1,$2,azi)}' $sname.$kincx.$kincy.$name.eh.dat | \
 	    #pstext $preg $proj -O -K -Gwhite >> $ofile_ps
     else
-	minmax $tmpn.dat
+	gmt info $tmpn.dat
 	# 	m: Seismic (full) moment tensor:
 	#           X Y depth mrr mtt mff mrt mrf mtf exp [newX newY] [event_title].
 	gmt psmeca $tmpn.dat $preg $proj  -L0.25 -W0.25 -D-1e5/1e5  -C$cmp \
@@ -958,7 +962,7 @@ fi
 
 if [ $add_jap_le -eq 1 ];then
     gmt gmtselect $preg -fg all.mdat_mwdt | \
-	gawk '{split($13,l,"-");mw=l[1];year=l[2];if((mw>6.5)&&(year>1994)&&($3<50)){label=sprintf("%i-M@-w@-%.1f",year,mw);print($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,label)}}' |  sort -gr +1 | \
+	gawk '{split($13,l,"-");mw=l[1];year=l[2];if((mw>6.5)&&(year>1994)&&($3<50)){label=sprintf("%i-M@-w@-%.1f",year,mw);print($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,label)}}' |  sort -gr -k2 | \
 	gawk '{if($1>132){i++;xl=138-i*1.2;yl=36.5;}else{j++;xl=125.5;yl=37-j/1.25};print($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,xl,yl,$13)}' | \
 	gmt psmeca  $preg $proj  -L0.25 -W0.25 -D-1e5/1e5 -Sm`echo $cmt_size`/14  -A+p2 -O -K  >> $ofile_ps
 fi

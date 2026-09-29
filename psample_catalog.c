@@ -27,7 +27,7 @@ static void usage(char *name, struct kostrov_sum *k, int use_aki,
   fprintf(stderr,"  events by nearest neighbor distance criteria for lon-lat locations read from stdin.\n");
   fprintf(stderr,"  Performs a summation, and computes Michael (1984) / Vavrycuk style stress\n");
   fprintf(stderr,"  tensors per sample point. see also bin_catalog for simple binning, \n");
-  fprintf(stderr,"  and nsample_cataolog for analog regular spacing.\n\n");
+  fprintf(stderr,"  and nsample_catalog for analog regular spacing.\n\n");
   
   fprintf(stderr,"  the catalog file is the single required argument. for AKI format\n");
   fprintf(stderr,"  the last column is expected to be UNIX time.\n\n");

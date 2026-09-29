@@ -32,7 +32,7 @@ lsystem=${3-0}			# 0: 0...360 1: -180...180
 #
 # regions, incs, and name
 #
-ADIR=awk/
+ADIR=$(dirname "$(readlink -f "$0")")/../awk/	# awk helpers, relative to this script
 #
 if [[ $region -eq 0 || $region -eq -1 ]];then # world 
 	name=WLD

@@ -78,7 +78,7 @@ result_array_t* geo_search_query_radius(geo_search_t* search, BC_CPREC center_dl
   BC_CPREC center_lat, center_lon, center_cos_lat;
   result_array_t *results;
   geo_point_t *point;
-  BC_CPREC distance;
+  BC_CPREC distance,dlat_max;
   
   center_lat = BC_D2R(center_dlat);
   center_lon = BC_D2R(center_dlon);
@@ -90,11 +90,17 @@ result_array_t* geo_search_query_radius(geo_search_t* search, BC_CPREC center_dl
   results = result_array_create(100);
   if (!results) return NULL;
   
+  /* the great circle distance is at least BC_RADIUS * |dlat|, so
+     points outside this latitude band can be skipped without
+     computing the distance */
+  dlat_max = radius_km / BC_RADIUS;
   // Simple linear search through all points
   for (int i = 0; i < search->num_points; i++) {
     //if (max_results > 0 && results->count >= max_results) break;
     
     point = &search->points[i];
+    if(fabs(point->lat - center_lat) > dlat_max)
+      continue;
     distance =  distance_geo(center_lon, center_lat,point->lon, point->lat,center_cos_lat,point->cos_lat);
     //fprintf(stderr,"%g %g %g %g - %g %g\n",center_lon, center_lat,point->lon, point->lat,distance,radius_km);
     if (distance <= radius_km) {
@@ -106,6 +112,38 @@ result_array_t* geo_search_query_radius(geo_search_t* search, BC_CPREC center_dl
   qsort(results->results, results->count, sizeof(query_result_t), compare_by_distance);
  
   return results;
+}
+
+/* 
+   partial selection (Hoare quickselect): on return, r[0..k-1] hold the
+   k smallest distances in arbitrary order
+*/
+static void select_k_smallest(query_result_t *r, int n, int k)
+{
+  int left = 0, right = n - 1, i, j;
+  BC_CPREC pivot;
+  query_result_t tmp;
+  if((k <= 0)||(k >= n))
+    return;
+  while(left < right){
+    pivot = r[(left + right)/2].distance_km;
+    i = left; j = right;
+    while(i <= j){
+      while(r[i].distance_km < pivot) i++;
+      while(r[j].distance_km > pivot) j--;
+      if(i <= j){
+	tmp = r[i]; r[i] = r[j]; r[j] = tmp;
+	i++; j--;
+      }
+    }
+    /* now r[left..j] <= pivot <= r[i..right] */
+    if(k - 1 <= j)
+      right = j;
+    else if(k - 1 >= i)
+      left = i;
+    else
+      break;
+  }
 }
 
 result_array_t* geo_search_query_k_nearest(geo_search_t* search,BC_CPREC center_dlat, BC_CPREC center_dlon, int k)
@@ -132,8 +170,14 @@ result_array_t* geo_search_query_k_nearest(geo_search_t* search,BC_CPREC center_
     result_array_add(all_results, *point, distance);
   }
   
-  // Sort by distance
-  qsort(all_results->results, all_results->count, sizeof(query_result_t), compare_by_distance);
+  /* move the k smallest distances to the front (average linear
+     time), then sort only those */
+  if(k < all_results->count){
+    select_k_smallest(all_results->results, all_results->count, k);
+    qsort(all_results->results, k, sizeof(query_result_t), compare_by_distance);
+  }else{
+    qsort(all_results->results, all_results->count, sizeof(query_result_t), compare_by_distance);
+  }
   
   // Create result array with just the k nearest
   results = result_array_create(k + 5);

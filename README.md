@@ -20,6 +20,11 @@ distance criterion.
 See `bin_catalog.c` and `nsample_catalog.c` for the options, `plot_kostrov`
 for some illustration as to how to use and plot the output.
 
+Output locations are the grid nodes (`bin_catalog`: events within
++/- dx/2, dy/2 of a node; `nsample_catalog`: search centers) or the
+input points (`psample_catalog`). `test/run_tests.sh` checks these
+conventions and a few edge cases.
+
 Contains some versions of Andy Michael's code, as well as Vavryčuk
 subroutines, converted to C, and GMT4.5.18 code - see their respective
 copyright.

@@ -55,7 +55,7 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
 						confidence?)*/
   BC_BOOLEAN proceed,acc_bail,iter_warned;
   static BC_BOOLEAN warned = BC_FALSE;
-  int nobs,iquake,nrandom,i,iquake6,icheck,j;
+  int nobs,iquake,nrandom,ntry,i,iquake6,icheck,j;
   BC_CPREC ind_stress[6],*slick,*amat,tot_stress[6],tot_stress2[6],snorm,last_stress[6],this_stress[6],ds,tmp;
   size_t ssize = 6*sizeof(BC_CPREC);
   BC_CPREC bail_acc_squared = BC_MICHAEL_RACC*BC_MICHAEL_RACC;
@@ -74,10 +74,12 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
     }
     iter_warned = BC_FALSE;
     proceed  = BC_TRUE;
-    nrandom=0;
+    nrandom = ntry = 0;
+    ds = NAN;
     
     do{
       acc_bail = BC_FALSE;
+      ntry++;
       /* converted from Andy Michael's slick routine */
       nobs = 0;
       for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6){
@@ -114,7 +116,7 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
 	}
 	nrandom++;
       }
-      if(nrandom%100==0){
+      if((icheck == 6) && (nrandom%100==0)){ /* only after a new sample was added */
 	/* every 100 iterations, check for finiteness and convergence */
 	ds = 0;
 	for(i=0;i<6;i++){
@@ -134,7 +136,8 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
 #endif
 	memcpy(last_stress,this_stress,ssize);
       }
-      if(acc_bail || (nrandom > BC_MICHAEL_RSWEEP_MAX))
+      if(acc_bail || (nrandom > BC_MICHAEL_RSWEEP_MAX) ||
+	 (ntry > 2*BC_MICHAEL_RSWEEP_MAX)) /* also stop if solutions keep being non-finite */
 	proceed = BC_FALSE;
     }while(proceed);
     if(nrandom > BC_MICHAEL_RSWEEP_MAX){
@@ -143,6 +146,14 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
 		nrandom,sqrt(ds));
 	warned = BC_TRUE;
       }
+    }
+    if(nrandom == 0){
+      fprintf(stderr,"ssm random_sweep: WARNING: no finite solution in %i attempts, returning NaN\n",ntry);
+      for(i=0;i<6;i++)
+	stress[i] = sig_stress[i] = NAN;
+      free(amat);
+      free(slick);
+      return;
     }
     for(i=0;i<6;i++){
       sig_stress[i] = std_quick(nrandom,tot_stress[i],tot_stress2[i]);

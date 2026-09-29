@@ -175,8 +175,10 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
 	  if(dx > 360)
 	    dx -= 360;
 	}
-	ix = (int)(dx/kostrov->dx + 0.5);
-	iy = (int)((catalog->quake[i].dlat - kostrov->dlatmin)/kostrov->dy + 0.5);
+	/* nearest node, floor() so that events more than dx/2 west or
+	   dy/2 south of the first node are not assigned to it */
+	ix = (int)floor(dx/kostrov->dx + 0.5);
+	iy = (int)floor((catalog->quake[i].dlat - kostrov->dlatmin)/kostrov->dy + 0.5);
 	//fprintf(stderr,"%i %i\n",ix,iy);
 	if((ix >= 0) && (ix < kostrov->nx) && (iy >= 0) && (iy < kostrov->ny)){ /* make sure within region */
 	  /* 
@@ -415,7 +417,7 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
   int i,j,k,n,bc;
   unsigned int this_quake,nmonte;
   struct kostrov_sum *kostrov;
-  BC_CPREC me,weight,wscale,dx;
+  BC_CPREC me,weight,wscale = 1.0,dx;
   BC_BOOLEAN use_found,by_dist;
 
   BC_CPREC eps_angle = BC_D2R(BC_EPS_ANGLE_FOR_RANDOM_DEG); /* sigma for random */
@@ -467,8 +469,12 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
 
   */
   if(kostrov->weighting_method){
-    wscale = (kostrov->dx+kostrov->dy)/2.0;
-    wscale *= BC_DEG_SCALE;
+    if(finite(kostrov->dx) && finite(kostrov->dy)){ /* regular grid */
+      wscale = (kostrov->dx+kostrov->dy)/2.0;
+      wscale *= BC_DEG_SCALE;
+    }else{			/* sampling points without spacing */
+      wscale = kostrov->dist_max;
+    }
   }
   for(i=0;i < kostrov->nxny;i++){/* bin loop */
     if(kostrov->nmin >= 0){	/* search by distance, and then use if
@@ -477,6 +483,10 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
       //found = geo_tree_query_radius(catalog->tree,kostrov->bin[i].dlat,kostrov->bin[i].dlon,kostrov->dist_max, BC_FALSE);
       /* bare bones exhaustive search, slow */
       found = geo_search_query_radius(catalog->tree,kostrov->bin[i].dlat,kostrov->bin[i].dlon,kostrov->dist_max);
+      if(!found){
+	fprintf(stderr,"assemble_bins_based_on_distance: search failed, dist_max: %g\n",kostrov->dist_max);
+	exit(-1);
+      }
       if(found->count >= kostrov->nmin)
 	use_found = BC_TRUE;
       else
@@ -489,8 +499,13 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
       //found = geo_tree_query_k_nearest(catalog->tree, kostrov->bin[i].dlat,kostrov->bin[i].dlon,-kostrov->nmin);
       /* this is a bare bones implementation of an exhaustive search */
       found = geo_search_query_k_nearest(catalog->tree, kostrov->bin[i].dlat,kostrov->bin[i].dlon,-kostrov->nmin);
-      /* only use if furthest is within range */
-      if((found->results+(-kostrov->nmin-1))->distance_km<=kostrov->dist_max)
+      if(!found){
+	fprintf(stderr,"assemble_bins_based_on_distance: k nearest search failed\n");
+	exit(-1);
+      }
+      /* only use if we have -nmin events and the furthest is within range */
+      if((found->count >= -kostrov->nmin) &&
+	 (found->results[-kostrov->nmin-1].distance_km <= kostrov->dist_max))
 	use_found = BC_TRUE;
       else
 	use_found = BC_FALSE;
@@ -759,8 +774,9 @@ void setup_kostrov_grid(struct cat *catalog,int weighting_method)
 						   for bin_catalog and
 						   distance based */
   
-  kostrov->nx = (kostrov->dlonmax - kostrov->dlonmin)/kostrov->dx;
-  kostrov->ny = (kostrov->dlatmax - kostrov->dlatmin)/kostrov->dy;
+  /* small tolerance so that e.g. 0.3/0.1 gives 3, not 2 */
+  kostrov->nx = (int)((kostrov->dlonmax - kostrov->dlonmin)/kostrov->dx + 1e-6);
+  kostrov->ny = (int)((kostrov->dlatmax - kostrov->dlatmin)/kostrov->dy + 1e-6);
   kostrov->nxny = kostrov->nx * kostrov->ny;
   if(kostrov->nx < 1 || kostrov->ny < 1){
     fprintf(stderr,"setup_kostrov_grid: error: nx: %i ny: %i, lon: %g - %g - %g, lat: %g - %g - %g\n",
@@ -792,9 +808,15 @@ void setup_kostrov_grid(struct cat *catalog,int weighting_method)
   /* area without latitude correction (done below) */
   darea = BC_D2R(kostrov->dx) * BC_D2R(kostrov->dy) * BC_RADIUS * BC_RADIUS;
 
-  /* in center of bin */
-  xmin = kostrov->dlonmin + kostrov->dx/2.;
-  ymin = kostrov->dlatmin + kostrov->dy/2.;
+  /* 
+     bin coordinates are the nodes dlonmin + i dx, dlatmin + j dy
+     that events are assigned to in sum_kostrov_bins (cells extend
+     +/- dx/2 around them). the same locations are used as search
+     centers by assemble_bins_based_on_distance, for the area, and
+     for output
+  */
+  xmin = kostrov->dlonmin;
+  ymin = kostrov->dlatmin;
   
   /* set all to zero */
   clear_bins(catalog);		/*  */
@@ -908,7 +930,8 @@ void setup_kostrov_points(struct cat *catalog,int weighting_method, FILE *in)
     kostrov->bin[ind].lon =  BC_D2R(kostrov->bin[ind].dlon);
     kostrov->bin[ind].lat =  BC_D2R(kostrov->bin[ind].dlat);
     kostrov->bin[ind].coslat = cos((double)kostrov->bin[ind].lat);
-    kostrov->bin[ind].area =   NAN;
+    /* area of the search circle, used for the scaled summation */
+    kostrov->bin[ind].area =   M_PI * kostrov->dist_max * kostrov->dist_max;
   }
   kostrov->init = BC_TRUE;
 }
@@ -1139,17 +1162,11 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 /* print coordinates in degree */
 BC_CPREC kostrov_bdlon(int i, struct kostrov_sum *kostrov)
 {
-  if(finite(kostrov->dx))
-    return kostrov->bin[i].dlon - kostrov->dx/2.;
-  else
-    return kostrov->bin[i].dlon ;
+  return kostrov->bin[i].dlon;
 }
 BC_CPREC kostrov_bdlat(int i, struct kostrov_sum *kostrov)
 {
-  if(finite(kostrov->dy))
-    return kostrov->bin[i].dlat - kostrov->dy/2.;
-  else
-    return kostrov->bin[i].dlat;
+  return kostrov->bin[i].dlat;
 }
 
 /* 
