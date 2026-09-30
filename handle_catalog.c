@@ -145,6 +145,11 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
   }else{
     nmonte = 1;
   }
+  if((kostrov->minmag > kostrov->maxmag)||(kostrov->mindepth > kostrov->maxdepth)){
+    fprintf(stderr,"sum_kostrov_bins: magnitude range %g to %g or depth range %g to %g inverted\n",
+	    kostrov->minmag,kostrov->maxmag,kostrov->mindepth,kostrov->maxdepth);
+    exit(-1);
+  }
   if(!catalog->is_xy){		/* if not carteisan, move to 0...360 */
     for(i=0;i < catalog->n;i++)
       ranger(&(catalog->quake[i].dlon));
@@ -172,8 +177,14 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
 	*/
 	dx = catalog->quake[i].dlon - kostrov->dlonmin;
 	if(!catalog->is_xy){
-	  if(dx > 360)
-	    dx -= 360;
+	  /* longitude difference in [-180, 180), so that events west of
+	     the first node (dlonmin) are handled like any others; the
+	     old test (dx > 360) dropped events in the western half of
+	     the first column for negative dlonmin */
+	  if(dx >= 180.0)
+	    dx -= 360.0;
+	  else if(dx < -180.0)
+	    dx += 360.0;
 	}
 	/* nearest node, floor() so that events more than dx/2 west or
 	   dy/2 south of the first node are not assigned to it */
@@ -429,6 +440,11 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
     exit(-1);
   }
   kostrov = catalog->sum;
+  if((kostrov->minmag > kostrov->maxmag)||(kostrov->mindepth > kostrov->maxdepth)){
+    fprintf(stderr,"assemble_bins_based_on_distance: magnitude range %g to %g or depth range %g to %g inverted\n",
+	    kostrov->minmag,kostrov->maxmag,kostrov->mindepth,kostrov->maxdepth);
+    exit(-1);
+  }
   if(verbose)
     fprintf(stderr,"assemble_bins_based_on_distance: summing with nmin %i distmax %g\n",
 	    kostrov->nmin,kostrov->dist_max);
@@ -1078,7 +1094,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
   snprintf(outname1,BC_CHAR_LEN,"%s.s.dat",filename);
   out1 = myopen(outname1,"w","print_kostrov_bins");
   for(m=i=0;i < kostrov->nxny;i++)
-    if(kostrov->bin[i].n >= kostrov->nmin){
+    if((kostrov->bin[i].n >= kostrov->nmin) && finite(kostrov->bin[i].s[0])){
       m++;
       for(k=0;k < 6;k++)	/* stress tensor */
 	fprintf(out1,"%8.4f ",kostrov->bin[i].s[k]);
@@ -1097,7 +1113,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
   snprintf(outname1,BC_CHAR_LEN,"%s.smn.dat",filename);
   out1 = myopen(outname1,"w","print_kostrov_bins");
   for(m=i=0;i < kostrov->nxny;i++)
-    if(kostrov->bin[i].n >= kostrov->nmin){
+    if((kostrov->bin[i].n >= kostrov->nmin) && finite(kostrov->bin[i].s[0])){
       m++;
       for(k=0;k < 6;k++){	
 	t1[k] = kostrov->bin[i].s[k];/* stress tensor */
@@ -1125,7 +1141,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
     snprintf(outname1,BC_CHAR_LEN,"%s.ds.dat",filename); /* default friction */
     out1 = myopen(outname1,"w","print_kostrov_bins");
     for(m=i=0;i < kostrov->nxny;i++)
-      if(kostrov->bin[i].n >= kostrov->nmin){
+      if((kostrov->bin[i].n >= kostrov->nmin) && finite(kostrov->bin[i].def_s[0])){
 	m++;
 	for(k=0;k < 6;k++)	/* stress tensor */
 	  fprintf(out1,"%8.4f ",kostrov->bin[i].def_s[k]);
@@ -1141,7 +1157,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
       out1 = myopen(outname1,"w","print_kostrov_bins");
       mean_fric = 0;
       for(m=i=0;i < kostrov->nxny;i++)
-	if(kostrov->bin[i].n >= kostrov->nmin){
+	if((kostrov->bin[i].n >= kostrov->nmin) && finite(kostrov->bin[i].best_s[0])){
 	  m++;
 	  for(k=0;k < 6;k++)	/* stress tensor */
 	    fprintf(out1,"%8.4f ",kostrov->bin[i].best_s[k]);

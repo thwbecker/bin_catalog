@@ -26,6 +26,7 @@
 
 #define BC_NDIM 3 			/* three dimensions */
 #define BC_MICHAEL_NPAR  5	/* five parameters for michael inversion */
+#define BC_GAUS_REL_TOL 1e-10	/* relative pivot tolerance in michael_gaus */
 #define BC_MICHAEL_NNE 20	/* 15 upper triangle of A^T A plus 5 of A^T b */
 
 #ifndef BC_BOOLEAN

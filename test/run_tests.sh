@@ -131,5 +131,26 @@ else
     echo "SKIP: $bdir/test_weights not built (make test_progs)"
 fi
 
+#
+# 13: events in the western half of the first column are used, also across the dateline
+#
+cluster -117.0 34.0 30 > c3.aki
+$bdir/bin_catalog --dx 1.0 $common -l -117 -r -116 -b 34 -t 35 -o w1 c3.aki 2> w1.log
+check "bin_catalog first column, western half" $(grep -c "used 30 out of 30" w1.log)
+gawk '{$1=$1+297; $8=$8+297; print}' c3.aki > c4.aki	# cluster at 180.0
+for r in "179 181" "-181 -179";do
+    set -- $r
+    $bdir/bin_catalog --dx 0.5 $common -l $1 -r $2 -b 33 -t 35 -o w2 c4.aki 2> w2.log
+    check "bin_catalog dateline cluster, region $1/$2" $(grep -c "used 30 out of 30" w2.log)
+done
+#
+# 14: inverted ranges are rejected, singular inversions give no output rows
+#
+$bdir/bin_catalog --dx 0.5 -m 5 -M 1 -l -118 -r -116 -b 33 -t 35 -o x1 c1.aki > /dev/null 2>&1
+check "bin_catalog rejects inverted magnitude range" $( [ $? -ne 0 ] && echo 1 || echo 0)
+gawk '{$4=45;$5=60;$6=90;print}' c1.aki > c5.aki	# identical mechanisms
+$bdir/bin_catalog --dx 0.5 $common -l -118 -r -116 -b 33 -t 35 -p 5 -F 2 -o x2 c5.aki > /dev/null 2>&1
+check "identical mechanisms give no stress rows" $( [ ! -s x2.0.5.0.5.s.dat ] && [ ! -s x2.0.5.0.5.bs.dat ] && echo 1 || echo 0)
+
 echo "$nfail failure(s)"
 exit $nfail

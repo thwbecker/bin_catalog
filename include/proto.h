@@ -115,7 +115,7 @@ void sincos(double, double *, double *);
 /* merge_catalog.c */
 /* michael_leasq.c */
 void michael_leasq(double *, int, int, double *, double *, double *, double *, double *);
-void michael_gaus(double *, int, double *, double *);
+int michael_gaus(double *, int, double *, double *);
 double dabs(double);
 void michael_atransa(double *, int, int, double *);
 void michael_atransb(double *, int, int, double *, double *);

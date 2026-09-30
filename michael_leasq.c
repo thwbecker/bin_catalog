@@ -30,17 +30,33 @@ void michael_leasq(BC_CPREC *a,int m,int n,BC_CPREC *x,BC_CPREC *b,
 
 #define MS_SUB(I,J) (J+I*m)
 
-void michael_gaus(BC_CPREC *a,int m,BC_CPREC *x,BC_CPREC *b) /* solves ax=b for x by gaussian elimination */
+int michael_gaus(BC_CPREC *a,int m,BC_CPREC *x,BC_CPREC *b)
+/*
+   solves ax=b for x by gaussian elimination. returns 0 if OK, 1 if the
+   system is (numerically) singular, in which case x is set to NaN.
+   pivots smaller than BC_GAUS_REL_TOL times the largest diagonal entry
+   of the input matrix count as zero
+*/
 {
   int i,i2,i3;
-  BC_CPREC d,hold,fact;
+  BC_CPREC d,hold,fact,amax,tol;
   /* take care of special cases */
   if(m < 2){
     x[0]=0.;
-    if(m == 1)
+    if(m == 1){
+      if(a[0] == 0.){
+	x[0] = NAN;
+	return 1;
+      }
       x[0] = b[0]/a[0];
-    return;
+    }
+    return 0;
   }
+  amax = 0.0;
+  for(i=0;i<m;i++)
+    if(dabs(a[MS_SUB(i,i)]) > amax)
+      amax = dabs(a[MS_SUB(i,i)]);
+  tol = BC_GAUS_REL_TOL * amax;
 
   for(i=0;i<m;++i){     /* loop for each pivot */
     for(i2=i+1;i2<m;++i2){   /* loop for each row below a pivot */
@@ -68,6 +84,13 @@ void michael_gaus(BC_CPREC *a,int m,BC_CPREC *x,BC_CPREC *b) /* solves ax=b for 
       b[i2]=b[i2]-fact*b[i];
     }
   }
+  /* singular? */
+  for(i=0;i<m;i++)
+    if(!(dabs(a[MS_SUB(i,i)]) > tol)){
+      for(i2=0;i2<m;i2++)
+	x[i2] = NAN;
+      return 1;
+    }
   /* solve the equations */
   x[m-1]=b[m-1]/a[m*m-1];
   for(i=m-2;i> -1;--i){
@@ -76,6 +99,7 @@ void michael_gaus(BC_CPREC *a,int m,BC_CPREC *x,BC_CPREC *b) /* solves ax=b for 
       d=d-x[i2]*a[MS_SUB(i,i2)];
     x[i] = d/a[MS_SUB(i,i)];
   }
+  return 0;
 }
 
 
