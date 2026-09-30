@@ -7,7 +7,8 @@
 #
 # prints PASS/FAIL per check and returns the number of failures
 #
-bdir=${1-$(dirname "$(readlink -f "$0")")/../bin}
+sdir=$(dirname "$(readlink -f "$0")")	# this test directory
+bdir=${1-$sdir/../bin}
 
 tdir=$(mktemp -d)
 trap "rm -rf $tdir" EXIT
@@ -78,6 +79,35 @@ check "nsample_catalog fewer events than k" $( [ ! -s k1.0.5.0.5.0.norm.dat ] &&
 #
 $bdir/bin_catalog --dx 0.5 $common -l -118 -r -116 -b 33 -t 35 -F 7 -o f1 c1.aki > /dev/null 2>&1
 check "bin_catalog rejects -F 7" $( [ $? -ne 0 ] && echo 1 || echo 0)
+
+#
+# 8: malformed option arguments are rejected
+#
+for a in "--min-mag 5x" "--dx abc" "--min-events 3.5";do
+    $bdir/bin_catalog $a $common -l -118 -r -116 -b 33 -t 35 -o o1 c1.aki > /dev/null 2>&1
+    check "bin_catalog rejects $a" $( [ $? -ne 0 ] && echo 1 || echo 0)
+done
+#
+# 9: Vavrycuk inversion for the 10 SoCal mechanisms of becker_subset_angles.dat,
+#    compared with the MATLAB STRESSINVERSE result (R = 0.5893, mean
+#    instability 0.99316 at friction 0.6, 0.99489 at the optimum near 0.5)
+#
+$bdir/solve_stress_one_bin stdin_sdr < $sdir/becker_subset_angles.dat > v1.log 2>&1
+check "Vavrycuk fixed friction vs MATLAB" \
+      $(gawk '/^Vav fixed/{if($5==0.5893 && $8==0.600 && $11==0.99316)ok=1}END{print(ok+0)}' v1.log)
+check "Vavrycuk friction scan vs MATLAB" \
+      $(gawk '/^Vav sweep/{if($5==0.5893 && $8>=0.49 && $8<=0.52 && $11==0.99489)ok=1}END{print(ok+0)}' v1.log)
+#
+# 10: stress outputs are reproducible
+#
+for i in 1 2;do
+    $bdir/bin_catalog --dx 0.5 $common -l -121 -r -119 -b 33 -t 35 -F 4 -o r$i $sdir/test.aki > /dev/null 2>&1
+done
+same=1
+for t in s ds bs;do
+    cmp -s r1.0.5.0.5.$t.dat r2.0.5.0.5.$t.dat || same=0
+done
+check "bin_catalog stress output reproducible" $same
 
 echo "$nfail failure(s)"
 exit $nfail

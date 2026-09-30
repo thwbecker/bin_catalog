@@ -100,14 +100,14 @@ int main(int argc, char **argv)
   while((c = getopt_long(argc,argv,"m:M:z:Z:p:D:w:F:o:xch",
 			 long_options,NULL)) != -1){
     switch(c){
-    case 'm': sscanf(optarg,BC_PREC_FMT,&kostrov->minmag); break;
-    case 'M': sscanf(optarg,BC_PREC_FMT,&kostrov->maxmag); break;
-    case 'z': sscanf(optarg,BC_PREC_FMT,&kostrov->maxdepth); break;
-    case 'Z': sscanf(optarg,BC_PREC_FMT,&kostrov->mindepth); break;
-    case 'p': sscanf(optarg,"%i",&kostrov->nmin); break;
-    case 'D': sscanf(optarg,BC_PREC_FMT,&kostrov->dist_max); break;
-    case 'w': sscanf(optarg,"%i",&use_weights); break;
-    case 'F': sscanf(optarg,"%i",&itmp); catalog->use_friction_solve = itmp; break;
+    case 'm': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->minmag); break;
+    case 'M': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->maxmag); break;
+    case 'z': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->maxdepth); break;
+    case 'Z': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->mindepth); break;
+    case 'p': BC_OPT_SCAN("%i",&kostrov->nmin); break;
+    case 'D': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->dist_max); break;
+    case 'w': BC_OPT_SCAN("%i",&use_weights); break;
+    case 'F': BC_OPT_SCAN("%i",&itmp); catalog->use_friction_solve = itmp; break;
     case 'o': snprintf(out_istring,sizeof(out_istring),"%s",optarg); break;
     case 'x': catalog->is_xy = BC_TRUE; break;
     case 'c': use_aki = BC_FALSE; break;

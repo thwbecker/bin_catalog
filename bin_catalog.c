@@ -107,20 +107,20 @@ int main(int argc, char **argv)
   while((c = getopt_long(argc,argv,"d:y:m:M:n:l:r:b:t:z:Z:w:xco:p:F:h",
 			 long_options,NULL)) != -1){
     switch(c){
-    case 'd': sscanf(optarg,BC_PREC_FMT,&kostrov->dx); break;
-    case 'y': sscanf(optarg,BC_PREC_FMT,&kostrov->dy); has_dy = BC_TRUE; break;
-    case 'm': sscanf(optarg,BC_PREC_FMT,&kostrov->minmag); break;
-    case 'M': sscanf(optarg,BC_PREC_FMT,&kostrov->maxmag); break;
-    case 'n': sscanf(optarg,"%i",&monte_carlo); break;
-    case 'l': sscanf(optarg,BC_PREC_FMT,&kostrov->dlonmin); break;
-    case 'r': sscanf(optarg,BC_PREC_FMT,&kostrov->dlonmax); break;
-    case 'b': sscanf(optarg,BC_PREC_FMT,&kostrov->dlatmin); break;
-    case 't': sscanf(optarg,BC_PREC_FMT,&kostrov->dlatmax); break;
-    case 'z': sscanf(optarg,BC_PREC_FMT,&kostrov->maxdepth); break;
-    case 'Z': sscanf(optarg,BC_PREC_FMT,&kostrov->mindepth); break;
-    case 'w': sscanf(optarg,"%i",&weighting_method); break;
-    case 'p': sscanf(optarg,"%i",&min_events_for_stress); break;
-    case 'F': sscanf(optarg,"%i",&itmp); catalog->use_friction_solve = itmp; break;
+    case 'd': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->dx); break;
+    case 'y': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->dy); has_dy = BC_TRUE; break;
+    case 'm': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->minmag); break;
+    case 'M': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->maxmag); break;
+    case 'n': BC_OPT_SCAN("%i",&monte_carlo); break;
+    case 'l': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->dlonmin); break;
+    case 'r': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->dlonmax); break;
+    case 'b': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->dlatmin); break;
+    case 't': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->dlatmax); break;
+    case 'z': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->maxdepth); break;
+    case 'Z': BC_OPT_SCAN(BC_PREC_FMT,&kostrov->mindepth); break;
+    case 'w': BC_OPT_SCAN("%i",&weighting_method); break;
+    case 'p': BC_OPT_SCAN("%i",&min_events_for_stress); break;
+    case 'F': BC_OPT_SCAN("%i",&itmp); catalog->use_friction_solve = itmp; break;
     case 'o': sprintf(out_istring,"%s",optarg); break;
     case 'x': catalog->is_xy = BC_TRUE; break;
     case 'c': use_aki = BC_FALSE; break;

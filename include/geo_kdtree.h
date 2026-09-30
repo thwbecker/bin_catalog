@@ -29,6 +29,7 @@ typedef struct {
     geo_point_t* points;        // Array of all points
     int num_points;
     int capacity;
+    int sorted;                 // points sorted by latitude (set on first query)
 } geo_search_t;
 
 // Dynamic array for storing query results

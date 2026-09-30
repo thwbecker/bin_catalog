@@ -4,26 +4,29 @@
   stress_inversion_vavrycuk.c
 
   Alternative Vavrycuk-type iterative stress inversion that follows the
-  *exact* strategy of the MATLAB STRESSINVERSE package (Vavrycuk, 2014,
+  strategy of the MATLAB STRESSINVERSE package (Vavrycuk, 2014,
   GJI 199, 69-77), as opposed to the swap-until-stable optimizer in
   stability_criterion.c / stress_inversion.c.
 
   Differences from optimize_angles_via_instability():
 
-  1. fixed iteration count per friction (no swap-until-converged, no
-     bail-with-best). Batch reselection: at each iteration the more
+  1. at most a fixed iteration count per friction (no swap-until-converged, no
+     bail-with-best; the iterations stop early only when the plane
+     selection repeats, which cannot change the result). Batch reselection: at each iteration the more
      unstable of the two original nodal planes is chosen for every
      event simultaneously, then the Michael tensor is re-solved.
 
   2. initial guess is the average of N_realizations randomized-plane
      Michael tensors (each max-abs-eigenvalue normalized), matching
      linear_stress_inversion_Michael.m + the averaging loop in
-     stress_inversion.m.
+     stress_inversion.m. Different from the MATLAB code, the scan is
+     also run from each individual realization, and the result with the
+     largest mean instability is kept (see stress_inversion_vavrycuk).
 
   3. the friction scan carries tau across friction values (tau is not
      reset between frictions), and the optimum friction is the one with
-     maximum mean instability, followed by a final pass. This mirrors
-     stress_inversion.m line for line.
+     maximum mean instability, followed by a final pass at the optimum
+     starting from the tensor found there.
 
   4. the instability / plane-selection is a direct port of
      stability_criterion.m, with sigma1 = SMALLEST eigenvalue (ascending
@@ -71,9 +74,84 @@
   instability used by both the iterative solver and the averaging
   routine, so the two never drift apart.
 */
+/*
+  eigenvalues (ascending) and unit eigenvectors of a symmetric 3x3
+  matrix by cyclic Jacobi rotations. a is overwritten. vec[k][i] is
+  component i of the eigenvector of val[k]. converges to machine
+  precision in a few sweeps and is several times faster than the
+  general EISPACK route for this size, which matters since the
+  Vavrycuk iteration needs one eigensystem per plane selection.
+*/
+static void vavrycuk_eig3(BC_CPREC a[3][3], BC_CPREC val[3], BC_CPREC vec[3][3])
+{
+  BC_CPREC v[3][3] = {{1,0,0},{0,1,0},{0,0,1}}, off, theta, t, c, sn, tau, tmp, d[3];
+  int sweep, p, q, r, i, j, k;
+  static const int pq[3][2] = {{0,1},{0,2},{1,2}};
+  for (sweep = 0; sweep < 50; sweep++) {
+    off = a[0][1]*a[0][1] + a[0][2]*a[0][2] + a[1][2]*a[1][2];
+    if (off < 1e-30 * (a[0][0]*a[0][0] + a[1][1]*a[1][1] + a[2][2]*a[2][2]) || off == 0.0)
+      break;
+    for (k = 0; k < 3; k++) {
+      p = pq[k][0]; q = pq[k][1];
+      if (a[p][q] == 0.0) continue;
+      theta = (a[q][q] - a[p][p]) / (2.0 * a[p][q]);
+      t = ((theta >= 0) ? 1.0 : -1.0) / (fabs(theta) + sqrt(theta*theta + 1.0));
+      c = 1.0 / sqrt(t*t + 1.0); sn = t * c; tau = sn / (1.0 + c);
+      tmp = a[p][q];
+      a[p][p] -= t * tmp;
+      a[q][q] += t * tmp;
+      a[p][q] = a[q][p] = 0.0;
+      for (r = 0; r < 3; r++) {
+        if ((r == p) || (r == q)) continue;
+        BC_CPREC arp = a[r][p], arq = a[r][q];
+        a[r][p] = a[p][r] = arp - sn * (arq + tau * arp);
+        a[r][q] = a[q][r] = arq + sn * (arp - tau * arq);
+      }
+      for (r = 0; r < 3; r++) {
+        BC_CPREC vrp = v[r][p], vrq = v[r][q];
+        v[r][p] = vrp - sn * (vrq + tau * vrp);
+        v[r][q] = vrq + sn * (vrp - tau * vrq);
+      }
+    }
+  }
+  for (i = 0; i < 3; i++) d[i] = a[i][i];
+  /* sort ascending */
+  int idx[3] = {0, 1, 2};
+  for (i = 0; i < 2; i++)
+    for (j = i + 1; j < 3; j++)
+      if (d[idx[j]] < d[idx[i]]) { k = idx[i]; idx[i] = idx[j]; idx[j] = k; }
+  for (k = 0; k < 3; k++) {
+    val[k] = d[idx[k]];
+    for (i = 0; i < 3; i++) vec[k][i] = v[i][idx[k]];
+  }
+}
+
 void vavrycuk_eigen(const BC_CPREC *stress,
 		  BC_CPREC *v1, BC_CPREC *v2, BC_CPREC *v3,
 		  BC_CPREC *sf)
+{
+  BC_CPREC a[3][3], sigma[3], vec[3][3];
+  int i;
+  /* MATLAB Cartesian frame: xx=TT, xy=-TP, xz=RT, yy=PP, yz=-RP, zz=RR */
+  a[0][0] =  stress[BC_TT];
+  a[0][1] = a[1][0] = -stress[BC_TP];
+  a[0][2] = a[2][0] =  stress[BC_RT];
+  a[1][1] =  stress[BC_PP];
+  a[1][2] = a[2][1] = -stress[BC_RP];
+  a[2][2] =  stress[BC_RR];
+  vavrycuk_eig3(a, sigma, vec); /* ascending */
+  for (i = 0; i < 3; i++) {
+    v1[i] = vec[0][i];            /* sigma1 (min) */
+    v2[i] = vec[1][i];            /* sigma2       */
+    v3[i] = vec[2][i];            /* sigma3 (max) */
+  }
+  *sf = 1.0 - 2.0 * (sigma[0] - sigma[1]) / (sigma[0] - sigma[2]);
+}
+
+/* for testing: vavrycuk_eigen with the general EISPACK based routine */
+void vavrycuk_eigen_eispack(const BC_CPREC *stress,
+			    BC_CPREC *v1, BC_CPREC *v2, BC_CPREC *v3,
+			    BC_CPREC *sf)
 {
   BC_CPREC m6[6], sigma[3], svec[9];
   m6[0] =  stress[BC_TT];   /* xx */
@@ -180,20 +258,191 @@ void vavrycuk_average_instability(int n, BC_CPREC *angles, BC_CPREC *weights,
 }
 
 /*
+  normals of both nodal planes of each event in the MATLAB Cartesian
+  frame used by vavrycuk_plane_inst: nrm[6*j + 3*p + k] for event j,
+  plane p, component k
+*/
+static void vavrycuk_normals(int n, const BC_CPREC *angles, BC_CPREC *nrm)
+{
+  BC_CPREC ss, cs, sd, cd;
+  int j, p, off;
+  for (j = 0; j < n; j++) {
+    for (p = 0; p < 2; p++) {
+      off = 6 * j + 3 * p;
+      sincos(angles[off],     &ss, &cs);
+      sincos(angles[off + 1], &sd, &cd);
+      nrm[off]     = -sd * ss;
+      nrm[off + 1] =  sd * cs;
+      nrm[off + 2] = -cd;
+    }
+  }
+}
+
+/* instability of one plane from its precomputed normal, as vavrycuk_plane_inst */
+static inline BC_CPREC vavrycuk_inst_from_normal(const BC_CPREC *nv,
+						 const BC_CPREC *v1, const BC_CPREC *v2,
+						 const BC_CPREC *v3, BC_CPREC sf,
+						 BC_CPREC mu, BC_CPREC ff)
+{
+  BC_CPREC p1, p2, p3, p1s, p2s, p3s, tn, ts, tmp;
+  p1 = nv[0] * v1[0] + nv[1] * v1[1] + nv[2] * v1[2];
+  p2 = nv[0] * v2[0] + nv[1] * v2[1] + nv[2] * v2[2];
+  p3 = nv[0] * v3[0] + nv[1] * v3[1] + nv[2] * v3[2];
+  p1s = p1 * p1; p2s = p2 * p2; p3s = p3 * p3;
+  tn  = p1s + sf * p2s - p3s;
+  tmp = p1s + sf * sf * p2s + p3s - tn * tn;
+  ts  = (tmp > 0.0) ? sqrt(tmp) : 0.0;
+  return (ts - mu * (tn - 1.0)) / ff;
+}
+
+/*
+  plane selection with precomputed normals: out[j] = 1 if the second
+  plane of event j is more unstable under stress/mu, else 0. returns the
+  mean instability of the chosen planes, and in *changed whether out
+  differs from ref
+*/
+static BC_CPREC vavrycuk_choose(int n, const BC_CPREC *nrm, BC_CPREC mu,
+				const BC_CPREC *stress, const unsigned char *ref,
+				unsigned char *out, BC_BOOLEAN *changed)
+{
+  BC_CPREC v1[3], v2[3], v3[3], sf, ff, i0, i1, acc = 0.0;
+  unsigned char c;
+  int j;
+  vavrycuk_eigen(stress, v1, v2, v3, &sf);
+  ff = mu + sqrt(1.0 + mu * mu);
+  *changed = BC_FALSE;
+  for (j = 0; j < n; j++) {
+    i0 = vavrycuk_inst_from_normal(nrm + 6 * j,     v1, v2, v3, sf, mu, ff);
+    i1 = vavrycuk_inst_from_normal(nrm + 6 * j + 3, v1, v2, v3, sf, mu, ff);
+    c = (i1 > i0) ? 1 : 0;
+    acc += (c) ? i1 : i0;
+    out[j] = c;
+    if (c != ref[j]) *changed = BC_TRUE;
+  }
+  return acc / (BC_CPREC)n;
+}
+
+/* Michael solution for the chosen planes from precomputed normal equations */
+static void vavrycuk_solve_choice(int n, const BC_CPREC *ne,
+				  const unsigned char *choice, BC_CPREC *stress)
+{
+  BC_CPREC sum[BC_MICHAEL_NNE];
+  const BC_CPREC *nep;
+  int j, k;
+  for (k = 0; k < BC_MICHAEL_NNE; k++) sum[k] = 0.0;
+  for (j = 0; j < n; j++) {
+    nep = ne + (2 * j + choice[j]) * BC_MICHAEL_NNE;
+    for (k = 0; k < BC_MICHAEL_NNE; k++) sum[k] += nep[k];
+  }
+  michael_normal_eq_solve(sum, stress);
+}
+
+/*
+  up to n_iter iterations of plane selection and Michael re-solve at
+  friction mu, starting from tau. choice holds the planes that tau was
+  solved from (2 = none, for the initial guess) and is updated with tau.
+  the loop stops early when the selection repeats, since the re-solve
+  would then reproduce tau exactly. returns the mean instability of the
+  selection under the returned tau, which is left in sel (scratch array
+  of length n).
+*/
+static BC_CPREC vavrycuk_iterate(int n, const BC_CPREC *nrm, const BC_CPREC *ne,
+				 BC_CPREC mu, int n_iter, BC_CPREC *tau,
+				 unsigned char *choice, unsigned char *sel)
+{
+  BC_BOOLEAN changed;
+  BC_CPREC mean_inst;
+  int it;
+  for (it = 0; it < n_iter; it++) {
+    mean_inst = vavrycuk_choose(n, nrm, mu, tau, choice, sel, &changed);
+    if (!changed)             /* fixed point: tau already solves this selection */
+      return mean_inst;
+    memcpy(choice, sel, n);
+    vavrycuk_solve_choice(n, ne, choice, tau);
+  }
+  return vavrycuk_choose(n, nrm, mu, tau, choice, sel, &changed);
+}
+
+/*
+  friction scan from one starting tensor: tau is carried from one
+  friction to the next with up to n_iter iterations at each, the
+  optimum is the friction with the largest mean instability, followed
+  by a final pass at the optimum starting from the tensor found there.
+  on return, tau is the final tensor, sel the plane selection under it,
+  *fopt the optimum friction. returns the mean instability. choice,
+  cbest are scratch arrays of length n.
+*/
+static BC_CPREC vavrycuk_scan(int n, const BC_CPREC *nrm, const BC_CPREC *ne,
+			      BC_CPREC fmin, BC_CPREC finc, int nfric, int n_iter,
+			      BC_CPREC *tau, BC_CPREC *fopt,
+			      unsigned char *choice, unsigned char *cbest,
+			      unsigned char *sel)
+{
+  BC_CPREC mean_inst, best_mean = -1e30, tbest[6], mu;
+  int ifric;
+  memset(choice, 2, n);       /* tau is not the solution of any selection */
+  memcpy(tbest, tau, 6 * sizeof(BC_CPREC));
+  memcpy(cbest, choice, n);
+  *fopt = fmin;
+  for (ifric = 0; ifric < nfric; ifric++) {
+    mu = fmin + ifric * finc;
+    mean_inst = vavrycuk_iterate(n, nrm, ne, mu, n_iter, tau, choice, sel);
+    if (mean_inst > best_mean) {
+      best_mean = mean_inst; *fopt = mu;
+      memcpy(tbest, tau, 6 * sizeof(BC_CPREC));
+      memcpy(cbest, choice, n);
+    }
+  }
+  memcpy(tau, tbest, 6 * sizeof(BC_CPREC));
+  memcpy(choice, cbest, n);
+  return vavrycuk_iterate(n, nrm, ne, *fopt, n_iter, tau, choice, sel);
+}
+
+/*
+  alternative candidate (the approach of the previous version of this
+  code): converge a reference tensor at the middle of the friction
+  range, pick the friction that maximizes the mean instability under
+  that fixed tensor, then iterate at that friction. same interface and
+  outputs as vavrycuk_scan.
+*/
+static BC_CPREC vavrycuk_scan_ref(int n, const BC_CPREC *nrm, const BC_CPREC *ne,
+				  BC_CPREC fmin, BC_CPREC finc, int nfric, int n_iter,
+				  BC_CPREC *tau, BC_CPREC *fopt,
+				  unsigned char *choice, unsigned char *sel)
+{
+  BC_CPREC v1[3], v2[3], v3[3], sf, ff, mu, i0, i1, acc, best = -1e30;
+  int ifric, j;
+  memset(choice, 2, n);
+  vavrycuk_iterate(n, nrm, ne, fmin + 0.5 * (nfric - 1) * finc, n_iter, tau, choice, sel);
+  vavrycuk_eigen(tau, v1, v2, v3, &sf);
+  *fopt = fmin;
+  for (ifric = 0; ifric < nfric; ifric++) {
+    mu = fmin + ifric * finc;
+    ff = mu + sqrt(1.0 + mu * mu);
+    for (j = 0, acc = 0.0; j < n; j++) {
+      i0 = vavrycuk_inst_from_normal(nrm + 6 * j,     v1, v2, v3, sf, mu, ff);
+      i1 = vavrycuk_inst_from_normal(nrm + 6 * j + 3, v1, v2, v3, sf, mu, ff);
+      acc += (i1 > i0) ? i1 : i0;
+    }
+    acc /= (BC_CPREC)n;
+    if (acc > best) { best = acc; *fopt = mu; }
+  }
+  return vavrycuk_iterate(n, nrm, ne, *fopt, n_iter, tau, choice, sel);
+}
+
+/*
   MATLAB-style iterative joint stress / fault inversion.
 
   inputs:
     n, angles (6 per event, radians), weights
     fmin, fmax, finc  friction scan (set fmin == fmax for fixed mu)
     n_iter            iterations per friction   (MATLAB N_iterations,   6)
-    n_real            realizations for init     (MATLAB N_realizations, 10)
+    n_real            random plane realizations for the starting tensors
+                      (MATLAB N_realizations, 10)
     seed              RNG seed (ran2 convention; pass a negative long)
     norm_type         normalization of the RETURNED tensor only:
                       BC_STRESS_NORM_EV     -> max abs eigenvalue
                       BC_STRESS_NORM_TENSOR -> tensor (Frobenius) norm
-                      (the iteration itself is scale invariant, so this
-                       affects the returned scale only, not R, the
-                       instability, the resolved planes, or convergence)
   outputs:
     stress    (6) tensor normalized per norm_type, R,theta,phi order
     shape_ratio   (sigma1-sigma2)/(sigma1-sigma3), ascending convention
@@ -201,12 +450,25 @@ void vavrycuk_average_instability(int n, BC_CPREC *angles, BC_CPREC *weights,
     minst         mean instability at the optimum
     sel_out   (6n) resolved planes, selected plane first (may be NULL)
 
-  note: tau is NOT normalized between iterations. vavrycuk_select_planes
-  and the Michael re-solve depend on tau only through scale invariant
-  quantities (eigenvector directions, shape ratio) and the selected
-  planes, so the per-iteration normalization that the MATLAB code does
-  is redundant and is skipped here to avoid an extra eigensolve per
-  step. The single normalization of the returned tensor is done once.
+  starting tensors: as in the MATLAB code, the average of n_real
+  randomized-plane Michael tensors (each max|eig| normalized). the
+  iteration can end in different local maxima of the mean instability
+  depending on the start, mainly for small numbers of events. if
+  n_real > 1, the scan (see vavrycuk_scan) is therefore also run from
+  each of the n_real individual realizations, and, from the averaged
+  start, the reference-tensor variant of the previous version of this
+  code (vavrycuk_scan_ref) is added as a candidate. the result with the
+  largest mean instability is returned (the averaged start with the
+  full scan wins ties). the result is thus never worse, in terms of
+  mean instability, than either the single averaged start or the
+  previous version.
+
+  implementation notes: normal equations and fault normals of both
+  planes are computed once per call, so each iteration costs O(n)
+  without trigonometry. iterations at a friction stop when the plane
+  selection repeats (the result would not change). tau is not
+  normalized between iterations; the selection depends on tau only
+  through scale invariant quantities.
 */
 void stress_inversion_vavrycuk(int n, BC_CPREC *angles, BC_CPREC *weights,
                              BC_CPREC fmin, BC_CPREC fmax, BC_CPREC finc,
@@ -215,101 +477,75 @@ void stress_inversion_vavrycuk(int n, BC_CPREC *angles, BC_CPREC *weights,
                              BC_CPREC *fopt, BC_CPREC *minst,
                              BC_CPREC *sel_out, int norm_type)
 {
-  BC_CPREC *sel, *rnd, raw[6], tau[6], acc[6], tnorm[6], sg[3], sv[9];
-  BC_CPREC mean_inst, best_mean, fopt_l, mu;
-  size_t asize = 6 * sizeof(BC_CPREC) * n;
-  int it, r, j, j6, k;
+  BC_CPREC *ne, *nrm, *starts, raw[6], tau[6], sg[3], sv[9];
+  BC_CPREC best_tau[6], mean_inst, best_mean = -1e30, fo, best_fo = fmin;
+  unsigned char *choice, *cbest, *sel, *best_sel;
+  int r, j, j6, k, nfric, nstart, is;
 
-  sel = (BC_CPREC *)malloc(asize);
-  rnd = (BC_CPREC *)malloc(asize);
-  if ((!sel) || (!rnd)) BC_MEMERROR("stress_inversion_vavrycuk");
+  if (n_real < 1) n_real = 1;
+  nstart = (n_real > 1) ? (n_real + 1) : 1;
+  ne       = (BC_CPREC *)malloc(sizeof(BC_CPREC) * BC_MICHAEL_NNE * 2 * n);
+  nrm      = (BC_CPREC *)malloc(sizeof(BC_CPREC) * 6 * n);
+  starts   = (BC_CPREC *)calloc(6 * (n_real + 1), sizeof(BC_CPREC));
+  choice   = (unsigned char *)malloc(n);
+  cbest    = (unsigned char *)malloc(n);
+  sel      = (unsigned char *)malloc(n);
+  best_sel = (unsigned char *)malloc(n);
+  if ((!ne) || (!nrm) || (!starts) || (!choice) || (!cbest) || (!sel) || (!best_sel))
+    BC_MEMERROR("stress_inversion_vavrycuk");
+  michael_setup_normal_eq(n, angles, weights, ne);
+  vavrycuk_normals(n, angles, nrm);
 
-  /* -------- initial guess: averaged randomized-plane Michael --------
-     each realization is max|eig| normalized before averaging, matching
-     linear_stress_inversion_Michael.m. this is only n_real calls and is
-     not on the hot path; the converged result is initialization
-     independent, so the choice here does not affect the answer. */
-  for (k = 0; k < 6; k++) acc[k] = 0.0;
+  /* -------- starting tensors: starts[0] average, starts[1..] realizations
+     same random sequence as before (plane 2 used if the draw is < 0.5) */
   for (r = 0; r < n_real; r++) {
-    for (j = j6 = 0; j < n; j++, j6 += 6) {
-      memcpy(rnd + j6, angles + j6, 6 * sizeof(BC_CPREC));
-      if (BC_RGEN(seed) < 0.5)        /* random nodal plane to the front */
-        swap_angles(rnd + j6);
-    }
-    solve_stress_michael_specified_plane(n, rnd, weights, raw, BC_FALSE);
-    max_ev_normalize_tens6(raw, tnorm);
+    for (j = 0; j < n; j++)
+      choice[j] = (BC_RGEN(seed) < 0.5) ? 1 : 0;
+    vavrycuk_solve_choice(n, ne, choice, raw);
+    max_ev_normalize_tens6(raw, starts + 6 * (r + 1));
     for (k = 0; k < 6; k++)
-      acc[k] += tnorm[k];
+      starts[k] += starts[6 * (r + 1) + k];
   }
-  memcpy(tau, acc, 6 * sizeof(BC_CPREC)); /* tau0 (scale irrelevant to iter) */
-
-  /* -------- converge one reference tensor --------------------------
-     the resolved planes, and therefore the tensor, are usually
-     insensitive to friction (each event has a clearly more unstable
-     plane whose identity does not flip with mu). so converge a single
-     reference tensor near the middle of the scan, then read the
-     friction curve off it cheaply instead of re-inverting at every
-     friction. the returned tensor is re-converged at the optimum below,
-     so it is exact for fopt regardless of this approximation. */
-  {
-    BC_CPREC mu_ref = 0.5 * (fmin + fmax);
-    for (it = 0; it < n_iter; it++) {
-      vavrycuk_select_planes(n, angles, mu_ref, tau, sel, &mean_inst);
-      solve_stress_michael_specified_plane(n, sel, weights, raw, BC_FALSE);
-      memcpy(tau, raw, 6 * sizeof(BC_CPREC)); /* no norm: scale invariant */
+  if ((finc > 0.0) && (fmax > fmin + 1e-9))
+    nfric = (int)((fmax - fmin) / finc + 1e-9) + 1;
+  else
+    nfric = 1;
+  for (is = 0; is < nstart + ((nstart > 1) ? 1 : 0); is++) {
+    if (is < nstart) {
+      memcpy(tau, starts + 6 * is, 6 * sizeof(BC_CPREC));
+      mean_inst = vavrycuk_scan(n, nrm, ne, fmin, finc, nfric, n_iter, tau, &fo,
+				choice, cbest, sel);
+    } else {			/* reference tensor variant from the averaged start */
+      memcpy(tau, starts, 6 * sizeof(BC_CPREC));
+      mean_inst = vavrycuk_scan_ref(n, nrm, ne, fmin, finc, nfric, n_iter, tau, &fo,
+				    choice, sel);
+    }
+    if ((is == 0) || (mean_inst > best_mean)) { /* first start always sets the result */
+      best_mean = mean_inst; best_fo = fo;
+      memcpy(best_tau, tau, 6 * sizeof(BC_CPREC));
+      memcpy(best_sel, sel, n);
     }
   }
-
-  /* -------- pick the optimum friction from the cheap curve -----------
-     the eigensystem of the reference tensor is computed once; each
-     friction then costs only the instability formula per event, no
-     re-inversion. this is what makes the scan and the bootstrap fast. */
-  best_mean = -1e30; fopt_l = fmin;
-  if ((finc > 0.0) && (fmax > fmin + 1e-9)) {
-    BC_CPREC v1[3], v2[3], v3[3], sf, ff, inst[2], acc_mu;
-    int jj, jj6;
-    vavrycuk_eigen(tau, v1, v2, v3, &sf);          /* once */
-    for (mu = fmin; mu <= fmax + 1e-9; mu += finc) {
-      ff = mu + sqrt(1.0 + mu * mu);
-      acc_mu = 0.0;
-      for (jj = jj6 = 0; jj < n; jj++, jj6 += 6) {
-        vavrycuk_plane_inst(v1, v2, v3, sf, mu, ff, (angles + jj6), inst);
-        acc_mu += (inst[1] > inst[0]) ? inst[1] : inst[0];
-      }
-      acc_mu /= (BC_CPREC)n;
-      if (acc_mu > best_mean) { best_mean = acc_mu; fopt_l = mu; }
-    }
-  }
-
-  /* -------- re-converge at the optimum friction (warm start) ---------
-     starts from the reference tensor, so this settles in a couple of
-     iterations when the selection is unchanged, and corrects the tensor
-     where it is not. */
-  for (it = 0; it < n_iter; it++) {
-    vavrycuk_select_planes(n, angles, fopt_l, tau, sel, &mean_inst);
-    solve_stress_michael_specified_plane(n, sel, weights, raw, BC_FALSE);
-    memcpy(tau, raw, 6 * sizeof(BC_CPREC));
-  }
-  /* resolve planes and mean instability consistent with the FINAL tensor
-     (the loop above leaves mean_inst one solve behind tau) */
-  vavrycuk_select_planes(n, angles, fopt_l, tau, sel, &mean_inst);
-
   /* -------- normalize the returned tensor once, per request -------- */
   if (norm_type == BC_STRESS_NORM_TENSOR)
-    normalize_tens6(tau, tau);
+    normalize_tens6(best_tau, best_tau);
   else
-    max_ev_normalize_tens6(tau, tau);    /* BC_STRESS_NORM_EV (default) */
+    max_ev_normalize_tens6(best_tau, best_tau);    /* BC_STRESS_NORM_EV (default) */
 
   /* -------- outputs -------- */
-  memcpy(stress, tau, 6 * sizeof(BC_CPREC));
-  calc_eigensystem_vec6(tau, sg, sv, BC_FALSE, BC_FALSE); /* ascending */
+  memcpy(stress, best_tau, 6 * sizeof(BC_CPREC));
+  calc_eigensystem_vec6(best_tau, sg, sv, BC_FALSE, BC_FALSE); /* ascending */
   *shape_ratio = (sg[0] - sg[1]) / (sg[0] - sg[2]);
-  *fopt  = fopt_l;
-  *minst = mean_inst;
-  if (sel_out)
-    memcpy(sel_out, sel, asize);
-
-  free(sel); free(rnd);
+  *fopt  = best_fo;
+  *minst = best_mean;
+  if (sel_out) {
+    for (j = j6 = 0; j < n; j++, j6 += 6) {
+      memcpy(sel_out + j6, angles + j6, 6 * sizeof(BC_CPREC));
+      if (best_sel[j] == 1)        /* selection under the final tau */
+	swap_angles(sel_out + j6);
+    }
+  }
+  free(ne); free(nrm); free(starts); free(choice); free(cbest); free(sel); free(best_sel);
 }
 
 /*
@@ -524,7 +760,7 @@ void vavrycuk_friction_error(int n, BC_CPREC *angles, BC_CPREC *weights,
 {
   BC_CPREC *rangles, *rweights, *fb, stress[6], shape_ratio, minst, fopt, s1, s2;
   size_t asize = 6 * sizeof(BC_CPREC) * n;
-  int b, j, j6, idx, i16, i84, n_real_boot;
+  int b, j, j6, idx, i16, i84, n_real_boot, nvalid = 0;
 
   /* point estimate from the full data */
   stress_inversion_vavrycuk(n, angles, weights, fmin, fmax, finc,
@@ -540,11 +776,13 @@ void vavrycuk_friction_error(int n, BC_CPREC *angles, BC_CPREC *weights,
   fb       = (BC_CPREC *)malloc(sizeof(BC_CPREC) * n_boot);
   if ((!rangles) || (!rweights) || (!fb)) BC_MEMERROR("vavrycuk_friction_error");
 
-  /* the resamples use a single initialization realization instead of
-     n_real. the iteration is initialization independent, so this does
-     not change any converged result, only the discarded starting
-     tensor, and it removes most of the per-resample init cost. the
-     point estimate above keeps the full n_real. */
+  /* the resamples use a single random realization as the start, i.e.
+     one scan per resample instead of n_real + 1. the result can depend
+     on the start for small bins, which adds some scatter to the
+     bootstrap optima; in tests with 5 and 10 realizations the mean and
+     standard deviation of the optima changed by amounts comparable to
+     the bootstrap noise, at 5 to 10 times the cost. the point estimate
+     above keeps the full n_real. */
   n_real_boot = 1;
   s1 = s2 = 0.0;
   for (b = 0; b < n_boot; b++) {
@@ -558,18 +796,27 @@ void vavrycuk_friction_error(int n, BC_CPREC *angles, BC_CPREC *weights,
     stress_inversion_vavrycuk(n, rangles, rweights, fmin, fmax, finc,
                               n_iter, n_real_boot, seed, stress, &shape_ratio,
                               &fopt, &minst, NULL, BC_STRESS_NORM_EV);
-    fb[b] = fopt;
+    /* resamples that draw too few distinct events can give a singular
+       system and a non-finite solution, those are skipped */
+    if (!finite(minst))
+      continue;
+    fb[nvalid++] = fopt;
     s1 += fopt;
     s2 += fopt * fopt;
   }
-  *fmean = s1 / (BC_CPREC)n_boot;
-  *fstd  = sqrt(fabs(s2 / (BC_CPREC)n_boot - (*fmean) * (*fmean)));
+  if (nvalid == 0) {
+    *fmean = *fstd = *f16 = *f84 = NAN;
+    free(rangles); free(rweights); free(fb);
+    return;
+  }
+  *fmean = s1 / (BC_CPREC)nvalid;
+  *fstd  = sqrt(fabs(s2 / (BC_CPREC)nvalid - (*fmean) * (*fmean)));
 
   /* percentile bounds from the sorted bootstrap distribution */
-  qsort(fb, (size_t)n_boot, sizeof(BC_CPREC), vavrycuk_cmp_dbl);
-  i16 = (int)(0.16 * (BC_CPREC)n_boot);
-  i84 = (int)(0.84 * (BC_CPREC)n_boot);
-  if (i84 >= n_boot) i84 = n_boot - 1;
+  qsort(fb, (size_t)nvalid, sizeof(BC_CPREC), vavrycuk_cmp_dbl);
+  i16 = (int)(0.16 * (BC_CPREC)nvalid);
+  i84 = (int)(0.84 * (BC_CPREC)nvalid);
+  if (i84 >= nvalid) i84 = nvalid - 1;
   *f16 = fb[i16];
   *f84 = fb[i84];
 

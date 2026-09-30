@@ -26,6 +26,7 @@
 
 #define BC_NDIM 3 			/* three dimensions */
 #define BC_MICHAEL_NPAR  5	/* five parameters for michael inversion */
+#define BC_MICHAEL_NNE 20	/* 15 upper triangle of A^T A plus 5 of A^T b */
 
 #ifndef BC_BOOLEAN
 #define BC_BOOLEAN unsigned short
@@ -38,6 +39,15 @@
 #define BC_CPREC double
 #define BC_EPS 5e-15
 #define BC_PREC_FMT "%lf"
+/*
+   parse the argument of a command line option (in the getopt loop of
+   a main program with option character c) into *ptr, exit with a
+   message if it is not a single number of the given format
+*/
+#define BC_OPT_SCAN(fmt,ptr) do{ char bc_opt_end_;\
+    if(sscanf(optarg, fmt "%c", (ptr), &bc_opt_end_) != 1){\
+      fprintf(stderr,"%s: cannot parse argument \"%s\" of option -%c\n",argv[0],optarg,c);\
+      exit(-1);}}while(0)
 #define BC_PREC2_FMT "%lf %lf"
 
 #define BC_CHAR_LEN 500

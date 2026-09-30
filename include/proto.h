@@ -31,6 +31,7 @@ void geo_search_destroy(geo_search_t *);
 int geo_search_add_point(geo_search_t *, double, double, int);
 result_array_t *geo_search_query_radius(geo_search_t *, double, double, double);
 result_array_t *geo_search_query_k_nearest(geo_search_t *, double, double, int);
+result_array_t *geo_search_query_k_nearest_within(geo_search_t *, double, double, int, double);
 result_array_t *result_array_create(int);
 void result_array_add(result_array_t *, geo_point_t, double);
 void result_array_destroy(result_array_t *);
@@ -129,8 +130,12 @@ void solve_stress_michael_specified_plane(int, double *, double *, double *, uns
 void michael_solve_lsq(int, int, int, double *, double *, double *, double *);
 void my6stress2m3x3(double *, double [3][3]);
 void michael_assign_to_matrix(double *, int *, double **, double **);
+void michael_plane_normal_eq(const double *, double, double *);
+void michael_setup_normal_eq(int, double *, double *, double *);
+void michael_normal_eq_solve(const double *, double *);
 /* stress_inversion_vavrycuk.c */
 void vavrycuk_eigen(const double *, double *, double *, double *, double *);
+void vavrycuk_eigen_eispack(const double *, double *, double *, double *, double *);
 void vavrycuk_plane_inst(const double *, const double *, const double *, double, double, double, const double *, double *);
 void vavrycuk_select_planes(int, double *, double, double *, double *, double *);
 void vavrycuk_average_instability(int, double *, double *, double, double *, double *);

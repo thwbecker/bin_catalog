@@ -48,15 +48,10 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
 				       BC_CPREC *stress, BC_CPREC *sig_stress,
 				       long int *seed, int michael_rsweep_max)
 {
-  const int npar = BC_MICHAEL_NPAR;
-  const int ndim = BC_NDIM;
-  const int nrandom_limit  = BC_MICHAEL_NMC; /* monte carlo simulations (2000 good
-						number for 95%
-						confidence?)*/
   BC_BOOLEAN proceed,acc_bail,iter_warned;
   static BC_BOOLEAN warned = BC_FALSE;
-  int nobs,iquake,nrandom,ntry,i,iquake6,icheck,j;
-  BC_CPREC ind_stress[6],*slick,*amat,tot_stress[6],tot_stress2[6],snorm,last_stress[6],this_stress[6],ds,tmp;
+  int iquake,nrandom,ntry,i,iquake6,icheck,j,k;
+  BC_CPREC ind_stress[6],*ne,*nep,sum_ne[BC_MICHAEL_NNE],tot_stress[6],tot_stress2[6],snorm,last_stress[6],this_stress[6],ds,tmp;
   size_t ssize = 6*sizeof(BC_CPREC);
   BC_CPREC bail_acc_squared = BC_MICHAEL_RACC*BC_MICHAEL_RACC;
  
@@ -67,8 +62,17 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
     for(i=0;i < 6;i++)
       sig_stress[i]=NAN;
   }else{
-    slick = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim);
-    amat = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim*npar);
+    /*
+       normal equation contributions of both planes of each event,
+       computed once. each sweep then only adds up the contributions
+       of the randomly chosen planes and solves the 5x5 system, which
+       is algebraically identical to assembling the full design matrix
+       (as michael_solve_lsq does) but avoids trigonometry and O(n)
+       reallocations per sweep
+    */
+    ne = (BC_CPREC *)malloc(sizeof(BC_CPREC)*BC_MICHAEL_NNE*2*nquakes);
+    if(!ne)BC_MEMERROR("solve_stress_michael_random_sweep");
+    michael_setup_normal_eq(nquakes,angles,weights,ne);
     for(i=0;i < 6;i++){
       tot_stress[i] = tot_stress2[i] = last_stress[i] = 0.0;
     }
@@ -81,19 +85,18 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
       acc_bail = BC_FALSE;
       ntry++;
       /* converted from Andy Michael's slick routine */
-      nobs = 0;
-      for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6){
-	/* randomly assign fault planes */
+      for(k=0;k < BC_MICHAEL_NNE;k++)
+	sum_ne[k] = 0.0;
+      for(iquake=0;iquake < nquakes;iquake++){
+	/* randomly assign fault planes, same random sequence as before */
 	if(BC_RGEN(seed) >= 0.5)
-	  michael_assign_to_matrix((angles+iquake6),  &nobs,&slick,&amat);
+	  nep = ne + (2*iquake)  *BC_MICHAEL_NNE;
 	else			/* alternate FP */
-	  michael_assign_to_matrix((angles+iquake6+3),&nobs,&slick,&amat);
+	  nep = ne + (2*iquake+1)*BC_MICHAEL_NNE;
+	for(k=0;k < BC_MICHAEL_NNE;k++)
+	  sum_ne[k] += nep[k];
       }  /* end of data assignment loop */
-      /* 
-	 michael least squares solve, augmented by weights (will
-	 override amat and slick)
-      */
-      michael_solve_lsq(npar,ndim,nobs,amat,slick,weights,ind_stress);
+      michael_normal_eq_solve(sum_ne,ind_stress);
       for(i=icheck=0;i<6;i++){
 	if(!finite(ind_stress[i])){
 	  if(!iter_warned){
@@ -136,11 +139,11 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
 #endif
 	memcpy(last_stress,this_stress,ssize);
       }
-      if(acc_bail || (nrandom > BC_MICHAEL_RSWEEP_MAX) ||
-	 (ntry > 2*BC_MICHAEL_RSWEEP_MAX)) /* also stop if solutions keep being non-finite */
+      if(acc_bail || (nrandom > michael_rsweep_max) ||
+	 (ntry > 2*michael_rsweep_max)) /* also stop if solutions keep being non-finite */
 	proceed = BC_FALSE;
     }while(proceed);
-    if(nrandom > BC_MICHAEL_RSWEEP_MAX){
+    if(nrandom > michael_rsweep_max){
       if(!warned){
 	fprintf(stderr,"ssm random_sweep: WARNING: bailed on max sweeps (%i) not accuracy (%12.5e) on at least one bin\n",
 		nrandom,sqrt(ds));
@@ -151,8 +154,7 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
       fprintf(stderr,"ssm random_sweep: WARNING: no finite solution in %i attempts, returning NaN\n",ntry);
       for(i=0;i<6;i++)
 	stress[i] = sig_stress[i] = NAN;
-      free(amat);
-      free(slick);
+      free(ne);
       return;
     }
     for(i=0;i<6;i++){
@@ -170,11 +172,8 @@ void solve_stress_michael_random_sweep(int nquakes, BC_CPREC *angles,BC_CPREC *w
       stress[0],sig_stress[0],stress[1],sig_stress[1],stress[2],sig_stress[2],
       stress[3],sig_stress[3],stress[4],sig_stress[4],stress[5],sig_stress[5]);
     */
-    free(amat);
-    free(slick);
+    free(ne);
   }
- 
- 
 }
 
 
@@ -190,24 +189,120 @@ void solve_stress_michael_specified_plane(int nquakes, BC_CPREC *angles,
 					  BC_CPREC *weights,BC_CPREC *stress,
 					  BC_BOOLEAN normalize)
 {
-  const int npar = BC_MICHAEL_NPAR;
-  const int ndim = BC_NDIM;
-  int nobs,iquake,nrandom,i,iquake6;
-  BC_CPREC *slick,*amat,lsdev[2];
-  BC_CPREC m_smat[3][3],snorm;
-  
-  slick = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim);
-  amat = (BC_CPREC *)malloc(sizeof(BC_CPREC)*ndim*npar);
-  /* converted from Andy Michael's slick routine */                                        
-  nobs = 0;
-  for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6)
-    michael_assign_to_matrix((angles+iquake6),&nobs,&slick,&amat);
-  /*  */
-  michael_solve_lsq(npar,ndim,nobs,amat,slick,weights,stress);
+  int iquake,iquake6,k;
+  BC_CPREC ne[BC_MICHAEL_NNE],sum_ne[BC_MICHAEL_NNE];
+  /*
+     accumulate the normal equations event by event (first plane of
+     each 6-block), same solution as assembling the design matrix
+     with michael_assign_to_matrix and solving with michael_solve_lsq
+  */
+  for(k=0;k < BC_MICHAEL_NNE;k++)
+    sum_ne[k] = 0.0;
+  for(iquake=iquake6=0;iquake < nquakes;iquake++,iquake6+=6){
+    michael_plane_normal_eq((angles+iquake6),weights[iquake],ne);
+    for(k=0;k < BC_MICHAEL_NNE;k++)
+      sum_ne[k] += ne[k];
+  }
+  michael_normal_eq_solve(sum_ne,stress);
   if(normalize)
     normalize_tens6(stress,stress);
-  free(amat);                    
-  free(slick);
+}
+
+/*
+   design matrix rows (3 x 5) and slickenside vector (3) for one
+   plane, angles strike, dip, rake in radians, as in
+   michael_assign_to_matrix
+*/
+static void michael_plane_rows(const BC_CPREC *angles, BC_CPREC a[3][5], BC_CPREC sl[3])
+{
+  BC_CPREC sin_z,cos_z,sin_z2,cos_z2,sin_z3,cos_z3,n1,n2,n3,n12,n22,n32;
+  sincos(angles[0]+ M_PI_2, &sin_z, &cos_z); /* dip azimuth = strike + pi/2 */
+  sincos(angles[1],         &sin_z2,&cos_z2);
+  sincos(angles[2],         &sin_z3,&cos_z3);
+  n1=sin_z*sin_z2;  /* normal vector to fault plane */
+  n2=cos_z*sin_z2;
+  n3=cos_z2;
+  n12 = n1*n1;
+  n22 = n2*n2;
+  n32 = n3*n3;
+  sl[0] = -cos_z3*cos_z-sin_z3*sin_z*cos_z2;
+  sl[1] =  cos_z3*sin_z-sin_z3*cos_z*cos_z2;
+  sl[2] =  sin_z3*sin_z2;
+  a[0][0] = n1-n12*n1+n1*n32;
+  a[0][1] = n2-2.*n12*n2;
+  a[0][2] = n3-2.*n12*n3;
+  a[0][3] = -n1*n22+n1*n32;
+  a[0][4] = -2.*n1*n2*n3;
+  a[1][0] = -n2*n12+n2*n32;
+  a[1][1] = n1-2.*n1*n22;
+  a[1][2] = -2.*n1*n2*n3;
+  a[1][3] = n2-n22*n2+n2*n32;
+  a[1][4] = n3-2.*n22*n3;
+  a[2][0] = -n3*n12-n3+n32*n3;
+  a[2][1] = -2.*n1*n2*n3;
+  a[2][2] = n1-2.*n1*n32;
+  a[2][3] = -n3*n22-n3+n32*n3;
+  a[2][4] = n2-2.*n2*n32;
+}
+/*
+   weighted normal equation contribution of one plane:
+
+   ne[0..14]  upper triangle of (w A)^T (w A), row by row
+   ne[15..19] (w A)^T (w s)
+
+   as in michael_solve_lsq, rows and data are multiplied by the
+   weight w, i.e. each event enters the least squares misfit with w^2
+*/
+void michael_plane_normal_eq(const BC_CPREC *angles, BC_CPREC w, BC_CPREC *ne)
+{
+  BC_CPREC a[3][5],sl[3];
+  int i,j,k,l;
+  michael_plane_rows(angles,a,sl);
+  for(l=0;l < 3;l++){
+    sl[l] *= w;
+    for(k=0;k < 5;k++)
+      a[l][k] *= w;
+  }
+  for(i=k=0;i < 5;i++)
+    for(j=i;j < 5;j++,k++)
+      ne[k] = a[0][i]*a[0][j] + a[1][i]*a[1][j] + a[2][i]*a[2][j];
+  for(i=0;i < 5;i++)
+    ne[15+i] = a[0][i]*sl[0] + a[1][i]*sl[1] + a[2][i]*sl[2];
+}
+/*
+   normal equations for both planes of each of n events:
+   ne[(2*i+p)*BC_MICHAEL_NNE ...] for event i, plane p = 0, 1
+*/
+void michael_setup_normal_eq(int n, BC_CPREC *angles, BC_CPREC *weights, BC_CPREC *ne)
+{
+  int i;
+  for(i=0;i < n;i++){
+    michael_plane_normal_eq((angles+6*i),  weights[i],(ne+(2*i)  *BC_MICHAEL_NNE));
+    michael_plane_normal_eq((angles+6*i+3),weights[i],(ne+(2*i+1)*BC_MICHAEL_NNE));
+  }
+}
+/*
+   solve summed normal equations (see michael_plane_normal_eq) with
+   Michael's Gaussian elimination, apply the zero trace constraint, and
+   convert from ENU to (r,t,p) as michael_solve_lsq does
+*/
+void michael_normal_eq_solve(const BC_CPREC *ne, BC_CPREC *stress)
+{
+  BC_CPREC a2[25],c[5],lstress[6];
+  int i,j,k;
+  for(i=k=0;i < 5;i++)
+    for(j=i;j < 5;j++,k++)
+      a2[i*5+j] = a2[j*5+i] = ne[k];
+  for(i=0;i < 5;i++)
+    c[i] = ne[15+i];
+  michael_gaus(a2,5,lstress,c);
+  lstress[5]= -(lstress[0]+lstress[3]);
+  stress[BC_RR] =  lstress[5];	/*  zz =  UU */
+  stress[BC_RT] = -lstress[4];	/* -yz = -NU */
+  stress[BC_RP] =  lstress[2];	/*  xz =  EU */
+  stress[BC_TT] =  lstress[3];	/*  yy =  NN */
+  stress[BC_TP] = -lstress[1];	/* -yx = -EN */
+  stress[BC_PP] =  lstress[0];	/*  xx =  EE */
 }
 
 

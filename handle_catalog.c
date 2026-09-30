@@ -498,7 +498,10 @@ void assemble_bins_based_on_distance(struct cat *catalog, BC_BOOLEAN do_remove_t
       /* this was an attempt for an R or KDtree search */
       //found = geo_tree_query_k_nearest(catalog->tree, kostrov->bin[i].dlat,kostrov->bin[i].dlon,-kostrov->nmin);
       /* this is a bare bones implementation of an exhaustive search */
-      found = geo_search_query_k_nearest(catalog->tree, kostrov->bin[i].dlat,kostrov->bin[i].dlon,-kostrov->nmin);
+      /* the -nmin nearest are only used if all are within dist_max, so
+	 searching within dist_max gives the same selection */
+      found = geo_search_query_k_nearest_within(catalog->tree, kostrov->bin[i].dlat,kostrov->bin[i].dlon,
+						-kostrov->nmin,kostrov->dist_max);
       if(!found){
 	fprintf(stderr,"assemble_bins_based_on_distance: k nearest search failed\n");
 	exit(-1);
@@ -1144,7 +1147,7 @@ void print_stress_tensors(struct cat *catalog, char *filename)
 	    fprintf(out1,"%8.4f ",kostrov->bin[i].best_s[k]);
 	  fprintf(out1,"\t%8.3f %8.3f %12i",
 		  kostrov_bdlon(i,kostrov),kostrov_bdlat(i,kostrov),kostrov->bin[i].n);
-	  fprintf(out1,"\t%8.4f\t%4.2f %4.2f %4.2f\n", /* mean dot product, friction best, friction median, friction std */
+	  fprintf(out1,"\t%8.4f\t%5.3f %5.3f %5.3f\n", /* mean instability, best friction, bootstrap mean and std of best friction */
 		  kostrov->bin[i].dotp[2],
 		  kostrov->bin[i].best_fric,kostrov->bin[i].mean_best_fric,kostrov->bin[i].std_best_fric);
 	  mean_fric += kostrov->bin[i].best_fric;

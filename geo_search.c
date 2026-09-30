@@ -31,6 +31,7 @@ geo_search_t* geo_search_create(int initial_capacity) {
   
   search->num_points = 0;
   search->capacity = initial_capacity;
+  search->sorted = 0;
   
   return search;
 }
@@ -68,9 +69,36 @@ int geo_search_add_point(geo_search_t* search, BC_CPREC dlat, BC_CPREC dlon, int
   point->lon = BC_D2R(dlon);
   point->code = code;
   
-  
+  search->sorted = 0;
   search->num_points++;
   return 1;
+}
+
+/* order by latitude, then by code so that the order is reproducible */
+static int compare_by_lat(const void *a, const void *b)
+{
+  const geo_point_t *pa = (const geo_point_t *)a, *pb = (const geo_point_t *)b;
+  if (pa->lat < pb->lat) return -1;
+  if (pa->lat > pb->lat) return  1;
+  return (pa->code > pb->code) - (pa->code < pb->code);
+}
+/* sort points by latitude once, so that queries only visit a latitude band */
+static void geo_search_sort(geo_search_t *search)
+{
+  if (!search->sorted) {
+    qsort(search->points, search->num_points, sizeof(geo_point_t), compare_by_lat);
+    search->sorted = 1;
+  }
+}
+/* first index with lat >= lat0 in the sorted points */
+static int geo_search_lower_bound(const geo_search_t *search, BC_CPREC lat0)
+{
+  int lo = 0, hi = search->num_points, mid;
+  while (lo < hi) {
+    mid = (lo + hi) / 2;
+    if (search->points[mid].lat < lat0) lo = mid + 1; else hi = mid;
+  }
+  return lo;
 }
 
 result_array_t* geo_search_query_radius(geo_search_t* search, BC_CPREC center_dlat,
@@ -91,16 +119,15 @@ result_array_t* geo_search_query_radius(geo_search_t* search, BC_CPREC center_dl
   if (!results) return NULL;
   
   /* the great circle distance is at least BC_RADIUS * |dlat|, so
-     points outside this latitude band can be skipped without
-     computing the distance */
+     only points within this latitude band need to be checked. the
+     points are sorted by latitude, the band is found by bisection */
   dlat_max = radius_km / BC_RADIUS;
-  // Simple linear search through all points
-  for (int i = 0; i < search->num_points; i++) {
-    //if (max_results > 0 && results->count >= max_results) break;
-    
+  geo_search_sort(search);
+  for (int i = geo_search_lower_bound(search, center_lat - dlat_max);
+       i < search->num_points; i++) {
     point = &search->points[i];
-    if(fabs(point->lat - center_lat) > dlat_max)
-      continue;
+    if(point->lat > center_lat + dlat_max)
+      break;
     distance =  distance_geo(center_lon, center_lat,point->lon, point->lat,center_cos_lat,point->cos_lat);
     //fprintf(stderr,"%g %g %g %g - %g %g\n",center_lon, center_lat,point->lon, point->lat,distance,radius_km);
     if (distance <= radius_km) {
@@ -144,6 +171,23 @@ static void select_k_smallest(query_result_t *r, int n, int k)
     else
       break;
   }
+}
+
+/*
+   the k nearest points within radius_km, sorted by distance. fewer
+   than k are returned if there are fewer within the radius. same set as
+   geo_search_query_k_nearest when its k-th distance is <= radius_km,
+   but only the latitude band of the radius is searched
+*/
+result_array_t* geo_search_query_k_nearest_within(geo_search_t* search, BC_CPREC center_dlat,
+						   BC_CPREC center_dlon, int k, BC_CPREC radius_km)
+{
+  result_array_t *results;
+  if (!search || k <= 0) return NULL;
+  results = geo_search_query_radius(search, center_dlat, center_dlon, radius_km);
+  if (results && results->count > k)
+    results->count = k;	/* sorted by distance */
+  return results;
 }
 
 result_array_t* geo_search_query_k_nearest(geo_search_t* search,BC_CPREC center_dlat, BC_CPREC center_dlon, int k)

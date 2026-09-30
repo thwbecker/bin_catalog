@@ -36,9 +36,9 @@ void michael_gaus(BC_CPREC *a,int m,BC_CPREC *x,BC_CPREC *b) /* solves ax=b for 
   BC_CPREC d,hold,fact;
   /* take care of special cases */
   if(m < 2){
-    x[1]=0.;
+    x[0]=0.;
     if(m == 1)
-      x[1] = b[1]/a[1];
+      x[0] = b[0]/a[0];
     return;
   }
 
