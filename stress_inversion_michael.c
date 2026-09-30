@@ -247,27 +247,30 @@ static void michael_plane_rows(const BC_CPREC *angles, BC_CPREC a[3][5], BC_CPRE
 /*
    weighted normal equation contribution of one plane:
 
-   ne[0..14]  upper triangle of (w A)^T (w A), row by row
-   ne[15..19] (w A)^T (w s)
+   ne[0..14]  upper triangle of w A^T A, row by row
+   ne[15..19] w A^T s
 
-   as in michael_solve_lsq, rows and data are multiplied by the
-   weight w, i.e. each event enters the least squares misfit with w^2
+   i.e. each event enters the least squares misfit with weight w (an
+   event with w = 2 counts like the same event entered twice). w must
+   not be negative.
 */
 void michael_plane_normal_eq(const BC_CPREC *angles, BC_CPREC w, BC_CPREC *ne)
 {
   BC_CPREC a[3][5],sl[3];
-  int i,j,k,l;
-  michael_plane_rows(angles,a,sl);
-  for(l=0;l < 3;l++){
-    sl[l] *= w;
-    for(k=0;k < 5;k++)
-      a[l][k] *= w;
+  int i,j,k;
+  if(!(w >= 0)){
+    fprintf(stderr,"michael_plane_normal_eq: weight %g invalid, needs to be >= 0\n",w);
+    exit(-1);
   }
+  michael_plane_rows(angles,a,sl);
   for(i=k=0;i < 5;i++)
     for(j=i;j < 5;j++,k++)
       ne[k] = a[0][i]*a[0][j] + a[1][i]*a[1][j] + a[2][i]*a[2][j];
   for(i=0;i < 5;i++)
     ne[15+i] = a[0][i]*sl[0] + a[1][i]*sl[1] + a[2][i]*sl[2];
+  if(w != 1.0)
+    for(k=0;k < BC_MICHAEL_NNE;k++)
+      ne[k] *= w;
 }
 /*
    normal equations for both planes of each of n events:
@@ -327,9 +330,10 @@ void michael_solve_lsq(int npar,int ndim, int nobs, BC_CPREC *amat,
   m = nobs * ndim;
   a2 = (BC_CPREC *)malloc(sizeof(BC_CPREC)*npar*npar);
   cc = (BC_CPREC *)malloc(sizeof(BC_CPREC)*npar);
-  /* rescale with weights */
+  /* rescale with the square root of the weights, so that each event
+     enters the misfit with weight w, as in michael_plane_normal_eq */
   for(i=0;i < nobs;i++){
-    w = weights[i];		/* weight for each observation */
+    w = sqrt(weights[i]);	/* weight for each observation */
     for(j=0;j < ndim;j++){
       moff = i*ndim+j;
       slick[moff] *= w;

@@ -52,7 +52,7 @@ EIGEN_PROGS = $(BDIR)/eigen  \
 	$(BDIR)/eigenvalues3ds 
 
 #
-TEST_PROGS = $(BDIR)/test_eigen 
+TEST_PROGS = $(BDIR)/test_eigen $(BDIR)/test_weights
 
 all: dirs libs progs eigen_progs test_progs
 
@@ -140,6 +140,10 @@ $(BDIR)/eigenvalues3ds: $(ODIR)/eigen.tds.ov.o $(ODIR)/eigen.o
 $(BDIR)/test_eigen: test/test_eigen.c $(CAT_OBJS)
 	$(CC) $(CFLAGS) test/test_eigen.c $(INCLUDES)  $(CAT_OBJS) \
 	-o $(BDIR)/test_eigen  $(EISLIB)   $(LDFLAGS)
+
+$(BDIR)/test_weights: test/test_weights.c $(CAT_OBJS) $(SINV_OBS)
+	$(CC) $(CFLAGS) test/test_weights.c $(INCLUDES)  $(CAT_OBJS) $(SINV_OBS) \
+	-o $(BDIR)/test_weights  $(EISLIB)   $(LDFLAGS)
 
 
 $(ODIR)/eigen.main.o: eigen_driver.c $(HFILES)

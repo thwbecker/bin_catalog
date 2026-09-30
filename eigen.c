@@ -81,15 +81,43 @@ void calc_eigensystem_sym_9(COMP_PRECISION *a,COMP_PRECISION *eval,
 			    BC_BOOLEAN largest_first)
 {
   static int n=3;// dimension, don't use a define since we want to pass n to 'rs'
-  int i,ierr,matz,j;
-  COMP_PRECISION fv1[3],fv2[3],loca[9],xtemp;
+  int i,ierr,matz,j,iexp;
+  COMP_PRECISION fv1[3],fv2[3],loca[9],xtemp,amax,scale;
   //
   // assign the symmetric values of the matrix
   // this is unnecessary, do it for safety
   // (will, however, overwrite the presumed symmetric entries)
   //
   a[EIG_TR]=a[EIG_RT];a[EIG_PR]=a[EIG_RP];a[EIG_PT]=a[EIG_TP];
-  memcpy(loca,a,(size_t)9*sizeof(COMP_PRECISION));
+  /*
+     EISPACK (pythag) does not terminate for non-finite input, so
+     return NaN eigenvalues and vectors in that case
+  */
+  for(i=0;i < 9;i++)
+    if(!finite(a[i])){
+      for(j=0;j < 3;j++)
+	eval[j] = NAN;
+      if(icalc_vectors)
+	for(j=0;j < 9;j++)
+	  evec[j] = NAN;
+      return;
+    }
+  /*
+     scale by a power of two (exact) so that entries are of order
+     unity; very large entries would otherwise overflow inside EISPACK
+     and not terminate either
+  */
+  amax = 0.0;
+  for(i=0;i < 9;i++)
+    if(fabs(a[i]) > amax)
+      amax = fabs(a[i]);
+  scale = 1.0;
+  if(amax > 0){
+    frexp(amax,&iexp);
+    scale = ldexp(1.0,iexp);
+  }
+  for(i=0;i < 9;i++)
+    loca[i] = a[i]/scale;
   //
   // EISPACK matz flag, 0: only eigenvalues, !=0: values + vectors
   matz=(icalc_vectors)?(1):(0);
@@ -101,7 +129,7 @@ void calc_eigensystem_sym_9(COMP_PRECISION *a,COMP_PRECISION *eval,
     exit(-1);
   }
   for(i=0;i < 3;i++){
-    /*  */
+    eval[i] *= scale;
     if(!finite(eval[i]))
       fprintf(stderr,"calc_eigensystem_sym_9: WARNING: eigenvalue %i not finite\n",i);
     if(icalc_vectors){

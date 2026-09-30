@@ -109,5 +109,27 @@ for t in s ds bs;do
 done
 check "bin_catalog stress output reproducible" $same
 
+#
+# 11: eigensystem of non-finite tensors returns (NaN) instead of hanging in EISPACK
+#
+if [ -x $bdir/test_eigen ];then
+    for v in nan inf;do
+	echo "0.3 0.1 0.2 $v 0.4 -1.3" | timeout 10 $bdir/test_eigen > /dev/null 2>&1
+	check "eigensystem of tensor with $v terminates" $( [ $? -eq 0 ] && echo 1 || echo 0)
+    done
+else
+    echo "SKIP: $bdir/test_eigen not built (make test_progs)"
+fi
+
+#
+# 12: event weights in the Michael inversion enter the misfit linearly
+#
+if [ -x $bdir/test_weights ];then
+    $bdir/test_weights > w1.log 2>&1
+    check "Michael inversion event weights" $( [ $? -eq 0 ] && echo 1 || echo 0)
+else
+    echo "SKIP: $bdir/test_weights not built (make test_progs)"
+fi
+
 echo "$nfail failure(s)"
 exit $nfail
