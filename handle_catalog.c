@@ -1609,23 +1609,22 @@ int read_quake_cmt(FILE *in, struct qke *quake, int *valid)
 	    (quake->m+BC_RT),(quake->m+BC_RP),(quake->m+BC_TP),
 	    &(quake->exp),&(quake->plon),&(quake->plat),
 	    &quake->tsec) == 13){
-    if((*valid = use_quake(quake))){
-      quake->lon = BC_D2R(quake->dlon); /* radian versions */
-      quake->lat = BC_D2R(quake->dlat);
-      quake->coslat = cos(quake->lat);  
-      
-      quake->exp -= 7;		/* convert to Nm */
-      
-      quake->m0 = pow(10,(BC_CPREC)quake->exp) * scalar_mom(quake->m);
-      quake->mag = mom2mag(quake->m0);
-      /* 
+    *valid = 1;
+    quake->lon = BC_D2R(quake->dlon); /* radian versions */
+    quake->lat = BC_D2R(quake->dlat);
+    quake->coslat = cos(quake->lat);
+
+    quake->exp -= 7;		/* convert to Nm */
+
+    quake->m0 = pow(10,(BC_CPREC)quake->exp) * scalar_mom(quake->m);
+    quake->mag = mom2mag(quake->m0);
+    /*
 	 compute fault planes (this I checked against psmeca)
-      */
-      tensor2fpangle(quake->m, &(quake->strike), &(quake->dip), &(quake->rake),
+    */
+    tensor2fpangle(quake->m, &(quake->strike), &(quake->dip), &(quake->rake),
 		     &(quake->strike2), &(quake->dip2), &(quake->rake2));
-      
-      //fprintf(stderr,"%i %g %g %g\n",quake->exp,scalar_mom(quake->m),quake->m0,quake->mag);
-    }
+
+    //fprintf(stderr,"%i %g %g %g\n",quake->exp,scalar_mom(quake->m),quake->m0,quake->mag);
     return 1;
   }else{
     *valid = 0;
