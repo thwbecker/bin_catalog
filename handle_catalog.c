@@ -1528,14 +1528,14 @@ void print_quake(FILE *out, struct qke quake, int mode)
 
 /* for a focal mechanism type event, check if the angles flag poor
    solution or some such */
-int use_quake(struct qke *quake)
+int use_quake_based_on_angles(struct qke *quake)
 {
   int valid = 1;
   if((fabs(quake->strike) <  BC_EPSIL)&&(fabs(quake->dip) <  BC_EPSIL)&&
      (fabs(quake->rake) <  BC_EPSIL)){
     valid = 0;
   }
-  if(quake->strike > 360)
+  if((fabs(quake->strike) > 360)||(!finite(quake->strike)))
     valid = 0;
   if(!valid)
     fprintf(stderr,"not using event: %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
@@ -1558,7 +1558,7 @@ int read_quake_aki(FILE *in, struct qke *quake, int *valid)
 	    &(quake->dlon),&(quake->dlat),&(quake->depth),
 	    &(quake->strike),&(quake->dip),&(quake->rake),
 	    &(quake->mag),&(quake->plon),&(quake->plat),&quake->tsec)==10){
-    if(*valid = use_quake(quake)){	     /*  */
+    if(*valid = use_quake_based_on_angles(quake)){	     /*  */
       /* convert */
       quake->strike = BC_D2R(quake->strike); /* strike/dip/rake in radians */
       quake->dip    = BC_D2R(quake->dip);
@@ -1609,7 +1609,8 @@ int read_quake_cmt(FILE *in, struct qke *quake, int *valid)
 	    (quake->m+BC_RT),(quake->m+BC_RP),(quake->m+BC_TP),
 	    &(quake->exp),&(quake->plon),&(quake->plat),
 	    &quake->tsec) == 13){
-    *valid = 1;
+    *valid = 1;			      /* no additional checks here for
+					 now */
     quake->lon = BC_D2R(quake->dlon); /* radian versions */
     quake->lat = BC_D2R(quake->dlat);
     quake->coslat = cos(quake->lat);
@@ -1637,7 +1638,7 @@ int read_quake_eng(FILE *in, struct qke *quake, int *valid)
   if(fscanf(in,"%lf %lf %lf %lf %lf\n",
 	    &(quake->dlon),&(quake->dlat),&(quake->depth),
 	    &(quake->mag),&quake->tsec) == 5){
-    *valid = 1;
+    *valid = 1;			/* no additional checks */
     quake->plon=quake->dlon;
     quake->plat=quake->dlat;
     

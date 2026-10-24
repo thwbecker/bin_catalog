@@ -110,6 +110,7 @@ double gauss_ran(long int *, double);
 double gasdev(long int *);
 FILE *myopen(char *, char *, char *);
 void sincos(double, double *, double *);
+int use_quake_based_on_angles(struct qke *);
 /* m02dcfp.c */
 /* m02mag.c */
 /* merge_catalog.c */
