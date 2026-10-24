@@ -1301,8 +1301,8 @@ int print_catalog(char *filename, struct cat *catalog, int mode)
 int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN compute_dtree)
 {
   FILE *in;
-  int i,n1;
-  int j,ndup,hit,ilim;
+  int i,n1,valid;
+  int j,ndup,hit,ilim,ninvalid;
   long int init_random_seed = -1; /* change to create new numbers */
   static BC_BOOLEAN  check_duplicates = BC_TRUE;
   BC_CPREC dist,build_time;
@@ -1316,42 +1316,47 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
   create_catalog(catalog,init_random_seed);
   /* open file */
   in = myopen(filename,"r","handle_catalog");
-  ndup = 0;
+  ndup = ninvalid = 0;
   /* read quakes */
-  while(read_quake(in,(catalog->quake + catalog->n),mode)){
-    hit = 0;
-    if(check_duplicates){
-      /* look for duplicates within last few */
-      ilim = catalog->n - 30;
-      if(ilim < 0)ilim = 0;
-      n1 = catalog->n - 1;
-      for(i=ilim;(i<n1)&&(!hit);i++){
-	dist = distance(catalog,catalog,i,catalog->n);
-	if((dist < .200) && 	/* horizontal distance, 500 m */
-	   (fabs(catalog->quake[i].depth - catalog->quake[catalog->n].depth) <  BC_DEP_CLOSE) && /* vertical  distance, km */
-	   (fabs(catalog->quake[i].tsec - catalog->quake[catalog->n].tsec) <  BC_TIME_CLOSE)){ /* 0.00025 is <~1 min */
-	  /* 
-	     we found a duplicate 
-	  */
-	  ndup++;
-	  if(fabs(catalog->quake[i].mag - catalog->quake[catalog->n].mag) > 2){
-	    /* notify for large mag difference */
-	    fprintf(stderr,"read_catalog: from %s: duplicate: %i matches %i, hdist: %g vdist: %g tdist: %g\n",
-		    filename,catalog->n+1,i+1,dist,
-		    fabs(catalog->quake[i].depth - catalog->quake[catalog->n].depth),
-		    fabs(catalog->quake[i].tsec - catalog->quake[catalog->n].tsec)/BC_TIME_CLOSE);
-	    fprintf(stderr,"%5i\t",i+1);print_quake(stderr,catalog->quake[i],BC_AKI);
-	    fprintf(stderr,"%5i\t",catalog->n+1);print_quake(stderr,catalog->quake[catalog->n],BC_AKI);
+  while(read_quake(in,(catalog->quake + catalog->n),mode,&valid)){
+    if(!valid){
+      ninvalid++;
+      hit=1;
+    }else{
+      hit = 0;
+      if(check_duplicates){
+	/* look for duplicates within last few */
+	ilim = catalog->n - 30;
+	if(ilim < 0)ilim = 0;
+	n1 = catalog->n - 1;
+	for(i=ilim;(i<n1)&&(!hit);i++){
+	  dist = distance(catalog,catalog,i,catalog->n);
+	  if((dist < .200) && 	/* horizontal distance, 500 m */
+	     (fabs(catalog->quake[i].depth - catalog->quake[catalog->n].depth) <  BC_DEP_CLOSE) && /* vertical  distance, km */
+	     (fabs(catalog->quake[i].tsec - catalog->quake[catalog->n].tsec) <  BC_TIME_CLOSE)){ /* 0.00025 is <~1 min */
+	    /* 
+	       we found a duplicate 
+	    */
+	    ndup++;
+	    if(fabs(catalog->quake[i].mag - catalog->quake[catalog->n].mag) > 2){
+	      /* notify for large mag difference */
+	      fprintf(stderr,"read_catalog: from %s: duplicate: %i matches %i, hdist: %g vdist: %g tdist: %g\n",
+		      filename,catalog->n+1,i+1,dist,
+		      fabs(catalog->quake[i].depth - catalog->quake[catalog->n].depth),
+		      fabs(catalog->quake[i].tsec - catalog->quake[catalog->n].tsec)/BC_TIME_CLOSE);
+	      fprintf(stderr,"%5i\t",i+1);print_quake(stderr,catalog->quake[i],BC_AKI);
+	      fprintf(stderr,"%5i\t",catalog->n+1);print_quake(stderr,catalog->quake[catalog->n],BC_AKI);
+	    }
+	    if(catalog->quake[catalog->n].mag > catalog->quake[i].mag){
+	      /* new magnitude is larger than old, use new one */
+	      copy_quake((catalog->quake+catalog->n),(catalog->quake+i));
+	    }
+	    hit=1;
 	  }
-	  if(catalog->quake[catalog->n].mag > catalog->quake[i].mag){
-	    /* new magnitude is larger than old, use new one */
-	    copy_quake((catalog->quake+catalog->n),(catalog->quake+i));
-	  }
-	  hit=1;
 	}
       }
     }
-    if(!hit){
+    if(!hit){			/* not duplicate and valid */
       /* add a new quake to the catalog */
       catalog->n += 1;
       make_room_for_quake(catalog);
@@ -1415,8 +1420,10 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
 	  catalog->lkm_min,catalog->lkm_max,
 	  (catalog->is_xy)?("Cartesian"):("geographic"));
 
-  if(check_duplicates)
+  if(ndup)
     fprintf(stderr,"read_catalog: found %i duplicates\n",ndup);
+  if(ninvalid)
+    fprintf(stderr,"read_catalog: excluded %i invalid quake entries\n",ninvalid);
   fclose(in);
   if(compute_dtree){
     /* make a KD tree or build a search array */
@@ -1484,17 +1491,17 @@ char *mode_name(int mode)
     exit(-1);
   }
 }
-int read_quake(FILE *in, struct qke *quake, int mode)
+int read_quake(FILE *in, struct qke *quake, int mode, int *valid)
 {
   switch(mode){
   case BC_AKI:
-    return(read_quake_aki(in,quake));
+    return(read_quake_aki(in,quake,valid));
     break;
   case BC_CMT:
-    return(read_quake_cmt(in,quake));
+    return(read_quake_cmt(in,quake,valid));
     break;
   case BC_ENG:
-    return(read_quake_eng(in,quake));
+    return(read_quake_eng(in,quake,valid));
     break;
   default:
     fprintf(stderr,"read_quake: mode %i undefined\n",mode);
@@ -1519,6 +1526,24 @@ void print_quake(FILE *out, struct qke quake, int mode)
   }
 }
 
+/* for a focal mechanism type event, check if the angles flag poor
+   solution or some such */
+int use_quake(struct qke *quake)
+{
+  int valid = 1;
+  if((fabs(quake->strike) <  BC_EPSIL)&&(fabs(quake->dip) <  BC_EPSIL)&&
+     (fabs(quake->rake) <  BC_EPSIL)){
+    valid = 0;
+  }
+  if(quake->strike > 360)
+    valid = 0;
+  if(!valid)
+    fprintf(stderr,"not using event: %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
+	    (quake->dlon),(quake->dlat),(quake->depth),
+	    (quake->strike),(quake->dip),(quake->rake),
+	    (quake->mag),quake->plon,quake->plat,quake->tsec);
+  return valid;
+}
 /* 
    read AKI & Richards format, assume all angles and coordinates are in degree 
    AND LAST COLUMN IS TIME IN SECOND
@@ -1526,52 +1551,45 @@ void print_quake(FILE *out, struct qke quake, int mode)
 //
 // print(lon,lat,dep,str[1],dip[1],rake[1],mag,lon,lat,tsec);
 //
-int read_quake_aki(FILE *in, struct qke *quake)
+int read_quake_aki(FILE *in, struct qke *quake, int *valid)
 {
   BC_CPREC tmp1,tmp2;
   if(fscanf(in,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
 	    &(quake->dlon),&(quake->dlat),&(quake->depth),
 	    &(quake->strike),&(quake->dip),&(quake->rake),
 	    &(quake->mag),&(quake->plon),&(quake->plat),&quake->tsec)==10){
-    if((fabs(quake->strike) <  BC_EPSIL)&&(fabs(quake->dip) <  BC_EPSIL)&&
-       (fabs(quake->rake) <  BC_EPSIL)){
-      fprintf(stderr,"read_quake_aki: ERROR: messed up entry\n");
-      fprintf(stderr,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
-	      (quake->dlon),(quake->dlat),(quake->depth),
-	      (quake->strike),(quake->dip),(quake->rake),
-	      (quake->mag),quake->plon,quake->plat,quake->tsec);
-      exit(-1);
+    if(*valid = use_quake(quake)){	     /*  */
+      /* convert */
+      quake->strike = BC_D2R(quake->strike); /* strike/dip/rake in radians */
+      quake->dip    = BC_D2R(quake->dip);
+      quake->rake   = BC_D2R(quake->rake);
+      
+      quake->plon=quake->dlon;
+      quake->plat=quake->dlat;
+      
+      quake->lon = BC_D2R(quake->dlon); /* radian versions */
+      quake->lat = BC_D2R(quake->dlat);
+      /* get the other plane */
+      find_alt_plane(quake->strike, quake->dip, quake->rake,
+		     &(quake->strike2), &(quake->dip2), &(quake->rake2));
+      if((!finite(quake->strike2))||(!finite(quake->dip2))||(!finite(quake->rake2))){
+	fprintf(stderr,"read_quake_aki: ERROR: auxiliary plane\n");
+	fprintf(stderr,"%g %g %g %g %g %g\n",
+		BC_R2D(quake->strike),  BC_R2D(quake->dip), BC_R2D(quake->rake),
+		BC_R2D(quake->strike2),  BC_R2D(quake->dip2), BC_R2D(quake->rake2));
+	exit(-1);
+      }
+      /* those won't make sense for x-y, but won't hurt */
+      quake->coslat = cos(quake->lat);
+      /*  */
+      /* compute potency */
+      aki2mom(quake->strike,quake->dip,quake->rake,quake->mag,
+	      quake->m,&(quake->m0));
     }
-    
-    /* convert */
-    quake->strike = BC_D2R(quake->strike); /* strike/dip/rake in radians */
-    quake->dip    = BC_D2R(quake->dip);
-    quake->rake   = BC_D2R(quake->rake);
-    
-    quake->plon=quake->dlon;
-    quake->plat=quake->dlat;
-  
-    quake->lon = BC_D2R(quake->dlon); /* radian versions */
-    quake->lat = BC_D2R(quake->dlat);
-    /* get the other plane */
-    find_alt_plane(quake->strike, quake->dip, quake->rake,
-		   &(quake->strike2), &(quake->dip2), &(quake->rake2));
-    if((!finite(quake->strike2))||(!finite(quake->dip2))||(!finite(quake->rake2))){
-      fprintf(stderr,"read_quake_aki: ERROR: auxiliary plane\n");
-      fprintf(stderr,"%g %g %g %g %g %g\n",
-	      BC_R2D(quake->strike),  BC_R2D(quake->dip), BC_R2D(quake->rake),
-	      BC_R2D(quake->strike2),  BC_R2D(quake->dip2), BC_R2D(quake->rake2));
-      exit(-1);
-    }
-    /* those won't make sense for x-y, but won't hurt */
-    quake->coslat = cos(quake->lat);
-    /*  */
-    /* compute potency */
-    aki2mom(quake->strike,quake->dip,quake->rake,quake->mag,
-	    quake->m,&(quake->m0));
-    return 1;
+    return 1;			/* read something, may or may not be valid */
   }else{
-    return 0;
+    *valid = 0;
+    return 0;			/* didn't read */
   }
 }
 /* 
@@ -1583,7 +1601,7 @@ int read_quake_aki(FILE *in, struct qke *quake)
    also compute best fit nodal planes
 
 */
-int read_quake_cmt(FILE *in, struct qke *quake)
+int read_quake_cmt(FILE *in, struct qke *quake, int *valid)
 {
   if(fscanf(in,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %i %lf %lf %lf\n",
 	    &(quake->dlon),&(quake->dlat),&(quake->depth),
@@ -1591,32 +1609,36 @@ int read_quake_cmt(FILE *in, struct qke *quake)
 	    (quake->m+BC_RT),(quake->m+BC_RP),(quake->m+BC_TP),
 	    &(quake->exp),&(quake->plon),&(quake->plat),
 	    &quake->tsec) == 13){
-    quake->lon = BC_D2R(quake->dlon); /* radian versions */
-    quake->lat = BC_D2R(quake->dlat);
-    quake->coslat = cos(quake->lat);  
-
-    quake->exp -= 7;		/* convert to Nm */
-
-    quake->m0 = pow(10,(BC_CPREC)quake->exp) * scalar_mom(quake->m);
-    quake->mag = mom2mag(quake->m0);
-    /* 
-       compute fault planes (this I checked against psmeca)
-    */
-    tensor2fpangle(quake->m, &(quake->strike), &(quake->dip), &(quake->rake),
-		   &(quake->strike2), &(quake->dip2), &(quake->rake2));
-    
-    //fprintf(stderr,"%i %g %g %g\n",quake->exp,scalar_mom(quake->m),quake->m0,quake->mag);
+    if((*valid = use_quake(quake))){
+      quake->lon = BC_D2R(quake->dlon); /* radian versions */
+      quake->lat = BC_D2R(quake->dlat);
+      quake->coslat = cos(quake->lat);  
+      
+      quake->exp -= 7;		/* convert to Nm */
+      
+      quake->m0 = pow(10,(BC_CPREC)quake->exp) * scalar_mom(quake->m);
+      quake->mag = mom2mag(quake->m0);
+      /* 
+	 compute fault planes (this I checked against psmeca)
+      */
+      tensor2fpangle(quake->m, &(quake->strike), &(quake->dip), &(quake->rake),
+		     &(quake->strike2), &(quake->dip2), &(quake->rake2));
+      
+      //fprintf(stderr,"%i %g %g %g\n",quake->exp,scalar_mom(quake->m),quake->m0,quake->mag);
+    }
     return 1;
   }else{
+    *valid = 0;
     return 0;
   }
 }
 /* FORMAT: lon lat depth mw tsec_unix */
-int read_quake_eng(FILE *in, struct qke *quake)
+int read_quake_eng(FILE *in, struct qke *quake, int *valid)
 {
   if(fscanf(in,"%lf %lf %lf %lf %lf\n",
 	    &(quake->dlon),&(quake->dlat),&(quake->depth),
 	    &(quake->mag),&quake->tsec) == 5){
+    *valid = 1;
     quake->plon=quake->dlon;
     quake->plat=quake->dlat;
     
@@ -1627,6 +1649,7 @@ int read_quake_eng(FILE *in, struct qke *quake)
     quake->m0 = mag2mom(quake->mag);
     return 1;
   }else{
+    *valid = 0;
     return 0;
   }
 }
