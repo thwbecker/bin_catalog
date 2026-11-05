@@ -45,6 +45,7 @@ Every program and its options are described in
 | `test/` | regression tests (`run_tests.sh`), unit test sources, a small Southern California test catalog (`test.aki`), reference output |
 | `doc/` | documentation and figures |
 | `old/` | superseded headers kept for reference |
+| `plot_kostrov` | symbolic link to `scripts/plot_kostrov`, kept in the top directory for backward compatibility; the script resolves its own location, so the link works but a copy would not |
 | `bin/`, `objects/` | created by `make`, not tracked |
 
 ## Building
