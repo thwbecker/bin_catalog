@@ -111,8 +111,20 @@
    catalog closeness
 */
 
-#define BC_DEP_CLOSE 0.4 /* vertical  distance, km */
-#define BC_TIME_CLOSE 0.0003 /* 0.00025 is <~1 min */
+/*
+   two entries are treated as the same event if they are closer than
+   these thresholds in horizontal distance [km], depth [km], and
+   origin time [s]. the within-catalog values apply when reading a
+   catalog (read_catalog, compared against the last 30 entries), the
+   merge values when combining two catalogs (merge_catalog). the time
+   threshold is shared. of a pair of duplicates, the larger magnitude
+   is kept.
+*/
+#define BC_DUP_TIME_CLOSE    5.0 /* origin time difference, s */
+#define BC_DUP_HDIST_CLOSE   0.2 /* within catalog: horizontal distance, km */
+#define BC_DUP_DEP_CLOSE     0.4 /* within catalog: depth difference, km */
+#define BC_MERGE_HDIST_CLOSE 1.0 /* merging catalogs: horizontal distance, km */
+#define BC_MERGE_DEP_CLOSE  15.0 /* merging catalogs: depth difference, km */
 
 #define BC_RADIUS 6371.
 

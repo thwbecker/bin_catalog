@@ -1229,9 +1229,9 @@ void print_summed_moment(struct cat *catalog, char *filename)
 
 catalog handling routines
 
-eps is in [km]
-
-first catalog wins
+merge catalogs a and b into c, removing doubles: entries closer than
+eps [km] horizontally, vert_eps [km] in depth, and BC_DUP_TIME_CLOSE
+[s] in origin time. of a double, the larger magnitude is kept.
 */
 
 void merge_catalog(struct cat *a,struct cat *b, struct cat *c,BC_CPREC eps,BC_CPREC vert_eps)
@@ -1248,7 +1248,7 @@ void merge_catalog(struct cat *a,struct cat *b, struct cat *c,BC_CPREC eps,BC_CP
       dist = distance(a,b,i,j);
       if((dist < eps) && 	/* horizontal distance */
 	 (fabs(a->quake[i].depth - b->quake[j].depth) < vert_eps) && /* vertical  distance */
-	 (fabs(a->quake[i].tsec - b->quake[j].tsec) < 0.000125) /* temporal <~ two minutes */
+	 (fabs(a->quake[i].tsec - b->quake[j].tsec) < BC_DUP_TIME_CLOSE) /* origin time, s */
 	 ){
 	/* found BC_CPREC */
 	d++;
@@ -1328,22 +1328,22 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
 	/* look for duplicates within last few */
 	ilim = catalog->n - 30;
 	if(ilim < 0)ilim = 0;
-	n1 = catalog->n - 1;
+	n1 = catalog->n;		/* compare with all of the last 30 entries, including the one just before */
 	for(i=ilim;(i<n1)&&(!hit);i++){
 	  dist = distance(catalog,catalog,i,catalog->n);
-	  if((dist < .200) && 	/* horizontal distance, 500 m */
-	     (fabs(catalog->quake[i].depth - catalog->quake[catalog->n].depth) <  BC_DEP_CLOSE) && /* vertical  distance, km */
-	     (fabs(catalog->quake[i].tsec - catalog->quake[catalog->n].tsec) <  BC_TIME_CLOSE)){ /* 0.00025 is <~1 min */
+	  if((dist < BC_DUP_HDIST_CLOSE) && 	/* horizontal distance, km */
+	     (fabs(catalog->quake[i].depth - catalog->quake[catalog->n].depth) <  BC_DUP_DEP_CLOSE) && /* vertical  distance, km */
+	     (fabs(catalog->quake[i].tsec - catalog->quake[catalog->n].tsec) <  BC_DUP_TIME_CLOSE)){ /* origin time, s */
 	    /* 
 	       we found a duplicate 
 	    */
 	    ndup++;
 	    if(fabs(catalog->quake[i].mag - catalog->quake[catalog->n].mag) > 2){
 	      /* notify for large mag difference */
-	      fprintf(stderr,"read_catalog: from %s: duplicate: %i matches %i, hdist: %g vdist: %g tdist: %g\n",
+	      fprintf(stderr,"read_catalog: from %s: duplicate: %i matches %i, hdist: %g km vdist: %g km tdist: %g s\n",
 		      filename,catalog->n+1,i+1,dist,
 		      fabs(catalog->quake[i].depth - catalog->quake[catalog->n].depth),
-		      fabs(catalog->quake[i].tsec - catalog->quake[catalog->n].tsec)/BC_TIME_CLOSE);
+		      fabs(catalog->quake[i].tsec - catalog->quake[catalog->n].tsec));
 	      fprintf(stderr,"%5i\t",i+1);print_quake(stderr,catalog->quake[i],BC_AKI);
 	      fprintf(stderr,"%5i\t",catalog->n+1);print_quake(stderr,catalog->quake[catalog->n],BC_AKI);
 	    }
@@ -1421,7 +1421,8 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
 	  (catalog->is_xy)?("Cartesian"):("geographic"));
 
   if(ndup)
-    fprintf(stderr,"read_catalog: found %i duplicates\n",ndup);
+    fprintf(stderr,"read_catalog: found %i duplicates (within %g km, %g km depth, %g s), kept the larger magnitude\n",
+	    ndup,BC_DUP_HDIST_CLOSE,BC_DUP_DEP_CLOSE,BC_DUP_TIME_CLOSE);
   if(ninvalid)
     fprintf(stderr,"read_catalog: excluded %i invalid quake entries\n",ninvalid);
   fclose(in);

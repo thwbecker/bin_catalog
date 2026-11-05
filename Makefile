@@ -1,3 +1,13 @@
+#
+# makefile for bin_catalog
+#
+# layout: C sources in src/, headers in include/, EISPACK eigenvalue
+# library in eispack/, test programs and scripts in test/, binaries
+# go to bin/ and object files to objects/
+#
+# targets:  all (default), progs, eigen_progs, test_progs, libs,
+#           test, clean, dist_clean
+#
 #CFLAGS = -g
 #DEBUG_DEF = -DDEBUG
 
@@ -13,12 +23,14 @@ SINCOS_DEF = -DHAVE_SINCOS
 
 DEFINES = $(SINCOS_DEF) $(DEBUG_DEF)
 
-# cproto -f2 *.c | grep -v main > include/proto.h
+# cproto -f2 src/*.c | grep -v main > include/proto.h
 HFILES = include/catalog.h include/proto.h include/eigen.h
 
 LDFLAGS = -lm
-BDIR = bin/
-ODIR = objects/
+SDIR = src
+TDIR = test
+BDIR = bin
+ODIR = objects
 
 ARCH=$(shell uname -m | awk '{print(tolower($$1))}')
 
@@ -71,51 +83,55 @@ libs:
 dirs:
 	mkdir -p $(BDIR) $(ODIR)
 
+# run the regression tests against the binaries in bin/ (needs gawk)
+test: all
+	$(TDIR)/run_tests.sh $(CURDIR)/$(BDIR)
+
 clean:
-	rm $(ODIR)/*
+	rm -f $(ODIR)/*
 
 dist_clean:
-	rm $(BDIR)/*
+	rm -f $(BDIR)/*
 
-$(BDIR)/merge_catalog: merge_catalog.c $(CAT_OBJS) 
-	$(CC) $(CFLAGS) merge_catalog.c  $(INCLUDES)  $(CAT_OBJS) \
+$(BDIR)/merge_catalog: $(SDIR)/merge_catalog.c $(CAT_OBJS) 
+	$(CC) $(CFLAGS) $(SDIR)/merge_catalog.c  $(INCLUDES)  $(CAT_OBJS) \
 	-o $(BDIR)/merge_catalog $(EISLIB)   $(LDFLAGS)
 
 
-$(BDIR)/bin_catalog: bin_catalog.c $(CAT_OBJS)  $(SINV_OBS) include/catalog.h
-	$(CC) $(CFLAGS) bin_catalog.c $(INCLUDES)  $(CAT_OBJS) $(SINV_OBS)  \
+$(BDIR)/bin_catalog: $(SDIR)/bin_catalog.c $(CAT_OBJS)  $(SINV_OBS) include/catalog.h
+	$(CC) $(CFLAGS) $(SDIR)/bin_catalog.c $(INCLUDES)  $(CAT_OBJS) $(SINV_OBS)  \
 	-o $(BDIR)/bin_catalog     $(EISLIB) $(LDFLAGS)
 
-$(BDIR)/calc_aux_plane: calc_aux_plane.c $(CAT_OBJS)  $(SINV_OBS) include/catalog.h
-	$(CC) $(CFLAGS) calc_aux_plane.c $(INCLUDES)  $(CAT_OBJS) $(SINV_OBS)  \
+$(BDIR)/calc_aux_plane: $(SDIR)/calc_aux_plane.c $(CAT_OBJS)  $(SINV_OBS) include/catalog.h
+	$(CC) $(CFLAGS) $(SDIR)/calc_aux_plane.c $(INCLUDES)  $(CAT_OBJS) $(SINV_OBS)  \
 	-o $(BDIR)/calc_aux_plane     $(EISLIB) $(LDFLAGS)
 
-$(BDIR)/nsample_catalog: nsample_catalog.c $(CAT_OBJS)  $(SINV_OBS)  include/catalog.h
-	$(CC) $(CFLAGS) nsample_catalog.c $(INCLUDES)  $(CAT_OBJS)  $(SINV_OBS)  \
+$(BDIR)/nsample_catalog: $(SDIR)/nsample_catalog.c $(CAT_OBJS)  $(SINV_OBS)  include/catalog.h
+	$(CC) $(CFLAGS) $(SDIR)/nsample_catalog.c $(INCLUDES)  $(CAT_OBJS)  $(SINV_OBS)  \
 	-o $(BDIR)/nsample_catalog     $(EISLIB) $(LDFLAGS)
 
-$(BDIR)/psample_catalog: psample_catalog.c $(CAT_OBJS)  $(SINV_OBS)  include/catalog.h
-	$(CC) $(CFLAGS) psample_catalog.c $(INCLUDES)  $(CAT_OBJS)  $(SINV_OBS)  \
+$(BDIR)/psample_catalog: $(SDIR)/psample_catalog.c $(CAT_OBJS)  $(SINV_OBS)  include/catalog.h
+	$(CC) $(CFLAGS) $(SDIR)/psample_catalog.c $(INCLUDES)  $(CAT_OBJS)  $(SINV_OBS)  \
 	-o $(BDIR)/psample_catalog     $(EISLIB) $(LDFLAGS)
 
-$(BDIR)/solve_stress_one_bin: solve_stress_one_bin.c $(CAT_OBJS)  $(SINV_OBS) include/catalog.h
-	$(CC) $(CFLAGS) solve_stress_one_bin.c $(INCLUDES)  $(CAT_OBJS) $(SINV_OBS)  \
+$(BDIR)/solve_stress_one_bin: $(SDIR)/solve_stress_one_bin.c $(CAT_OBJS)  $(SINV_OBS) include/catalog.h
+	$(CC) $(CFLAGS) $(SDIR)/solve_stress_one_bin.c $(INCLUDES)  $(CAT_OBJS) $(SINV_OBS)  \
 	-o $(BDIR)/solve_stress_one_bin     $(EISLIB) $(LDFLAGS)
 
-$(BDIR)/m02mag: m02mag.c $(CAT_OBJS) include/catalog.h  
-	$(CC) $(CFLAGS) m02mag.c $(INCLUDES)   $(CAT_OBJS) \
+$(BDIR)/m02mag: $(SDIR)/m02mag.c $(CAT_OBJS) include/catalog.h  
+	$(CC) $(CFLAGS) $(SDIR)/m02mag.c $(INCLUDES)   $(CAT_OBJS) \
 	-o $(BDIR)/m02mag  $(EISLIB)   $(LDFLAGS)
 
-$(BDIR)/m02dcfp: m02dcfp.c $(CAT_OBJS)    include/catalog.h
-	$(CC) $(CFLAGS) m02dcfp.c $(INCLUDES)  $(CAT_OBJS) \
+$(BDIR)/m02dcfp: $(SDIR)/m02dcfp.c $(CAT_OBJS)    include/catalog.h
+	$(CC) $(CFLAGS) $(SDIR)/m02dcfp.c $(INCLUDES)  $(CAT_OBJS) \
 	-o $(BDIR)/m02dcfp    $(EISLIB)   $(LDFLAGS)
 
-$(BDIR)/calc_gr: calc_gr.c  $(CAT_OBJS)   include/catalog.h
-	$(CC) $(CFLAGS) calc_gr.c $(INCLUDES)  $(CAT_OBJS)  \
+$(BDIR)/calc_gr: $(SDIR)/calc_gr.c  $(CAT_OBJS)   include/catalog.h
+	$(CC) $(CFLAGS) $(SDIR)/calc_gr.c $(INCLUDES)  $(CAT_OBJS)  \
 	-o $(BDIR)/calc_gr     $(EISLIB)  $(LDFLAGS)
 
-$(BDIR)/calc_gr_time: calc_gr_time.c  $(CAT_OBJS)   include/catalog.h
-	$(CC) $(CFLAGS) calc_gr_time.c $(INCLUDES)  $(CAT_OBJS)  \
+$(BDIR)/calc_gr_time: $(SDIR)/calc_gr_time.c  $(CAT_OBJS)   include/catalog.h
+	$(CC) $(CFLAGS) $(SDIR)/calc_gr_time.c $(INCLUDES)  $(CAT_OBJS)  \
 	-o $(BDIR)/calc_gr_time  $(EISLIB)     $(LDFLAGS)
 
 
@@ -137,29 +153,29 @@ $(BDIR)/eigenvalues3ds: $(ODIR)/eigen.tds.ov.o $(ODIR)/eigen.o
 	-o $(BDIR)/eigenvalues3ds \
 	$(EISLIB) $(LDFLAGS) 
 
-$(BDIR)/test_eigen: test/test_eigen.c $(CAT_OBJS)
-	$(CC) $(CFLAGS) test/test_eigen.c $(INCLUDES)  $(CAT_OBJS) \
+$(BDIR)/test_eigen: $(TDIR)/test_eigen.c $(CAT_OBJS)
+	$(CC) $(CFLAGS) $(TDIR)/test_eigen.c $(INCLUDES)  $(CAT_OBJS) \
 	-o $(BDIR)/test_eigen  $(EISLIB)   $(LDFLAGS)
 
-$(BDIR)/test_weights: test/test_weights.c $(CAT_OBJS) $(SINV_OBS)
-	$(CC) $(CFLAGS) test/test_weights.c $(INCLUDES)  $(CAT_OBJS) $(SINV_OBS) \
+$(BDIR)/test_weights: $(TDIR)/test_weights.c $(CAT_OBJS) $(SINV_OBS)
+	$(CC) $(CFLAGS) $(TDIR)/test_weights.c $(INCLUDES)  $(CAT_OBJS) $(SINV_OBS) \
 	-o $(BDIR)/test_weights  $(EISLIB)   $(LDFLAGS)
 
 
-$(ODIR)/eigen.main.o: eigen_driver.c $(HFILES)
-	$(CC) $(CFLAGS) $(DEFINES)$(INCLUDES)  -c eigen_driver.c -o $(ODIR)/eigen.main.o 
+$(ODIR)/eigen.main.o: $(SDIR)/eigen_driver.c $(HFILES)
+	$(CC) $(CFLAGS) $(DEFINES) $(INCLUDES)  -c $(SDIR)/eigen_driver.c -o $(ODIR)/eigen.main.o 
 
-$(ODIR)/eigen.ov.o: eigen_driver.c $(HFILES)
-	$(CC) $(CFLAGS)  $(DEFINES) $(INCLUDES) -c eigen_driver.c -DONLY_VALUES -o $(ODIR)/eigen.ov.o
+$(ODIR)/eigen.ov.o: $(SDIR)/eigen_driver.c $(HFILES)
+	$(CC) $(CFLAGS)  $(DEFINES) $(INCLUDES) -c $(SDIR)/eigen_driver.c -DONLY_VALUES -o $(ODIR)/eigen.ov.o
 
-$(ODIR)/eigen.tds.o: eigen_driver.c $(HFILES)
-	$(CC) $(CFLAGS)  $(DEFINES) $(INCLUDES) -c eigen_driver.c -DTHREED_SYMMETRIC -o $(ODIR)/eigen.tds.o
+$(ODIR)/eigen.tds.o: $(SDIR)/eigen_driver.c $(HFILES)
+	$(CC) $(CFLAGS)  $(DEFINES) $(INCLUDES) -c $(SDIR)/eigen_driver.c -DTHREED_SYMMETRIC -o $(ODIR)/eigen.tds.o
 
-$(ODIR)/eigen.tds.ov.o: eigen_driver.c $(HFILES)
-	$(CC) $(CFLAGS) $(DEFINES) $(INCLUDES)   -c eigen_driver.c -DTHREED_SYMMETRIC \
+$(ODIR)/eigen.tds.ov.o: $(SDIR)/eigen_driver.c $(HFILES)
+	$(CC) $(CFLAGS) $(DEFINES) $(INCLUDES)   -c $(SDIR)/eigen_driver.c -DTHREED_SYMMETRIC \
 		-DONLY_VALUES -o $(ODIR)/eigen.tds.ov.o
 
 
-$(ODIR)/%.o: %.c  $(HFILES)
+$(ODIR)/%.o: $(SDIR)/%.c  $(HFILES)
 	$(CC) $(CFLAGS) $(DEFINES)  $(INCLUDES) -c $< -o $(ODIR)/$*.o
 

@@ -1,0 +1,8 @@
+# build products
+bin/
+objects/
+*.o
+*.a
+# editor and GMT leftovers
+*~
+gmt.history

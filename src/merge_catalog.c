@@ -14,7 +14,10 @@ int main(int argc, char **argv)
 
   
   if(argc != 4){
-    fprintf(stderr,"%s catalog.1.aki catalog.2.aki catalog.merged.aki for doubles, first catalog wins\n",argv[0]);
+    fprintf(stderr,"%s catalog.1.aki catalog.2.aki catalog.merged.aki\n",argv[0]);
+    fprintf(stderr,"\tmerges two AKI catalogs; doubles are entries within %g km horizontally, %g km in depth,\n",
+	    BC_MERGE_HDIST_CLOSE,BC_MERGE_DEP_CLOSE);
+    fprintf(stderr,"\tand %g s in origin time, of which the larger magnitude is kept\n",BC_DUP_TIME_CLOSE);
     exit(-1);
   }
   fprintf(stderr,"%s: merging two catalogs into %s\n",argv[0],argv[3]);
@@ -27,8 +30,8 @@ int main(int argc, char **argv)
     read_catalog(argv[i+1],(catalog+i),BC_AKI,BC_FALSE);
   /* merge catalog */
   create_catalog((catalog+2),-1);
-  /* 1 km slop in horizontal, 15 km in vertical, largest event wins */
-  merge_catalog((catalog),(catalog+1),(catalog+2),1,15);
+  /* thresholds from catalog.h, larger magnitude wins */
+  merge_catalog((catalog),(catalog+1),(catalog+2),BC_MERGE_HDIST_CLOSE,BC_MERGE_DEP_CLOSE);
 
   /* print  */
   print_catalog(argv[3],(catalog+2),BC_AKI);

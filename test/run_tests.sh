@@ -151,6 +151,30 @@ check "bin_catalog rejects inverted magnitude range" $( [ $? -ne 0 ] && echo 1 |
 gawk '{$4=45;$5=60;$6=90;print}' c1.aki > c5.aki	# identical mechanisms
 $bdir/bin_catalog --dx 0.5 $common -l -118 -r -116 -b 33 -t 35 -p 5 -F 2 -o x2 c5.aki > /dev/null 2>&1
 check "identical mechanisms give no stress rows" $( [ ! -s x2.0.5.0.5.s.dat ] && [ ! -s x2.0.5.0.5.bs.dat ] && echo 1 || echo 0)
+#
+# 15: duplicate handling. within one catalog, two entries within 0.2 km,
+#     0.4 km depth, and 5 s are one event (larger magnitude kept); the
+#     same location 6 s apart is two events. merge_catalog treats entries
+#     within 1 km, 15 km depth, and 5 s as doubles.
+#
+cat > d1.aki << EOF2
+-117.000 34.000 8.0 30 60 90 3.0 -117.000 34.000 1000000000
+-117.001 34.000 8.2 30 60 90 3.5 -117.001 34.000 1000000002
+-117.000 34.000 8.0 30 60 90 3.0 -117.000 34.000 1000000008
+EOF2
+$bdir/bin_catalog --dx 0.5 $common -l -118 -r -116 -b 33 -t 35 -o d1 d1.aki 2> d1.log
+check "read_catalog merges duplicate within 5 s" $(grep -c "found 1 duplicates" d1.log)
+check "read_catalog keeps 2 events" $(grep -c "read        2 events" d1.log)
+cat > d2.aki << EOF2
+-117.000 34.000 8.0 30 60 90 3.0 -117.000 34.000 1000000000
+EOF2
+cat > d3.aki << EOF2
+-117.005 34.000 12.0 30 60 90 3.2 -117.005 34.000 1000000003
+-117.500 34.500 8.0 30 60 90 3.0 -117.500 34.500 1000000000
+EOF2
+$bdir/merge_catalog d2.aki d3.aki d4.aki > /dev/null 2>&1
+check "merge_catalog removes cross-catalog double" $( [ $(grep -c . d4.aki) -eq 2 ] && echo 1 || echo 0)
+check "merge_catalog keeps larger magnitude" $(gawk '{if($7==3.2)ok=1}END{print(ok+0)}' d4.aki)
 
 echo "$nfail failure(s)"
 exit $nfail

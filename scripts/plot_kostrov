@@ -48,11 +48,11 @@ tmpn=`mktemp`
 trap "rm -f $tmpn*" EXIT
 #
 #
-my_dir=$(dirname "$(readlink -f "$0")")/	# bin_catalog directory, from the location of this script
+my_dir=$(dirname "$(readlink -f "$0")")/	# scripts/ directory of bin_catalog, from the location of this script
 
-ADIR=$my_dir/awk/			# local awk dir
-SDIR=$my_dir/scripts/			# local script dir
-BDIR=$my_dir/bin/			# bindaries
+ADIR=$my_dir/awk/			# awk helpers, scripts/awk/
+SDIR=$my_dir/			# other scripts (region_parameters), scripts/
+BDIR=$my_dir/../bin/			# binaries, built into bin/ by make
 #
 # region helpers, inlined from awk/reg2*.awk so no external awk files are
 # needed. each takes a GMT region string -Rw/e/s/n; the lat helper takes
