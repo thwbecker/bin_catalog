@@ -11,7 +11,7 @@ if [ ! -s $kfile ];then
 fi
 tmpn=`mktemp`
 trap "rm -f $tmpn*" EXIT
-ADIR=./awk/			# local awk dir
+ADIR=$HOME/progs/src/bin_catalog/awk/			# local awk dir
 #
 # compute norm
 #
