@@ -312,7 +312,7 @@ void sum_kostrov_bins(struct cat *catalog, BC_BOOLEAN do_remove_trace,
 	    /* now redo the summation with the time-weighting */
 	    iquake = kostrov->bin[ibin].quake[jbq];
 	    /* obtain actual calendar time for debugging */
-	    timet=(time_t)catalog->quake[iquake].tsec;ts = *localtime(&timet);
+	    timet=(time_t)catalog->quake[iquake].tsec;ts = *gmtime(&timet);
 	    strftime(tbuf1, sizeof(tbuf1), "%a %Y-%m-%d %H:%M:%S %Z", &ts);
 	    if(trange > 0){	/* more than one event */
 	      tfracl =  (catalog->quake[iquake].tsec-tmin)/trange; /* local time  */
@@ -1406,11 +1406,11 @@ int read_catalog(char *filename, struct cat *catalog, int mode,BC_BOOLEAN comput
 	  (int)catalog->tmin,(int)catalog->tmax,(int)(catalog->tcenter+.5));
 
   // Format time, "ddd yyyy-mm-dd hh:mm:ss zzz"
-  timet=(time_t)catalog->tmin;ts = *localtime(&timet);
+  timet=(time_t)catalog->tmin;ts = *gmtime(&timet);
   strftime(tbuf1, sizeof(tbuf1), "%a %Y-%m-%d %H:%M:%S %Z", &ts);
-  timet=(time_t)catalog->tmax;ts = *localtime(&timet);
+  timet=(time_t)catalog->tmax;ts = *gmtime(&timet);
   strftime(tbuf2, sizeof(tbuf2), "%a %Y-%m-%d %H:%M:%S %Z", &ts);
-  fprintf(stderr,"read_catalog: if in UNIX times, from %s to %s\n",tbuf1,tbuf2);
+  fprintf(stderr,"read_catalog: if in UNIX times (printed as UTC), from %s to %s\n",tbuf1,tbuf2);
 
 	  
   fprintf(stderr,"read_catalog: range is -R%g/%g/%g/%g, depths within %g/%g, magnitude within %g/%g, inferred L: %g/%g km (%s)\n",
